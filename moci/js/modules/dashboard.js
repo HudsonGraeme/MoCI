@@ -83,7 +83,13 @@ export default class DashboardModule {
 			wrapper.id = ext.id;
 			wrapper.style.marginTop = '24px';
 			container.appendChild(wrapper);
-			if (typeof ext.render === 'function') ext.render(wrapper);
+			if (typeof ext.render === 'function') {
+				try {
+					ext.render(wrapper);
+				} catch (err) {
+					console.warn('Addon widget render failed:', ext.id, err);
+				}
+			}
 		}
 	}
 

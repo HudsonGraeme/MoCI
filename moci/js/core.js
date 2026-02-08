@@ -648,20 +648,27 @@ export class OpenWrtCore {
 			for (const [key, val] of Object.entries(sections)) {
 				if (typeof val !== 'object' || val['.type'] !== 'addon') continue;
 				if (val.enabled !== '1') continue;
+				const addonId = val.addon_id;
+				if (!/^[a-zA-Z0-9_-]+$/.test(addonId)) continue;
 				try {
 					const [ms, mr] = await this.ubusCall('file', 'read', {
-						path: `/www/moci/js/addons/${val.addon_id}/manifest.json`
+						path: `/www/moci/js/addons/${addonId}/manifest.json`
 					});
 					if (ms === 0 && mr?.data) {
-						this.addonManifests.set(val.addon_id, JSON.parse(mr.data));
+						this.addonManifests.set(addonId, JSON.parse(mr.data));
 					}
-				} catch {}
+				} catch (err) {
+					console.warn('Failed to load addon manifest:', addonId, err);
+				}
 			}
-		} catch {}
+		} catch (err) {
+			console.warn('Failed to load addon manifests:', err);
+		}
 	}
 
 	async loadAddon(id) {
 		if (this.addons.has(id)) return this.addons.get(id);
+		if (!/^[a-zA-Z0-9_-]+$/.test(id)) return null;
 		try {
 			const module = await import(`./addons/${id}/addon.js`);
 			const instance = new module.default(this);
@@ -702,7 +709,7 @@ export class OpenWrtCore {
 
 	injectAddonNav(id, manifest) {
 		if (!manifest.nav || manifest.nav.placement === 'none') return;
-		if (document.querySelector(`[data-addon="${id}"]`)) return;
+		if (document.querySelector(`a[data-addon="${id}"]`)) return;
 
 		const link = document.createElement('a');
 		link.href = `#${manifest.nav.route}`;

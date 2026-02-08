@@ -1161,8 +1161,8 @@ select.form-input {
 }
 
 .addon-card {
-	background: var(--slate-bg);
-	border: 1px solid var(--slate-border);
+	background: var(--space-gray);
+	border: 1px solid var(--glass-border);
 	border-radius: 8px;
 	padding: 20px;
 	margin-bottom: 16px;
@@ -1179,7 +1179,7 @@ select.form-input {
 
 .addon-card-name {
 	font-weight: 600;
-	color: var(--steel-light);
+	color: var(--starship-steel);
 	font-size: 14px;
 	text-transform: uppercase;
 	letter-spacing: 0.5px;
@@ -1249,7 +1249,7 @@ select.form-input {
 }
 
 .addon-install-details dd {
-	color: var(--steel-light);
+	color: var(--starship-steel);
 	margin: 0;
 }
 
@@ -1262,7 +1262,7 @@ select.form-input {
 .addon-progress {
 	margin-top: 16px;
 	padding: 12px;
-	background: var(--slate-bg);
+	background: var(--space-gray);
 	border-radius: 6px;
 	font-size: 12px;
 	color: var(--steel-muted);

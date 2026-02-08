@@ -18,7 +18,7 @@
 				"network.interface": ["dump"],
 				"network.wireless": ["status"],
 				"uci": ["get"],
-				"file": ["read", "list"],
+				"file": ["read"],
 				"system": ["info", "board"],
 				"luci-rpc": ["getDHCPLeases"],
 				"service": ["list"]

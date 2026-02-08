@@ -1286,12 +1286,14 @@ export default class NetworkModule {
 		const page = document.getElementById('network-page');
 		if (!tabBar || !page) return;
 
+		const safeId = /^[a-z0-9-]+$/;
 		for (const ext of extensions) {
+			if (!safeId.test(ext.id)) continue;
 			const btn = document.createElement('button');
 			btn.className = 'tab-btn';
 			btn.setAttribute('data-tab', ext.id);
 			btn.textContent = ext.label;
-			if (ext.after) {
+			if (ext.after && safeId.test(ext.after)) {
 				const afterBtn = tabBar.querySelector(`[data-tab="${ext.after}"]`);
 				if (afterBtn?.nextSibling) {
 					tabBar.insertBefore(btn, afterBtn.nextSibling);

@@ -96,13 +96,21 @@ export default class AddonsModule {
 			})
 			.join('');
 
+		if (this._installedCleanup) {
+			this._installedCleanup();
+			const idx = this.cleanups.indexOf(this._installedCleanup);
+			if (idx >= 0) this.cleanups.splice(idx, 1);
+		}
 		const cleanup = this.core.delegateActions('installed-addons-list', {
 			enable: id => this.toggleAddon(id, true),
 			disable: id => this.toggleAddon(id, false),
 			update: id => this.updateAddon(id),
 			uninstall: id => this.uninstallAddon(id)
 		});
-		if (cleanup) this.cleanups.push(cleanup);
+		if (cleanup) {
+			this._installedCleanup = cleanup;
+			this.cleanups.push(cleanup);
+		}
 	}
 
 	isAddonEnabled(id) {
@@ -154,21 +162,32 @@ export default class AddonsModule {
 					<div class="addon-card-meta">
 						<span>v${this.core.escapeHtml(a.latestVersion || '?')}</span>
 						${a.author?.name ? `<span>${this.core.escapeHtml(a.author.name)}</span>` : ''}
-						${a.verified ? '<span style="color: var(--neon-green)">Verified</span>' : ''}
+						${a.verified ? '<span style="color: var(--success-green)">Verified</span>' : ''}
 					</div>
 				</div>
 				<div class="addon-card-actions">
 					${
 						this.core.addonManifests.has(a.id)
 							? '<button class="action-btn" disabled>INSTALLED</button>'
-							: `<button class="action-btn" onclick="window._mociAddonInstall('${this.core.escapeHtml(a.repo)}')">INSTALL</button>`
+							: `<button class="action-btn" data-action="install" data-id="${this.core.escapeHtml(a.repo)}">INSTALL</button>`
 					}
 				</div>
 			</div>`
 			)
 			.join('');
 
-		window._mociAddonInstall = url => this.installFromUrl(url);
+		if (this._registryCleanup) {
+			this._registryCleanup();
+			const idx = this.cleanups.indexOf(this._registryCleanup);
+			if (idx >= 0) this.cleanups.splice(idx, 1);
+		}
+		const regCleanup = this.core.delegateActions('registry-addons-list', {
+			install: repo => this.installFromUrl(repo)
+		});
+		if (regCleanup) {
+			this._registryCleanup = regCleanup;
+			this.cleanups.push(regCleanup);
+		}
 	}
 
 	async fetchFromUrl() {
@@ -338,6 +357,17 @@ export default class AddonsModule {
 	async performInstall(manifest, rawBase, githubUrl) {
 		this.core.closeModal('addon-install-modal');
 		const id = manifest.id;
+
+		if (this.core.addonManifests.has(id)) {
+			this.core.showToast('Add-on already installed', 'error');
+			return;
+		}
+
+		if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+			this.core.showToast('Invalid add-on ID', 'error');
+			return;
+		}
+
 		const addonDir = `/www/moci/js/addons/${id}`;
 
 		try {
@@ -349,6 +379,9 @@ export default class AddonsModule {
 			});
 
 			for (const file of manifest.files) {
+				if (/(?:^|\/)\.\.(?:\/|$)/.test(file) || file.startsWith('/') || file.includes('\\')) {
+					throw new Error(`Invalid filename: ${file}`);
+				}
 				const resp = await fetch(`${rawBase}/${file}`);
 				if (!resp.ok) throw new Error(`Failed to fetch ${file}`);
 				const text = await resp.text();
@@ -395,8 +428,6 @@ export default class AddonsModule {
 		const manifest = this.core.addonManifests.get(id);
 		const name = manifest?.name || id;
 
-		this.core.removeAddon(id);
-
 		try {
 			await this.core.ubusCall('file', 'exec', {
 				command: '/bin/rm',
@@ -409,6 +440,7 @@ export default class AddonsModule {
 			await this.core.uciDelete('moci', sectionName);
 			await this.core.uciCommit('moci');
 
+			this.core.removeAddon(id);
 			this.core.showToast(name + ' uninstalled', 'success');
 		} catch (err) {
 			this.core.showToast('Uninstall error: ' + err.message, 'error');
@@ -579,8 +611,9 @@ export default class AddonsModule {
 
 	cleanup() {
 		if (this.subTabs) this.subTabs.cleanup();
-		this.cleanups.filter(Boolean).forEach(fn => fn());
+		for (const fn of this.cleanups) {
+			if (fn) fn();
+		}
 		this.cleanups = [];
-		delete window._mociAddonInstall;
 	}
 }
