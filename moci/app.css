@@ -1267,3 +1267,79 @@ select.form-input {
 	font-size: 12px;
 	color: var(--steel-muted);
 }
+
+.addon-install-section {
+	margin-bottom: 16px;
+	padding: 12px;
+	border-radius: 6px;
+}
+
+.addon-install-section-label {
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	font-weight: 600;
+	margin-bottom: 8px;
+}
+
+.addon-section-verified {
+	background: rgba(226, 226, 229, 0.03);
+	border: 1px solid rgba(226, 226, 229, 0.1);
+}
+
+.addon-section-verified .addon-install-section-label {
+	color: var(--starship-steel);
+}
+
+.addon-section-unverified {
+	background: rgba(255, 184, 0, 0.04);
+	border: 1px solid rgba(255, 184, 0, 0.2);
+}
+
+.addon-section-unverified .addon-install-section-label {
+	color: var(--warning-amber);
+}
+
+.addon-permissions {
+	margin-top: 8px;
+}
+
+.addon-permission-item {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 6px 0;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+	font-size: 12px;
+}
+
+.addon-permission-item:last-child {
+	border-bottom: none;
+}
+
+.addon-permission-scope {
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: 11px;
+	color: var(--starship-steel);
+	background: rgba(226, 226, 229, 0.08);
+	padding: 2px 6px;
+	border-radius: 3px;
+}
+
+.addon-permission-reason {
+	color: var(--steel-muted);
+	font-size: 11px;
+	line-height: 1.4;
+}
+
+.addon-permission-warning {
+	margin-top: 12px;
+	padding: 10px 12px;
+	background: rgba(255, 51, 51, 0.06);
+	border: 1px solid rgba(255, 51, 51, 0.2);
+	border-radius: 4px;
+	font-size: 11px;
+	color: var(--alert-red);
+	line-height: 1.5;
+}

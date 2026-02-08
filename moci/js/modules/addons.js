@@ -73,6 +73,7 @@ export default class AddonsModule {
 		listEl.innerHTML = manifests
 			.map(([id, m]) => {
 				const enabled = this.isAddonEnabled(id);
+				const permCount = this.countPermissions(m);
 				return `<div class="addon-card" data-addon-id="${this.core.escapeHtml(id)}">
 				<div class="addon-card-info">
 					<div class="addon-card-name">${this.core.escapeHtml(m.name || id)}</div>
@@ -81,6 +82,7 @@ export default class AddonsModule {
 						<span>v${this.core.escapeHtml(m.version || '?')}</span>
 						${m.author?.name ? `<span>${this.core.escapeHtml(m.author.name)}</span>` : ''}
 						<span>${enabled ? 'Enabled' : 'Disabled'}</span>
+						${permCount > 0 ? `<span>${permCount} permission${permCount > 1 ? 's' : ''}</span>` : ''}
 					</div>
 				</div>
 				<div class="addon-card-actions">
@@ -107,6 +109,12 @@ export default class AddonsModule {
 		return this.core.addons.has(id);
 	}
 
+	countPermissions(manifest) {
+		const p = manifest.permissions;
+		if (!p) return 0;
+		return (p.uci?.length || 0) + (p.ubus?.length || 0) + (p.files?.length || 0) + (p.exec?.length || 0);
+	}
+
 	async renderBrowse() {
 		await this.fetchRegistry();
 	}
@@ -122,7 +130,8 @@ export default class AddonsModule {
 			this.registryCache = data;
 			this.renderRegistry(data.addons || []);
 		} catch {
-			listEl.innerHTML = '<div style="text-align: center; color: var(--steel-muted)">Could not load registry. You can still install add-ons by URL above.</div>';
+			listEl.innerHTML =
+				'<div style="text-align: center; color: var(--steel-muted)">Could not load registry. You can still install add-ons by URL above.</div>';
 		}
 	}
 
@@ -131,7 +140,8 @@ export default class AddonsModule {
 		if (!listEl) return;
 
 		if (addons.length === 0) {
-			listEl.innerHTML = '<div style="text-align: center; color: var(--steel-muted)">No add-ons available yet</div>';
+			listEl.innerHTML =
+				'<div style="text-align: center; color: var(--steel-muted)">No add-ons available yet</div>';
 			return;
 		}
 
@@ -194,7 +204,11 @@ export default class AddonsModule {
 				const headResp = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/HEAD/manifest.json`);
 				if (!headResp.ok) throw new Error('No manifest.json found in repository');
 				const manifest = await headResp.json();
-				this.showInstallConfirmation(manifest, `https://raw.githubusercontent.com/${owner}/${repo}/HEAD`, githubUrl);
+				this.showInstallConfirmation(
+					manifest,
+					`https://raw.githubusercontent.com/${owner}/${repo}/HEAD`,
+					githubUrl
+				);
 				return;
 			}
 			const manifest = await manifestResp.json();
@@ -218,18 +232,107 @@ export default class AddonsModule {
 		const infoEl = document.getElementById('addon-install-info');
 		if (!infoEl) return;
 
-		infoEl.innerHTML = `<dl class="addon-install-details">
-			<dt>NAME</dt><dd>${this.core.escapeHtml(manifest.name || manifest.id)}</dd>
-			<dt>VERSION</dt><dd>${this.core.escapeHtml(manifest.version || 'unknown')}</dd>
-			<dt>DESCRIPTION</dt><dd>${this.core.escapeHtml(manifest.description || 'No description')}</dd>
-			${manifest.author?.name ? `<dt>AUTHOR</dt><dd>${this.core.escapeHtml(manifest.author.name)}</dd>` : ''}
-			<dt>FILES</dt><dd class="addon-files-list">${manifest.files.map(f => this.core.escapeHtml(f)).join('<br>')}</dd>
-			${manifest.nav?.route ? `<dt>ROUTE</dt><dd>${this.core.escapeHtml(manifest.nav.route)}</dd>` : ''}
-			${manifest.extends?.length ? `<dt>EXTENDS</dt><dd>${manifest.extends.map(e => this.core.escapeHtml(`${e.target} (${e.type})`)).join(', ')}</dd>` : ''}
-		</dl>`;
+		const esc = t => this.core.escapeHtml(t);
+
+		const verifiedSection = `<div class="addon-install-section addon-section-verified">
+			<div class="addon-install-section-label">Verified by MoCI</div>
+			<dl class="addon-install-details">
+				<dt>SOURCE</dt><dd>${esc(githubUrl)}</dd>
+				<dt>INSTALL PATH</dt><dd style="font-family: var(--font-mono); font-size: 12px">/www/moci/js/addons/${esc(manifest.id)}/</dd>
+				<dt>FILES (${manifest.files.length})</dt><dd class="addon-files-list">${manifest.files.map(f => esc(f)).join('<br>')}</dd>
+				${manifest.extends?.length ? `<dt>EXTENDS</dt><dd>${manifest.extends.map(e => esc(`${e.target} (${e.type})`)).join(', ')}</dd>` : ''}
+			</dl>
+		</div>`;
+
+		const unverifiedSection = `<div class="addon-install-section addon-section-unverified">
+			<div class="addon-install-section-label">Provided by add-on</div>
+			<dl class="addon-install-details">
+				<dt>NAME</dt><dd>${esc(manifest.name || manifest.id)}</dd>
+				<dt>VERSION</dt><dd>${esc(manifest.version || 'unknown')}</dd>
+				<dt>DESCRIPTION</dt><dd>${esc(manifest.description || 'No description')}</dd>
+				${manifest.author?.name ? `<dt>AUTHOR</dt><dd>${esc(manifest.author.name)}</dd>` : ''}
+				${manifest.license ? `<dt>LICENSE</dt><dd>${esc(manifest.license)}</dd>` : ''}
+			</dl>
+		</div>`;
+
+		const permissionsSection = this.renderPermissionsSection(manifest);
+
+		infoEl.innerHTML = verifiedSection + unverifiedSection + permissionsSection;
 
 		this._pendingInstallCallback = () => this.performInstall(manifest, rawBase, githubUrl);
 		this.core.openModal('addon-install-modal');
+	}
+
+	renderPermissionsSection(manifest) {
+		const perms = manifest.permissions;
+		if (!perms) return '';
+
+		const esc = t => this.core.escapeHtml(t);
+		const items = [];
+
+		if (perms.uci?.length) {
+			for (const entry of perms.uci) {
+				const name = typeof entry === 'string' ? entry : entry.config;
+				const reason = typeof entry === 'object' && entry.reason ? entry.reason : '';
+				const access = typeof entry === 'object' && entry.access ? entry.access : 'read/write';
+				items.push(`<div class="addon-permission-item">
+					<span class="addon-permission-scope">uci:${esc(name)}</span>
+					<span class="badge badge-info" style="font-size: 9px; padding: 2px 5px">${esc(access)}</span>
+					${reason ? `<span class="addon-permission-reason">${esc(reason)}</span>` : ''}
+				</div>`);
+			}
+		}
+
+		if (perms.ubus?.length) {
+			for (const entry of perms.ubus) {
+				const obj = typeof entry === 'string' ? entry : entry.object;
+				const reason = typeof entry === 'object' && entry.reason ? entry.reason : '';
+				const methods = typeof entry === 'object' && entry.methods ? entry.methods.join(', ') : '*';
+				items.push(`<div class="addon-permission-item">
+					<span class="addon-permission-scope">ubus:${esc(obj)}</span>
+					<span class="badge badge-info" style="font-size: 9px; padding: 2px 5px">${esc(methods)}</span>
+					${reason ? `<span class="addon-permission-reason">${esc(reason)}</span>` : ''}
+				</div>`);
+			}
+		}
+
+		if (perms.files?.length) {
+			for (const entry of perms.files) {
+				const path = typeof entry === 'string' ? entry : entry.path;
+				const reason = typeof entry === 'object' && entry.reason ? entry.reason : '';
+				const access = typeof entry === 'object' && entry.access ? entry.access : 'read';
+				items.push(`<div class="addon-permission-item">
+					<span class="addon-permission-scope">file:${esc(path)}</span>
+					<span class="badge badge-info" style="font-size: 9px; padding: 2px 5px">${esc(access)}</span>
+					${reason ? `<span class="addon-permission-reason">${esc(reason)}</span>` : ''}
+				</div>`);
+			}
+		}
+
+		if (perms.exec?.length) {
+			for (const entry of perms.exec) {
+				const cmd = typeof entry === 'string' ? entry : entry.command;
+				const reason = typeof entry === 'object' && entry.reason ? entry.reason : '';
+				items.push(`<div class="addon-permission-item">
+					<span class="addon-permission-scope">exec:${esc(cmd)}</span>
+					<span class="badge badge-info" style="font-size: 9px; padding: 2px 5px">execute</span>
+					${reason ? `<span class="addon-permission-reason">${esc(reason)}</span>` : ''}
+				</div>`);
+			}
+		}
+
+		if (!items.length) return '';
+
+		const hasExec = perms.exec?.length > 0;
+		const warning = hasExec
+			? `<div class="addon-permission-warning">This add-on requests command execution access. Only install add-ons from sources you trust.</div>`
+			: '';
+
+		return `<div class="addon-install-section addon-section-unverified">
+			<div class="addon-install-section-label">Requested permissions</div>
+			<div class="addon-permissions">${items.join('')}</div>
+			${warning}
+		</div>`;
 	}
 
 	async performInstall(manifest, rawBase, githubUrl) {
@@ -259,6 +362,10 @@ export default class AddonsModule {
 				path: `${addonDir}/manifest.json`,
 				data: JSON.stringify(manifest, null, '\t')
 			});
+
+			if (manifest.permissions) {
+				await this.writeAddonAcl(id, manifest);
+			}
 
 			const sectionName = id.replace(/-/g, '_');
 			await this.core.uciAdd('moci', 'addon', sectionName);
@@ -295,6 +402,8 @@ export default class AddonsModule {
 				command: '/bin/rm',
 				params: ['-rf', `/www/moci/js/addons/${id}`]
 			});
+
+			await this.removeAddonAcl(id);
 
 			const sectionName = id.replace(/-/g, '_');
 			await this.core.uciDelete('moci', sectionName);
@@ -366,6 +475,106 @@ export default class AddonsModule {
 		} catch (err) {
 			this.core.showToast('Update failed: ' + err.message, 'error');
 		}
+	}
+
+	buildAddonAcl(id, manifest) {
+		const perms = manifest.permissions;
+		if (!perms) return null;
+
+		const acl = {
+			description: `ACL for MoCI add-on: ${manifest.name || id}`,
+			read: {},
+			write: {}
+		};
+
+		if (perms.uci?.length) {
+			const readConfigs = [];
+			const writeConfigs = [];
+			for (const entry of perms.uci) {
+				const config = typeof entry === 'string' ? entry : entry.config;
+				const access = typeof entry === 'object' && entry.access ? entry.access : 'read/write';
+				if (access === 'read' || access === 'read/write') readConfigs.push(config);
+				if (access === 'write' || access === 'read/write') writeConfigs.push(config);
+			}
+			if (readConfigs.length) acl.read.uci = readConfigs;
+			if (writeConfigs.length) acl.write.uci = writeConfigs;
+		}
+
+		if (perms.ubus?.length) {
+			const readUbus = {};
+			const writeUbus = {};
+			for (const entry of perms.ubus) {
+				const obj = typeof entry === 'string' ? entry : entry.object;
+				const methods = typeof entry === 'object' && entry.methods ? entry.methods : ['*'];
+				const access = typeof entry === 'object' && entry.access ? entry.access : 'read';
+				if (access === 'read' || access === 'read/write') readUbus[obj] = methods;
+				if (access === 'write' || access === 'read/write') writeUbus[obj] = methods;
+			}
+			if (Object.keys(readUbus).length) acl.read.ubus = readUbus;
+			if (Object.keys(writeUbus).length) acl.write.ubus = writeUbus;
+		}
+
+		if (perms.files?.length) {
+			const readFiles = {};
+			const writeFiles = {};
+			for (const entry of perms.files) {
+				const path = typeof entry === 'string' ? entry : entry.path;
+				const access = typeof entry === 'object' && entry.access ? entry.access : 'read';
+				if (access === 'read' || access === 'read/write') readFiles[path] = ['read'];
+				if (access === 'write' || access === 'read/write') writeFiles[path] = ['write'];
+			}
+			if (Object.keys(readFiles).length) acl.read.file = readFiles;
+			if (Object.keys(writeFiles).length) {
+				acl.write.file = acl.write.file || {};
+				Object.assign(acl.write.file, writeFiles);
+			}
+		}
+
+		if (perms.exec?.length) {
+			if (!acl.write.ubus) acl.write.ubus = {};
+			if (!acl.write.ubus['file']) {
+				acl.write.ubus['file'] = ['exec'];
+			} else if (!acl.write.ubus['file'].includes('exec')) {
+				acl.write.ubus['file'].push('exec');
+			}
+		}
+
+		if (!Object.keys(acl.read).length) delete acl.read;
+		if (!Object.keys(acl.write).length) delete acl.write;
+		if (!acl.read && !acl.write) return null;
+
+		const aclKey = `moci-addon-${id}`;
+		return { [aclKey]: acl };
+	}
+
+	async writeAddonAcl(id, manifest) {
+		const acl = this.buildAddonAcl(id, manifest);
+		if (!acl) return;
+
+		const aclPath = `/usr/share/rpcd/acl.d/moci-addon-${id}.json`;
+		await this.core.ubusCall('file', 'write', {
+			path: aclPath,
+			data: JSON.stringify(acl, null, '\t')
+		});
+		await this.restartRpcd();
+	}
+
+	async removeAddonAcl(id) {
+		const aclPath = `/usr/share/rpcd/acl.d/moci-addon-${id}.json`;
+		await this.core.ubusCall('file', 'exec', {
+			command: '/bin/rm',
+			params: ['-f', aclPath]
+		});
+		await this.restartRpcd();
+	}
+
+	async restartRpcd() {
+		try {
+			await this.core.ubusCall('file', 'exec', {
+				command: '/etc/init.d/rpcd',
+				params: ['restart']
+			});
+		} catch {}
 	}
 
 	cleanup() {
