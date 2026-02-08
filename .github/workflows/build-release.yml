@@ -48,11 +48,16 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Install Node dependencies
-        run: npm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build minified assets
-        run: npm run build
+        run: pnpm run build
 
       - name: Install dependencies
         run: |
