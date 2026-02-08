@@ -13,7 +13,7 @@ include $(INCLUDE_DIR)/package.mk
 define Package/moci
   SECTION:=admin
   CATEGORY:=Administration
-  TITLE:=MoCI - Modern OpenWrt Configuration Interface
+  TITLE:=MoCI - Modern Configuration Interface for OpenWrt
   PKGARCH:=all
   DEPENDS:=+uhttpd +rpcd
 endef

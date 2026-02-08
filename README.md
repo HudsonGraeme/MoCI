@@ -2,7 +2,7 @@
 
 # MoCI
 
-**Modern OpenWrt Configuration Interface**
+**Modern Configuration Interface for OpenWrt**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
