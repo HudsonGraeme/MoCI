@@ -3,17 +3,43 @@
 		"description": "ACL permissions for Based OpenWrt interface",
 		"read": {
 			"file": {
-				"/usr/lib/opkg/status": [ "read" ],
-				"/var/lib/opkg/status": [ "read" ],
-				"/proc/net/dev": [ "read" ],
-				"/proc/net/arp": [ "read" ]
+				"/usr/lib/opkg/status": ["read"],
+				"/var/lib/opkg/status": ["read"],
+				"/proc/net/dev": ["read"],
+				"/proc/net/arp": ["read"],
+				"/proc/stat": ["read"],
+				"/etc/crontabs/root": ["read"],
+				"/etc/dropbear/authorized_keys": ["read"],
+				"/etc/hosts": ["read"],
+				"/tmp/firmware.bin": ["read"],
+				"/tmp/backup.tar.gz": ["read"]
 			},
 			"ubus": {
-				"network.interface": [ "dump" ],
-				"uci": [ "get" ]
+				"network.interface": ["dump"],
+				"network.wireless": ["status"],
+				"uci": ["get"],
+				"file": ["read"],
+				"system": ["info", "board"],
+				"luci-rpc": ["getDHCPLeases"],
+				"service": ["list"]
+			},
+			"uci": ["based"]
+		},
+		"write": {
+			"ubus": {
+				"uci": ["set", "add", "delete", "commit"],
+				"file": ["write", "exec"],
+				"system": ["reboot"],
+				"network.interface": ["up", "down"]
 			},
 			"uci": [
-				"based"
+				"network",
+				"wireless",
+				"firewall",
+				"dhcp",
+				"system",
+				"qos",
+				"ddns"
 			]
 		}
 	}
