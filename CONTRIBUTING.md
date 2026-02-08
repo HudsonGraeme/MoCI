@@ -1,6 +1,6 @@
-# Contributing to Based
+# Contributing to MoCI
 
-Development guide for the Based OpenWrt management interface.
+Development guide for the MoCI OpenWrt management interface.
 
 ---
 
@@ -16,7 +16,7 @@ pnpm dev
 # Auto-deploy to physical router
 pnpm dev:physical 192.168.1.35
 
-# Edit files in custom/ - changes auto-deploy to target
+# Edit files in moci/ - changes auto-deploy to target
 ```
 
 ---
@@ -32,7 +32,7 @@ pnpm dev:physical 192.168.1.35
 ### File Structure
 
 ```
-custom/
+moci/
 ├── index.html         - UI structure + modals
 ├── app.css            - Dark glassmorphic theme
 ├── js/
@@ -51,17 +51,17 @@ scripts/
 └── quick-start.sh     - Automated setup
 
 files/
-└── based.config       - UCI feature flag configuration
+└── moci.config        - UCI feature flag configuration
 ```
 
 ### Modular Architecture
 
-Based uses ES6 modules for better organization and conditional feature loading:
+MoCI uses ES6 modules for better organization and conditional feature loading:
 
 **Core (`core.js`):**
 - Authentication and session management
 - ubus/UCI API wrappers
-- Feature flag loading from `/etc/config/based`
+- Feature flag loading from `/etc/config/moci`
 - Module loading and initialization
 - Shared utilities (formatting, toasts, modals)
 
@@ -72,7 +72,7 @@ Based uses ES6 modules for better organization and conditional feature loading:
 
 **Feature Flags:**
 
-Edit `/etc/config/based` to enable/disable features:
+Edit `/etc/config/moci` to enable/disable features:
 
 ```uci
 config ui 'features'
@@ -160,15 +160,15 @@ ssh-keygen -t ed25519 -f ~/.ssh/router
 ssh-copy-id -i ~/.ssh/router root@192.168.1.1
 
 # Deploy initial files
-scp -r custom/* root@192.168.1.1:/www/custom/
+scp -r moci/* root@192.168.1.1:/www/moci/
 
 # Start auto-deploy to your router IP
 pnpm dev:physical 192.168.1.35
 ```
 
 **How auto-deploy works:**
-- Watches `custom/` directory for changes
-- On save, pipes files via SSH to `/www/custom/`
+- Watches `moci/` directory for changes
+- On save, pipes files via SSH to `/www/moci/`
 - Refresh browser to see changes (no router restart needed)
 
 ### Option 2: QEMU VM
@@ -199,7 +199,7 @@ pnpm dev
   - `4443` → `443` (HTTPS)
 
 **Access:**
-- Web UI: `http://localhost:8080/custom/`
+- Web UI: `http://localhost:8080/moci/`
 - SSH: `ssh -p 2222 root@localhost`
 - Default credentials: `root` / (no password)
 
@@ -254,7 +254,7 @@ Deploy to router without auto-watch.
 pnpm run deploy
 
 # Or manual SCP
-scp -r custom/* root@<router-ip>:/www/custom/
+scp -r moci/* root@<router-ip>:/www/moci/
 ```
 
 ---
@@ -263,7 +263,7 @@ scp -r custom/* root@<router-ip>:/www/custom/
 
 ### 1. Add UI Section
 
-Edit `custom/index.html`:
+Edit `moci/index.html`:
 
 ```html
 <!-- Add tab button -->
@@ -280,7 +280,7 @@ Edit `custom/index.html`:
 
 ### 2. Add Logic
 
-Edit `custom/app.js`:
+Edit `moci/app.js`:
 
 ```javascript
 async loadMyFeature() {
@@ -291,12 +291,10 @@ async loadMyFeature() {
     return;
   }
 
-  // Render data
   document.getElementById('my-data').innerHTML = result.hostname;
 }
 
 showSection(section) {
-  // Add case for your section
   if (section === 'my-feature') {
     this.loadMyFeature();
   }
@@ -305,7 +303,7 @@ showSection(section) {
 
 ### 3. Add Styling
 
-Edit `custom/app.css`:
+Edit `moci/app.css`:
 
 ```css
 #my-feature-section {
@@ -340,10 +338,8 @@ Edit `custom/app.css`:
 
 **Browser DevTools:**
 ```javascript
-// Check session
 localStorage.getItem('sessionId')
 
-// Test ubus call
 fetch('/ubus', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
@@ -369,13 +365,11 @@ logread -f  # Follow system log
 ### Bundle Size
 
 ```bash
-# Check uncompressed sizes
-wc -c custom/*
+wc -c moci/*
 
-# Simulate gzip
-gzip -c custom/index.html | wc -c
-gzip -c custom/app.js | wc -c
-gzip -c custom/app.css | wc -c
+gzip -c moci/index.html | wc -c
+gzip -c moci/app.js | wc -c
+gzip -c moci/app.css | wc -c
 ```
 
 ### Router Impact
@@ -391,28 +385,22 @@ gzip -c custom/app.css | wc -c
 Common objects and methods:
 
 ```javascript
-// System info
 ['system', 'info', {}]
 ['system', 'board', {}]
 
-// Network interfaces
 ['network.interface', 'dump', {}]
 ['network.device', 'status', { name: 'br-lan' }]
 
-// Wireless
 ['network.wireless', 'status', {}]
 
-// UCI configuration
 ['uci', 'get', { config: 'network', section: 'lan' }]
 ['uci', 'set', { config: 'network', section: 'lan', values: {...} }]
 ['uci', 'commit', { config: 'network' }]
 
-// File operations
 ['file', 'read', { path: '/etc/config/network' }]
 ['file', 'write', { path: '/tmp/test', data: 'content', base64: true }]
 ['file', 'exec', { command: '/sbin/reboot', params: [] }]
 
-// DHCP leases
 ['luci-rpc', 'getDHCPLeases', {}]
 ```
 
@@ -424,30 +412,24 @@ Full API: `http://192.168.1.1/ubus` (requires authentication)
 
 ### "Session ID invalid"
 ```bash
-# Clear localStorage
 localStorage.clear()
-# Login again
 ```
 
 ### "Connection refused" (QEMU)
 ```bash
-# VM might be slow to boot
 sleep 60
 curl http://localhost:8080
 ```
 
 ### "Permission denied" (ubus)
 ```bash
-# Check rpcd ACLs
 cat /usr/share/rpcd/acl.d/*
 ```
 
 ### Deploy fails
 ```bash
-# Check SSH key
 ssh -i ~/.ssh/router root@192.168.1.1 "echo test"
 
-# Check watch.js SSH path
 cat scripts/watch.js
 ```
 
@@ -461,14 +443,13 @@ cat scripts/watch.js
 - Async/await over promises
 - No external dependencies
 - Keep functions under 50 lines
-- Comment complex ubus interactions
 
 ---
 
 ## Release Process
 
 1. Test on physical hardware
-2. Check bundle size (`gzip -c custom/* | wc -c`)
+2. Check bundle size (`gzip -c moci/* | wc -c`)
 3. Update version in `package.json`
 4. Create git tag: `git tag v1.x.x`
 5. Push: `git push origin main --tags`
@@ -479,19 +460,19 @@ cat scripts/watch.js
 
 ### What to Avoid
 
-- ❌ Never commit router credentials
-- ❌ Never bypass ubus authentication
-- ❌ Never eval() user input
-- ❌ Never expose session tokens in URLs
-- ❌ Never disable HTTPS in production
+- Never commit router credentials
+- Never bypass ubus authentication
+- Never eval() user input
+- Never expose session tokens in URLs
+- Never disable HTTPS in production
 
 ### Best Practices
 
-- ✅ Use ubus session system
-- ✅ Validate all inputs client + server
-- ✅ Clear sessions on logout
-- ✅ Use UCI for all config changes
-- ✅ Follow OpenWrt ACL patterns
+- Use ubus session system
+- Validate all inputs client + server
+- Clear sessions on logout
+- Use UCI for all config changes
+- Follow OpenWrt ACL patterns
 
 ---
 

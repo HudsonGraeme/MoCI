@@ -1,4 +1,5 @@
 class OpenWrtApp {
+
 	constructor() {
 		this.sessionId = localStorage.getItem('ubus_session');
 		this.pollInterval = null;
@@ -157,17 +158,7 @@ class OpenWrtApp {
 		return el ? el.value.trim() : '';
 	}
 
-	async saveUciConfig({
-		config,
-		section,
-		values,
-		service,
-		modal,
-		successMsg,
-		reload,
-		isAdd = false,
-		addType = 'rule'
-	}) {
+	async saveUciConfig({ config, section, values, service, modal, successMsg, reload, isAdd = false, addType = 'rule' }) {
 		try {
 			if (isAdd) {
 				await this.uciAdd(config, addType, section || `cfg_${addType}_${Date.now()}`, values);
@@ -205,15 +196,10 @@ class OpenWrtApp {
 					jsonrpc: '2.0',
 					id: 1,
 					method: 'call',
-					params: [
-						'00000000000000000000000000000000',
-						'session',
-						'login',
-						{
-							username,
-							password
-						}
-					]
+					params: ['00000000000000000000000000000000', 'session', 'login', {
+						username,
+						password
+					}]
 				})
 			}).then(r => r.json());
 
@@ -272,10 +258,7 @@ class OpenWrtApp {
 			if (hostnameEl) hostnameEl.textContent = boardInfo.hostname || 'OpenWrt';
 			if (uptimeEl) uptimeEl.textContent = this.formatUptime(systemInfo.uptime);
 
-			const memPercent = (
-				((systemInfo.memory.total - systemInfo.memory.free) / systemInfo.memory.total) *
-				100
-			).toFixed(0);
+			const memPercent = ((systemInfo.memory.total - systemInfo.memory.free) / systemInfo.memory.total * 100).toFixed(0);
 			if (memoryEl) memoryEl.textContent = this.formatMemory(systemInfo.memory);
 			if (memoryBarEl) memoryBarEl.style.width = memPercent + '%';
 
@@ -328,8 +311,7 @@ class OpenWrtApp {
 			if (result && result.data) {
 				const content = result.data;
 				const lines = content.split('\n').slice(2);
-				let totalRx = 0,
-					totalTx = 0;
+				let totalRx = 0, totalTx = 0;
 
 				lines.forEach(line => {
 					if (!line.trim()) return;
@@ -376,31 +358,23 @@ class OpenWrtApp {
 			});
 
 			if (status === 0 && result && result.stdout) {
-				const lines = result.stdout
-					.split('\n')
-					.filter(l => l.trim())
-					.slice(-20);
-				const logHtml = lines
-					.map(line => {
-						let className = 'log-line';
-						if (line.toLowerCase().includes('error') || line.toLowerCase().includes('fail')) {
-							className += ' error';
-						} else if (line.toLowerCase().includes('warn')) {
-							className += ' warn';
-						}
-						return `<div class="${className}">${this.escapeHtml(line)}</div>`;
-					})
-					.join('');
-				document.getElementById('system-log').innerHTML =
-					logHtml || '<div class="log-line">No logs available</div>';
+				const lines = result.stdout.split('\n').filter(l => l.trim()).slice(-20);
+				const logHtml = lines.map(line => {
+					let className = 'log-line';
+					if (line.toLowerCase().includes('error') || line.toLowerCase().includes('fail')) {
+						className += ' error';
+					} else if (line.toLowerCase().includes('warn')) {
+						className += ' warn';
+					}
+					return `<div class="${className}">${this.escapeHtml(line)}</div>`;
+				}).join('');
+				document.getElementById('system-log').innerHTML = logHtml || '<div class="log-line">No logs available</div>';
 			} else {
-				document.getElementById('system-log').innerHTML =
-					'<div class="log-line" style="color: var(--steel-muted);">System log not available</div>';
+				document.getElementById('system-log').innerHTML = '<div class="log-line" style="color: var(--steel-muted);">System log not available</div>';
 			}
 		} catch (err) {
 			console.error('Failed to load system log:', err);
-			document.getElementById('system-log').innerHTML =
-				'<div class="log-line" style="color: var(--steel-muted);">System log not available</div>';
+			document.getElementById('system-log').innerHTML = '<div class="log-line" style="color: var(--steel-muted);">System log not available</div>';
 		}
 	}
 
@@ -426,23 +400,18 @@ class OpenWrtApp {
 			const tbody = document.querySelector('#connections-table tbody');
 
 			if (!leases || !leases.dhcp_leases || leases.dhcp_leases.length === 0) {
-				tbody.innerHTML =
-					'<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">No active connections</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">No active connections</td></tr>';
 				return;
 			}
 
-			const rows = leases.dhcp_leases
-				.map(
-					lease => `
+			const rows = leases.dhcp_leases.map(lease => `
 				<tr>
 					<td>${this.escapeHtml(lease.ipaddr || 'Unknown')}</td>
 					<td>${this.escapeHtml(lease.macaddr || 'Unknown')}</td>
 					<td>${this.escapeHtml(lease.hostname || 'Unknown')}</td>
 					<td><span class="badge badge-success">Active</span></td>
 				</tr>
-			`
-				)
-				.join('');
+			`).join('');
 
 			tbody.innerHTML = rows;
 		} catch (err) {
@@ -460,13 +429,11 @@ class OpenWrtApp {
 		if (data.length < 2) return;
 
 		const max = Math.max(...data, 1);
-		const points = data
-			.map((val, i) => {
-				const x = (i / (data.length - 1)) * width;
-				const y = height - (val / max) * height;
-				return `${x},${y}`;
-			})
-			.join(' ');
+		const points = data.map((val, i) => {
+			const x = (i / (data.length - 1)) * width;
+			const y = height - (val / max) * height;
+			return `${x},${y}`;
+		}).join(' ');
 
 		const line = `<polyline class="graph-line" points="${points}" />`;
 		const fill = `<polygon class="graph-fill" points="0,${height} ${points} ${width},${height}" />`;
@@ -496,9 +463,7 @@ class OpenWrtApp {
 
 			let lanIface = interfaces.find(i => i.interface === 'lan' || i.device === 'br-lan');
 			if (!lanIface) {
-				lanIface = interfaces.find(
-					i => i.up && i['ipv4-address'] && i['ipv4-address'].length > 0 && i.interface !== 'loopback'
-				);
+				lanIface = interfaces.find(i => i.up && i['ipv4-address'] && i['ipv4-address'].length > 0 && i.interface !== 'loopback');
 			}
 
 			let internetIface = null;
@@ -580,7 +545,7 @@ class OpenWrtApp {
 		ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
 		ctx.lineWidth = 1;
 		for (let i = 0; i <= 4; i++) {
-			const y = padding + (i * (height - padding * 2)) / 4;
+			const y = padding + (i * (height - padding * 2) / 4);
 			ctx.beginPath();
 			ctx.moveTo(padding, y);
 			ctx.lineTo(width - padding, y);
@@ -592,7 +557,7 @@ class OpenWrtApp {
 		ctx.moveTo(padding, height - padding);
 		downData.forEach((val, i) => {
 			const x = padding + i * stepX;
-			const y = height - padding - (val / max) * (height - padding * 2);
+			const y = height - padding - ((val / max) * (height - padding * 2));
 			ctx.lineTo(x, y);
 		});
 		ctx.lineTo(width - padding, height - padding);
@@ -604,7 +569,7 @@ class OpenWrtApp {
 		ctx.beginPath();
 		downData.forEach((val, i) => {
 			const x = padding + i * stepX;
-			const y = height - padding - (val / max) * (height - padding * 2);
+			const y = height - padding - ((val / max) * (height - padding * 2));
 			if (i === 0) ctx.moveTo(x, y);
 			else ctx.lineTo(x, y);
 		});
@@ -615,7 +580,7 @@ class OpenWrtApp {
 		ctx.moveTo(padding, height - padding);
 		upData.forEach((val, i) => {
 			const x = padding + i * stepX;
-			const y = height - padding - (val / max) * (height - padding * 2);
+			const y = height - padding - ((val / max) * (height - padding * 2));
 			ctx.lineTo(x, y);
 		});
 		ctx.lineTo(width - padding, height - padding);
@@ -627,7 +592,7 @@ class OpenWrtApp {
 		ctx.beginPath();
 		upData.forEach((val, i) => {
 			const x = padding + i * stepX;
-			const y = height - padding - (val / max) * (height - padding * 2);
+			const y = height - padding - ((val / max) * (height - padding * 2));
 			if (i === 0) ctx.moveTo(x, y);
 			else ctx.lineTo(x, y);
 		});
@@ -729,7 +694,7 @@ class OpenWrtApp {
 		const errorEl = document.getElementById('login-error');
 		if (errorEl) {
 			errorEl.textContent = message;
-			setTimeout(() => (errorEl.textContent = ''), 3000);
+			setTimeout(() => errorEl.textContent = '', 3000);
 		}
 	}
 
@@ -745,7 +710,7 @@ class OpenWrtApp {
 	}
 
 	attachEventListeners() {
-		document.getElementById('login-form').addEventListener('submit', async e => {
+		document.getElementById('login-form').addEventListener('submit', async (e) => {
 			e.preventDefault();
 			const username = document.getElementById('username').value;
 			const password = document.getElementById('password').value;
@@ -777,7 +742,7 @@ class OpenWrtApp {
 		});
 
 		document.querySelectorAll('.nav a').forEach(link => {
-			link.addEventListener('click', e => {
+			link.addEventListener('click', (e) => {
 				e.preventDefault();
 				const page = e.target.dataset.page;
 				this.navigateTo(page);
@@ -785,7 +750,7 @@ class OpenWrtApp {
 		});
 
 		document.querySelectorAll('.tab-btn').forEach(btn => {
-			btn.addEventListener('click', e => {
+			btn.addEventListener('click', (e) => {
 				const tabName = e.target.dataset.tab;
 				const page = e.target.closest('.page');
 				this.switchTab(page, tabName);
@@ -868,9 +833,7 @@ class OpenWrtApp {
 			this.openModal('fw-rule-modal');
 		});
 
-		this.setupModal('fw-rule-modal', null, 'close-fw-rule-modal', 'cancel-fw-rule-btn', 'save-fw-rule-btn', () =>
-			this.saveFirewallRule()
-		);
+		this.setupModal('fw-rule-modal', null, 'close-fw-rule-modal', 'cancel-fw-rule-btn', 'save-fw-rule-btn', () => this.saveFirewallRule());
 
 		document.getElementById('add-static-lease-btn').addEventListener('click', () => {
 			this.openStaticLease();
@@ -895,14 +858,7 @@ class OpenWrtApp {
 			this.openModal('dns-entry-modal');
 		});
 
-		this.setupModal(
-			'dns-entry-modal',
-			null,
-			'close-dns-entry-modal',
-			'cancel-dns-entry-btn',
-			'save-dns-entry-btn',
-			() => this.saveDNSEntry()
-		);
+		this.setupModal('dns-entry-modal', null, 'close-dns-entry-modal', 'cancel-dns-entry-btn', 'save-dns-entry-btn', () => this.saveDNSEntry());
 
 		document.getElementById('add-host-entry-btn').addEventListener('click', () => {
 			document.getElementById('edit-host-entry-index').value = '';
@@ -911,14 +867,7 @@ class OpenWrtApp {
 			this.openModal('host-entry-modal');
 		});
 
-		this.setupModal(
-			'host-entry-modal',
-			null,
-			'close-host-entry-modal',
-			'cancel-host-entry-btn',
-			'save-host-entry-btn',
-			() => this.saveHostEntry()
-		);
+		this.setupModal('host-entry-modal', null, 'close-host-entry-modal', 'cancel-host-entry-btn', 'save-host-entry-btn', () => this.saveHostEntry());
 
 		document.getElementById('add-ddns-btn').addEventListener('click', () => {
 			document.getElementById('edit-ddns-section').value = '';
@@ -932,9 +881,7 @@ class OpenWrtApp {
 			this.openModal('ddns-modal');
 		});
 
-		this.setupModal('ddns-modal', null, 'close-ddns-modal', 'cancel-ddns-btn', 'save-ddns-btn', () =>
-			this.saveDDNS()
-		);
+		this.setupModal('ddns-modal', null, 'close-ddns-modal', 'cancel-ddns-btn', 'save-ddns-btn', () => this.saveDDNS());
 
 		document.getElementById('save-qos-config-btn').addEventListener('click', () => {
 			this.saveQoSConfig();
@@ -950,14 +897,7 @@ class OpenWrtApp {
 			this.openModal('qos-rule-modal');
 		});
 
-		this.setupModal(
-			'qos-rule-modal',
-			null,
-			'close-qos-rule-modal',
-			'cancel-qos-rule-btn',
-			'save-qos-rule-btn',
-			() => this.saveQoSRule()
-		);
+		this.setupModal('qos-rule-modal', null, 'close-qos-rule-modal', 'cancel-qos-rule-btn', 'save-qos-rule-btn', () => this.saveQoSRule());
 
 		document.getElementById('generate-wg-keys-btn').addEventListener('click', () => {
 			this.generateWireGuardKeys();
@@ -977,9 +917,7 @@ class OpenWrtApp {
 			this.openModal('wg-peer-modal');
 		});
 
-		this.setupModal('wg-peer-modal', null, 'close-wg-peer-modal', 'cancel-wg-peer-btn', 'save-wg-peer-btn', () =>
-			this.saveWireGuardPeer()
-		);
+		this.setupModal('wg-peer-modal', null, 'close-wg-peer-modal', 'cancel-wg-peer-btn', 'save-wg-peer-btn', () => this.saveWireGuardPeer());
 
 		document.getElementById('add-cron-btn').addEventListener('click', () => {
 			this.openCronJob();
@@ -1113,23 +1051,18 @@ class OpenWrtApp {
 			const tbody = document.querySelector('#interfaces-table tbody');
 
 			if (!result || !result.interface || result.interface.length === 0) {
-				tbody.innerHTML =
-					'<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">No interfaces found</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">No interfaces found</td></tr>';
 				return;
 			}
 
-			const rows = result.interface
-				.map(iface => {
-					const statusBadge = iface.up
-						? '<span class="badge badge-success">UP</span>'
-						: '<span class="badge badge-error">DOWN</span>';
-					const ipaddr =
-						iface['ipv4-address'] && iface['ipv4-address'][0] ? iface['ipv4-address'][0].address : 'N/A';
-					const rxBytes = ((iface.statistics?.rx_bytes || 0) / 1024 / 1024).toFixed(2);
-					const txBytes = ((iface.statistics?.tx_bytes || 0) / 1024 / 1024).toFixed(2);
-					const proto = iface.proto || 'unknown';
+			const rows = result.interface.map(iface => {
+				const statusBadge = iface.up ? '<span class="badge badge-success">UP</span>' : '<span class="badge badge-error">DOWN</span>';
+				const ipaddr = (iface['ipv4-address'] && iface['ipv4-address'][0]) ? iface['ipv4-address'][0].address : 'N/A';
+				const rxBytes = ((iface.statistics?.rx_bytes || 0) / 1024 / 1024).toFixed(2);
+				const txBytes = ((iface.statistics?.tx_bytes || 0) / 1024 / 1024).toFixed(2);
+				const proto = iface.proto || 'unknown';
 
-					return `
+				return `
 					<tr>
 						<td>${this.escapeHtml(iface.interface || 'Unknown')}</td>
 						<td>${this.escapeHtml(proto).toUpperCase()}</td>
@@ -1141,13 +1074,12 @@ class OpenWrtApp {
 						</td>
 					</tr>
 				`;
-				})
-				.join('');
+			}).join('');
 
 			tbody.innerHTML = rows;
 
 			document.querySelectorAll('#interfaces-table .action-link').forEach(link => {
-				link.addEventListener('click', e => {
+				link.addEventListener('click', (e) => {
 					e.preventDefault();
 					const ifaceName = e.target.dataset.iface;
 					this.openInterfaceConfig(ifaceName);
@@ -1156,8 +1088,7 @@ class OpenWrtApp {
 		} catch (err) {
 			console.error('Failed to load network interfaces:', err);
 			const tbody = document.querySelector('#interfaces-table tbody');
-			tbody.innerHTML =
-				'<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">Failed to load interfaces</td></tr>';
+			tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">Failed to load interfaces</td></tr>';
 		}
 	}
 
@@ -1175,7 +1106,7 @@ class OpenWrtApp {
 			document.getElementById('edit-iface-gateway').value = config.values.gateway || '';
 
 			const dns = config.values.dns || [];
-			const dnsStr = Array.isArray(dns) ? dns.join(' ') : dns || '';
+			const dnsStr = Array.isArray(dns) ? dns.join(' ') : (dns || '');
 			document.getElementById('edit-iface-dns').value = dnsStr;
 
 			this.updateStaticConfigVisibility();
@@ -1217,10 +1148,7 @@ class OpenWrtApp {
 				const ipaddr = document.getElementById('edit-iface-ipaddr').value;
 				const netmask = document.getElementById('edit-iface-netmask').value;
 				const gateway = document.getElementById('edit-iface-gateway').value;
-				const dns = document
-					.getElementById('edit-iface-dns')
-					.value.split(/\s+/)
-					.filter(d => d);
+				const dns = document.getElementById('edit-iface-dns').value.split(/\s+/).filter(d => d);
 
 				const staticValues = { proto };
 				if (ipaddr) staticValues.ipaddr = ipaddr;
@@ -1263,8 +1191,7 @@ class OpenWrtApp {
 			const rows = [];
 
 			if (!config || !config.values) {
-				tbody.innerHTML =
-					'<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">No wireless devices found</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">No wireless devices found</td></tr>';
 				return;
 			}
 
@@ -1275,9 +1202,9 @@ class OpenWrtApp {
 					const disabled = sectionData.disabled === '1';
 					const encryption = sectionData.encryption || 'none';
 
-					const statusBadge = disabled
-						? '<span class="badge badge-error">DISABLED</span>'
-						: '<span class="badge badge-success">ENABLED</span>';
+					const statusBadge = disabled ?
+						'<span class="badge badge-error">DISABLED</span>' :
+						'<span class="badge badge-success">ENABLED</span>';
 
 					let radioInfo = await this.getRadioInfo(radio);
 					const channel = radioInfo.channel || 'Auto';
@@ -1299,13 +1226,12 @@ class OpenWrtApp {
 			}
 
 			if (rows.length === 0) {
-				tbody.innerHTML =
-					'<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">No wireless interfaces found</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">No wireless interfaces found</td></tr>';
 			} else {
 				tbody.innerHTML = rows.join('');
 
 				document.querySelectorAll('#wireless-table .action-link').forEach(link => {
-					link.addEventListener('click', e => {
+					link.addEventListener('click', (e) => {
 						e.preventDefault();
 						const section = e.target.dataset.wifiSection;
 						const radio = e.target.dataset.wifiRadio;
@@ -1316,8 +1242,7 @@ class OpenWrtApp {
 		} catch (err) {
 			console.error('Failed to load wireless:', err);
 			const tbody = document.querySelector('#wireless-table tbody');
-			tbody.innerHTML =
-				'<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">Failed to load wireless</td></tr>';
+			tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">Failed to load wireless</td></tr>';
 		}
 	}
 
@@ -1470,8 +1395,7 @@ class OpenWrtApp {
 			const rows = [];
 
 			if (!config || !config.values) {
-				tbody.innerHTML =
-					'<tr><td colspan="7" style="text-align: center; color: var(--steel-muted);">No rules configured</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--steel-muted);">No rules configured</td></tr>';
 				return;
 			}
 
@@ -1484,9 +1408,9 @@ class OpenWrtApp {
 					const destPort = sectionData.dest_port || srcDport;
 					const enabled = sectionData.enabled !== '0';
 
-					const statusBadge = enabled
-						? '<span class="badge badge-success">YES</span>'
-						: '<span class="badge badge-error">NO</span>';
+					const statusBadge = enabled ?
+						'<span class="badge badge-success">YES</span>' :
+						'<span class="badge badge-error">NO</span>';
 
 					rows.push(`
 						<tr>
@@ -1506,13 +1430,12 @@ class OpenWrtApp {
 			}
 
 			if (rows.length === 0) {
-				tbody.innerHTML =
-					'<tr><td colspan="7" style="text-align: center; color: var(--steel-muted);">No rules configured</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--steel-muted);">No rules configured</td></tr>';
 			} else {
 				tbody.innerHTML = rows.join('');
 
 				document.querySelectorAll('#firewall-table .action-link').forEach(link => {
-					link.addEventListener('click', e => {
+					link.addEventListener('click', (e) => {
 						e.preventDefault();
 						const section = e.target.dataset.forwardSection;
 						this.openForwardRule(section);
@@ -1520,7 +1443,7 @@ class OpenWrtApp {
 				});
 
 				document.querySelectorAll('#firewall-table .action-link-danger').forEach(link => {
-					link.addEventListener('click', e => {
+					link.addEventListener('click', (e) => {
 						e.preventDefault();
 						const section = e.target.dataset.forwardDelete;
 						this.deleteForwardRule(section);
@@ -1530,8 +1453,7 @@ class OpenWrtApp {
 		} catch (err) {
 			console.error('Failed to load firewall rules:', err);
 			const tbody = document.querySelector('#firewall-table tbody');
-			tbody.innerHTML =
-				'<tr><td colspan="7" style="text-align: center; color: var(--steel-muted);">Failed to load rules</td></tr>';
+			tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--steel-muted);">Failed to load rules</td></tr>';
 		}
 	}
 
@@ -1790,13 +1712,11 @@ class OpenWrtApp {
 			const tbody = document.querySelector('#dhcp-leases-table tbody');
 
 			if (!result || !result.dhcp_leases || result.dhcp_leases.length === 0) {
-				tbody.innerHTML =
-					'<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">No active leases</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">No active leases</td></tr>';
 			} else {
-				const rows = result.dhcp_leases
-					.map(lease => {
-						const expires = lease.expires ? `${Math.floor(lease.expires / 60)}m` : 'Static';
-						return `
+				const rows = result.dhcp_leases.map(lease => {
+					const expires = lease.expires ? `${Math.floor(lease.expires / 60)}m` : 'Static';
+					return `
 						<tr>
 							<td>${this.escapeHtml(lease.hostname || 'Unknown')}</td>
 							<td>${this.escapeHtml(lease.ipaddr || 'Unknown')}</td>
@@ -1804,8 +1724,7 @@ class OpenWrtApp {
 							<td>${expires}</td>
 						</tr>
 					`;
-					})
-					.join('');
+				}).join('');
 				tbody.innerHTML = rows;
 			}
 
@@ -1825,8 +1744,7 @@ class OpenWrtApp {
 			const rows = [];
 
 			if (!config || !config.values) {
-				tbody.innerHTML =
-					'<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">No static leases</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">No static leases</td></tr>';
 				return;
 			}
 
@@ -1851,13 +1769,12 @@ class OpenWrtApp {
 			}
 
 			if (rows.length === 0) {
-				tbody.innerHTML =
-					'<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">No static leases</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">No static leases</td></tr>';
 			} else {
 				tbody.innerHTML = rows.join('');
 
 				document.querySelectorAll('#dhcp-static-table .action-link').forEach(link => {
-					link.addEventListener('click', e => {
+					link.addEventListener('click', (e) => {
 						e.preventDefault();
 						const section = e.target.dataset.staticLeaseSection;
 						this.openStaticLease(section);
@@ -1865,7 +1782,7 @@ class OpenWrtApp {
 				});
 
 				document.querySelectorAll('#dhcp-static-table .action-link-danger').forEach(link => {
-					link.addEventListener('click', e => {
+					link.addEventListener('click', (e) => {
 						e.preventDefault();
 						const section = e.target.dataset.staticLeaseDelete;
 						this.deleteStaticLease(section);
@@ -1875,8 +1792,7 @@ class OpenWrtApp {
 		} catch (err) {
 			console.error('Failed to load static leases:', err);
 			const tbody = document.querySelector('#dhcp-static-table tbody');
-			tbody.innerHTML =
-				'<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">Failed to load static leases</td></tr>';
+			tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">Failed to load static leases</td></tr>';
 		}
 	}
 
@@ -2011,9 +1927,7 @@ class OpenWrtApp {
 				return;
 			}
 
-			tbody.innerHTML = domains
-				.map(
-					d => `
+			tbody.innerHTML = domains.map(d => `
 				<tr>
 					<td>${this.escapeHtml(d.name)}</td>
 					<td>${this.escapeHtml(d.ip)}</td>
@@ -2022,9 +1936,7 @@ class OpenWrtApp {
 						<button class="action-btn-sm" onclick="app.deleteDNSEntry('${this.escapeHtml(d.section)}')">DELETE</button>
 					</td>
 				</tr>
-			`
-				)
-				.join('');
+			`).join('');
 		} catch (err) {
 			console.error('Failed to load DNS entries:', err);
 			this.showToast('Error', 'Failed to load DNS entries', 'error');
@@ -2094,8 +2006,7 @@ class OpenWrtApp {
 			const tbody = document.querySelector('#hosts-table tbody');
 
 			if (status !== 0 || !result || !result.data) {
-				tbody.innerHTML =
-					'<tr><td colspan="3" style="text-align: center; color: var(--steel-muted);">No host entries</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--steel-muted);">No host entries</td></tr>';
 				return;
 			}
 
@@ -2117,14 +2028,11 @@ class OpenWrtApp {
 			}
 
 			if (hosts.length === 0) {
-				tbody.innerHTML =
-					'<tr><td colspan="3" style="text-align: center; color: var(--steel-muted);">No host entries</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--steel-muted);">No host entries</td></tr>';
 				return;
 			}
 
-			tbody.innerHTML = hosts
-				.map(
-					h => `
+			tbody.innerHTML = hosts.map(h => `
 				<tr>
 					<td>${this.escapeHtml(h.ip)}</td>
 					<td>${this.escapeHtml(h.names)}</td>
@@ -2133,9 +2041,7 @@ class OpenWrtApp {
 						<button class="action-btn-sm" onclick="app.deleteHostEntry(${h.index})">DELETE</button>
 					</td>
 				</tr>
-			`
-				)
-				.join('');
+			`).join('');
 		} catch (err) {
 			console.error('Failed to load hosts entries:', err);
 			this.showToast('Error', 'Failed to load hosts entries', 'error');
@@ -2413,9 +2319,7 @@ class OpenWrtApp {
 				}
 			}
 
-			tbody.innerHTML = rows.length
-				? rows.join('')
-				: '<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">No QoS rules</td></tr>';
+			tbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">No QoS rules</td></tr>';
 		} catch (err) {
 			console.error('Failed to load QoS rules:', err);
 			this.renderEmptyTable(document.querySelector('#qos-rules-table tbody'), 6, 'Failed to load rules');
@@ -2647,9 +2551,7 @@ class OpenWrtApp {
 				document.getElementById('edit-wg-peer-section').value = section;
 				document.getElementById('edit-wg-peer-name').value = peer.description || '';
 				document.getElementById('edit-wg-peer-public-key').value = peer.public_key || '';
-				document.getElementById('edit-wg-peer-allowed-ips').value = peer.allowed_ips
-					? peer.allowed_ips.join(', ')
-					: '';
+				document.getElementById('edit-wg-peer-allowed-ips').value = peer.allowed_ips ? peer.allowed_ips.join(', ') : '';
 				document.getElementById('edit-wg-peer-keepalive').value = peer.persistent_keepalive || '25';
 				document.getElementById('edit-wg-peer-preshared-key').value = peer.preshared_key || '';
 				this.openModal('wg-peer-modal');
@@ -2728,31 +2630,27 @@ class OpenWrtApp {
 			const tbody = document.querySelector('#services-table tbody');
 
 			if (!result || !result.stdout) {
-				tbody.innerHTML =
-					'<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">Failed to load services</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">Failed to load services</td></tr>';
 				return;
 			}
 
-			const services = result.stdout
-				.trim()
-				.split('\n')
-				.filter(s => s && !s.startsWith('README') && !s.includes('rcS') && !s.includes('rc.') && s !== 'boot')
-				.sort();
+			const services = result.stdout.trim().split('\n').filter(s =>
+				s && !s.startsWith('README') && !s.includes('rcS') && !s.includes('rc.') && s !== 'boot'
+			).sort();
 
-			const rows = await Promise.all(
-				services.map(async service => {
-					const enabled = await this.isServiceEnabled(service);
-					const running = await this.isServiceRunning(service);
+			const rows = await Promise.all(services.map(async service => {
+				const enabled = await this.isServiceEnabled(service);
+				const running = await this.isServiceRunning(service);
 
-					const statusBadge = running
-						? '<span class="badge badge-success">RUNNING</span>'
-						: '<span class="badge badge-error">STOPPED</span>';
+				const statusBadge = running ?
+					'<span class="badge badge-success">RUNNING</span>' :
+					'<span class="badge badge-error">STOPPED</span>';
 
-					const enabledBadge = enabled
-						? '<span class="badge badge-success">YES</span>'
-						: '<span class="badge">NO</span>';
+				const enabledBadge = enabled ?
+					'<span class="badge badge-success">YES</span>' :
+					'<span class="badge">NO</span>';
 
-					return `
+				return `
 					<tr>
 						<td>${this.escapeHtml(service)}</td>
 						<td>${statusBadge}</td>
@@ -2765,13 +2663,12 @@ class OpenWrtApp {
 						</td>
 					</tr>
 				`;
-				})
-			);
+			}));
 
 			tbody.innerHTML = rows.join('');
 
 			document.querySelectorAll('#services-table .action-link').forEach(link => {
-				link.addEventListener('click', e => {
+				link.addEventListener('click', (e) => {
 					e.preventDefault();
 					const service = e.target.dataset.service;
 					const action = e.target.dataset.action;
@@ -2781,8 +2678,7 @@ class OpenWrtApp {
 		} catch (err) {
 			console.error('Failed to load services:', err);
 			const tbody = document.querySelector('#services-table tbody');
-			tbody.innerHTML =
-				'<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">Failed to load services</td></tr>';
+			tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">Failed to load services</td></tr>';
 		}
 	}
 
@@ -2854,9 +2750,7 @@ class OpenWrtApp {
 
 					packages.sort((a, b) => a.name.localeCompare(b.name));
 
-					const rows = packages
-						.map(
-							pkg => `
+					const rows = packages.map(pkg => `
 						<tr>
 							<td>${this.escapeHtml(pkg.name)}</td>
 							<td>${this.escapeHtml(pkg.version)}</td>
@@ -2864,14 +2758,12 @@ class OpenWrtApp {
 								<a href="#" class="action-link-danger" data-package="${this.escapeHtml(pkg.name)}">Remove</a>
 							</td>
 						</tr>
-					`
-						)
-						.join('');
+					`).join('');
 
 					tbody.innerHTML = rows;
 
 					document.querySelectorAll('#packages-table .action-link-danger').forEach(link => {
-						link.addEventListener('click', e => {
+						link.addEventListener('click', (e) => {
 							e.preventDefault();
 							const pkg = e.target.dataset.package;
 							this.removePackage(pkg);
@@ -2886,7 +2778,7 @@ class OpenWrtApp {
 					<td colspan="3" style="text-align: left; color: var(--steel-muted); padding: 16px;">
 						<div style="margin-bottom: 12px;">Package viewing requires ACL configuration. Run these commands:</div>
 						<code style="display: block; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 4px; font-size: 11px; line-height: 1.6;">
-							scp rpcd-acl.json root@192.168.1.1:/usr/share/rpcd/acl.d/based-openwrt.json<br>
+							scp rpcd-acl.json root@192.168.1.1:/usr/share/rpcd/acl.d/moci.json<br>
 							ssh root@192.168.1.1 "/etc/init.d/rpcd restart"
 						</code>
 					</td>
@@ -2899,7 +2791,7 @@ class OpenWrtApp {
 					<td colspan="3" style="text-align: left; color: var(--steel-muted); padding: 16px;">
 						<div style="margin-bottom: 12px;">Package viewing requires ACL configuration. Run these commands:</div>
 						<code style="display: block; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 4px; font-size: 11px; line-height: 1.6;">
-							scp rpcd-acl.json root@192.168.1.1:/usr/share/rpcd/acl.d/based-openwrt.json<br>
+							scp rpcd-acl.json root@192.168.1.1:/usr/share/rpcd/acl.d/moci.json<br>
 							ssh root@192.168.1.1 "/etc/init.d/rpcd restart"
 						</code>
 					</td>
@@ -2936,8 +2828,7 @@ class OpenWrtApp {
 			const tbody = document.querySelector('#cron-table tbody');
 
 			if (!result || !result.data) {
-				tbody.innerHTML =
-					'<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">No cron jobs configured</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">No cron jobs configured</td></tr>';
 				return;
 			}
 
@@ -2945,20 +2836,18 @@ class OpenWrtApp {
 			const lines = crontab.split('\n').filter(l => l.trim() && !l.startsWith('#'));
 
 			if (lines.length === 0) {
-				tbody.innerHTML =
-					'<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">No cron jobs configured</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">No cron jobs configured</td></tr>';
 				return;
 			}
 
-			const rows = lines
-				.map((line, idx) => {
-					const disabled = line.trim().startsWith('#');
-					const actualLine = disabled ? line.trim().substring(1) : line;
-					const parts = actualLine.trim().split(/\s+/);
-					const schedule = parts.slice(0, 5).join(' ');
-					const command = parts.slice(5).join(' ');
+			const rows = lines.map((line, idx) => {
+				const disabled = line.trim().startsWith('#');
+				const actualLine = disabled ? line.trim().substring(1) : line;
+				const parts = actualLine.trim().split(/\s+/);
+				const schedule = parts.slice(0, 5).join(' ');
+				const command = parts.slice(5).join(' ');
 
-					return `
+				return `
 					<tr>
 						<td>${this.escapeHtml(schedule)}</td>
 						<td style="max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(command)}</td>
@@ -2969,13 +2858,12 @@ class OpenWrtApp {
 						</td>
 					</tr>
 				`;
-				})
-				.join('');
+			}).join('');
 
 			tbody.innerHTML = rows;
 
 			document.querySelectorAll('#cron-table .action-link').forEach(link => {
-				link.addEventListener('click', e => {
+				link.addEventListener('click', (e) => {
 					e.preventDefault();
 					const idx = parseInt(e.target.dataset.cronIdx);
 					this.openCronJob(idx);
@@ -2983,7 +2871,7 @@ class OpenWrtApp {
 			});
 
 			document.querySelectorAll('#cron-table .action-link-danger').forEach(link => {
-				link.addEventListener('click', e => {
+				link.addEventListener('click', (e) => {
 					e.preventDefault();
 					const idx = parseInt(e.target.dataset.cronIdx);
 					this.deleteCronJob(idx);
@@ -2991,8 +2879,7 @@ class OpenWrtApp {
 			});
 		} catch (err) {
 			console.error('Failed to load cron jobs:', err);
-			document.querySelector('#cron-table tbody').innerHTML =
-				'<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">Failed to load cron jobs</td></tr>';
+			document.querySelector('#cron-table tbody').innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">Failed to load cron jobs</td></tr>';
 		}
 	}
 
@@ -3142,8 +3029,7 @@ class OpenWrtApp {
 			const tbody = document.querySelector('#ssh-keys-table tbody');
 
 			if (!result || !result.data) {
-				tbody.innerHTML =
-					'<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">No SSH keys configured</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">No SSH keys configured</td></tr>';
 				return;
 			}
 
@@ -3151,20 +3037,18 @@ class OpenWrtApp {
 			const lines = keys.split('\n').filter(l => l.trim() && !l.startsWith('#'));
 
 			if (lines.length === 0) {
-				tbody.innerHTML =
-					'<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">No SSH keys configured</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">No SSH keys configured</td></tr>';
 				return;
 			}
 
-			const rows = lines
-				.map((line, idx) => {
-					const parts = line.trim().split(/\s+/);
-					const type = parts[0];
-					const key = parts[1];
-					const comment = parts.slice(2).join(' ') || '';
-					const keyPreview = key.substring(0, 40) + '...';
+			const rows = lines.map((line, idx) => {
+				const parts = line.trim().split(/\s+/);
+				const type = parts[0];
+				const key = parts[1];
+				const comment = parts.slice(2).join(' ') || '';
+				const keyPreview = key.substring(0, 40) + '...';
 
-					return `
+				return `
 					<tr>
 						<td>${this.escapeHtml(type)}</td>
 						<td style="max-width: 400px; font-family: monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(keyPreview)}</td>
@@ -3174,13 +3058,12 @@ class OpenWrtApp {
 						</td>
 					</tr>
 				`;
-				})
-				.join('');
+			}).join('');
 
 			tbody.innerHTML = rows;
 
 			document.querySelectorAll('#ssh-keys-table .action-link-danger').forEach(link => {
-				link.addEventListener('click', e => {
+				link.addEventListener('click', (e) => {
 					e.preventDefault();
 					const idx = parseInt(e.target.dataset.keyIdx);
 					this.deleteSSHKey(idx);
@@ -3188,8 +3071,7 @@ class OpenWrtApp {
 			});
 		} catch (err) {
 			console.error('Failed to load SSH keys:', err);
-			document.querySelector('#ssh-keys-table tbody').innerHTML =
-				'<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">Failed to load SSH keys</td></tr>';
+			document.querySelector('#ssh-keys-table tbody').innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--steel-muted);">Failed to load SSH keys</td></tr>';
 		}
 	}
 
@@ -3220,9 +3102,7 @@ class OpenWrtApp {
 
 		lines.forEach((line, idx) => {
 			const trimmed = line.trim();
-			const match = trimmed.match(
-				/^(ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521|ssh-dss)\s+([A-Za-z0-9+\/=]+)(\s+(.*))?$/
-			);
+			const match = trimmed.match(/^(ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521|ssh-dss)\s+([A-Za-z0-9+\/=]+)(\s+(.*))?$/);
 
 			if (match) {
 				const type = match[1];
@@ -3247,10 +3127,9 @@ class OpenWrtApp {
 		const previewDiv = document.getElementById('parsed-keys-preview');
 		const listDiv = document.getElementById('parsed-keys-list');
 
-		listDiv.innerHTML = validKeys
-			.map((key, idx) => {
-				const keyPreview = key.key.substring(0, 40) + '...';
-				return `
+		listDiv.innerHTML = validKeys.map((key, idx) => {
+			const keyPreview = key.key.substring(0, 40) + '...';
+			return `
 				<div style="display: flex; align-items: start; gap: 12px; padding: 12px; background: var(--slate-bg); border-radius: 4px; margin-bottom: 8px;">
 					<input type="checkbox" id="key-checkbox-${idx}" checked style="margin-top: 4px;">
 					<div style="flex: 1;">
@@ -3262,8 +3141,7 @@ class OpenWrtApp {
 					</div>
 				</div>
 			`;
-			})
-			.join('');
+		}).join('');
 
 		if (invalidLines.length > 0) {
 			listDiv.innerHTML += `
@@ -3317,11 +3195,7 @@ class OpenWrtApp {
 				mode: '0600'
 			});
 
-			this.showToast(
-				'Success',
-				`Added ${selectedKeys.length} SSH key${selectedKeys.length > 1 ? 's' : ''}`,
-				'success'
-			);
+			this.showToast('Success', `Added ${selectedKeys.length} SSH key${selectedKeys.length > 1 ? 's' : ''}`, 'success');
 			this.closeSSHKey();
 			setTimeout(() => this.loadSSHKeys(), 1000);
 		} catch (err) {
@@ -3380,35 +3254,30 @@ class OpenWrtApp {
 			const chartsContainer = document.getElementById('storage-charts');
 
 			if (status !== 0 || !result || !result.result) {
-				tbody.innerHTML =
-					'<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">Failed to load mount points</td></tr>';
-				chartsContainer.innerHTML =
-					'<div style="color: var(--steel-muted); text-align: center; padding: 24px;">Failed to load storage data</div>';
+				tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">Failed to load mount points</td></tr>';
+				chartsContainer.innerHTML = '<div style="color: var(--steel-muted); text-align: center; padding: 24px;">Failed to load storage data</div>';
 				return;
 			}
 
 			const mounts = result.result;
 
 			if (!mounts || mounts.length === 0) {
-				tbody.innerHTML =
-					'<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">No mount points found</td></tr>';
-				chartsContainer.innerHTML =
-					'<div style="color: var(--steel-muted); text-align: center; padding: 24px;">No storage data available</div>';
+				tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">No mount points found</td></tr>';
+				chartsContainer.innerHTML = '<div style="color: var(--steel-muted); text-align: center; padding: 24px;">No storage data available</div>';
 				return;
 			}
 
-			const charts = mounts
-				.map(m => {
-					const size = this.formatBytes(m.size);
-					const used = this.formatBytes(m.size - m.avail);
-					const available = this.formatBytes(m.avail);
-					const percent = m.size > 0 ? Math.round(((m.size - m.avail) / m.size) * 100) : 0;
+			const charts = mounts.map(m => {
+				const size = this.formatBytes(m.size);
+				const used = this.formatBytes(m.size - m.avail);
+				const available = this.formatBytes(m.avail);
+				const percent = m.size > 0 ? Math.round((m.size - m.avail) / m.size * 100) : 0;
 
-					let barClass = '';
-					if (percent > 90) barClass = 'critical';
-					else if (percent > 75) barClass = 'warning';
+				let barClass = '';
+				if (percent > 90) barClass = 'critical';
+				else if (percent > 75) barClass = 'warning';
 
-					return `
+				return `
 					<div class="storage-chart-item">
 						<div class="storage-chart-header">${this.escapeHtml(m.device)}</div>
 						<div class="storage-chart-mount">${this.escapeHtml(m.mount)}</div>
@@ -3422,19 +3291,17 @@ class OpenWrtApp {
 						</div>
 					</div>
 				`;
-				})
-				.join('');
+			}).join('');
 
 			chartsContainer.innerHTML = charts;
 
-			const rows = mounts
-				.map(m => {
-					const size = this.formatBytes(m.size);
-					const used = this.formatBytes(m.size - m.avail);
-					const available = this.formatBytes(m.avail);
-					const percent = m.size > 0 ? Math.round(((m.size - m.avail) / m.size) * 100) : 0;
+			const rows = mounts.map(m => {
+				const size = this.formatBytes(m.size);
+				const used = this.formatBytes(m.size - m.avail);
+				const available = this.formatBytes(m.avail);
+				const percent = m.size > 0 ? Math.round((m.size - m.avail) / m.size * 100) : 0;
 
-					return `
+				return `
 					<tr>
 						<td style="font-family: monospace; font-size: 12px;">${this.escapeHtml(m.device)}</td>
 						<td style="font-family: monospace;">${this.escapeHtml(m.mount)}</td>
@@ -3444,16 +3311,13 @@ class OpenWrtApp {
 						<td>${available}</td>
 					</tr>
 				`;
-				})
-				.join('');
+			}).join('');
 
 			tbody.innerHTML = rows;
 		} catch (err) {
 			console.error('Failed to load mount points:', err);
-			document.querySelector('#mounts-table tbody').innerHTML =
-				'<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">Failed to load mount points</td></tr>';
-			document.getElementById('storage-charts').innerHTML =
-				'<div style="color: var(--steel-muted); text-align: center; padding: 24px;">Failed to load storage data</div>';
+			document.querySelector('#mounts-table tbody').innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--steel-muted);">Failed to load mount points</td></tr>';
+			document.getElementById('storage-charts').innerHTML = '<div style="color: var(--steel-muted); text-align: center; padding: 24px;">Failed to load storage data</div>';
 		}
 	}
 
@@ -3464,26 +3328,23 @@ class OpenWrtApp {
 			const tbody = document.querySelector('#led-table tbody');
 
 			if (status !== 0 || !result) {
-				tbody.innerHTML =
-					'<tr><td colspan="3" style="text-align: center; color: var(--steel-muted);">Failed to load LEDs</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--steel-muted);">Failed to load LEDs</td></tr>';
 				return;
 			}
 
 			const leds = Object.entries(result);
 
 			if (leds.length === 0) {
-				tbody.innerHTML =
-					'<tr><td colspan="3" style="text-align: center; color: var(--steel-muted);">No LEDs found</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--steel-muted);">No LEDs found</td></tr>';
 				return;
 			}
 
-			const rows = leds
-				.map(([name, info]) => {
-					const trigger = info.active_trigger || 'none';
-					const brightness = info.brightness || 0;
-					const status = brightness > 0 ? 'ON' : 'OFF';
+			const rows = leds.map(([name, info]) => {
+				const trigger = info.active_trigger || 'none';
+				const brightness = info.brightness || 0;
+				const status = brightness > 0 ? 'ON' : 'OFF';
 
-					return `
+				return `
 					<tr>
 						<td>${this.escapeHtml(name)}</td>
 						<td>${this.escapeHtml(trigger)}</td>
@@ -3492,14 +3353,12 @@ class OpenWrtApp {
 						</td>
 					</tr>
 				`;
-				})
-				.join('');
+			}).join('');
 
 			tbody.innerHTML = rows;
 		} catch (err) {
 			console.error('Failed to load LEDs:', err);
-			document.querySelector('#led-table tbody').innerHTML =
-				'<tr><td colspan="3" style="text-align: center; color: var(--steel-muted);">Failed to load LEDs</td></tr>';
+			document.querySelector('#led-table tbody').innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--steel-muted);">Failed to load LEDs</td></tr>';
 		}
 	}
 
@@ -3581,10 +3440,7 @@ class OpenWrtApp {
 	}
 
 	async resetToDefaults() {
-		if (
-			!confirm('Reset all settings to factory defaults? This will ERASE ALL CONFIGURATION and reboot the router.')
-		)
-			return;
+		if (!confirm('Reset all settings to factory defaults? This will ERASE ALL CONFIGURATION and reboot the router.')) return;
 		if (!confirm('Are you ABSOLUTELY SURE? This cannot be undone!')) return;
 
 		try {
@@ -3728,14 +3584,10 @@ class OpenWrtApp {
 				});
 			});
 
-			output.innerHTML =
-				'<div class="log-line" style="color: #00ff00;">WOL packet sent successfully to ' +
-				this.escapeHtml(mac) +
-				'</div>';
+			output.innerHTML = '<div class="log-line" style="color: #00ff00;">WOL packet sent successfully to ' + this.escapeHtml(mac) + '</div>';
 			this.showToast('Success', 'Wake-on-LAN packet sent', 'success');
 		} catch (err) {
-			output.innerHTML =
-				'<div class="log-line error">Failed to send WOL packet. Make sure etherwake or wol package is installed.</div>';
+			output.innerHTML = '<div class="log-line error">Failed to send WOL packet. Make sure etherwake or wol package is installed.</div>';
 			this.showToast('Error', 'Failed to send WOL packet', 'error');
 		}
 	}
@@ -3751,7 +3603,7 @@ class OpenWrtApp {
 			fileInput.click();
 		});
 
-		fileUploadArea.addEventListener('dragover', e => {
+		fileUploadArea.addEventListener('dragover', (e) => {
 			e.preventDefault();
 			fileUploadArea.style.borderColor = 'var(--neon-cyan)';
 			fileUploadArea.style.background = 'rgba(0, 255, 255, 0.05)';
@@ -3762,7 +3614,7 @@ class OpenWrtApp {
 			fileUploadArea.style.background = 'transparent';
 		});
 
-		fileUploadArea.addEventListener('drop', e => {
+		fileUploadArea.addEventListener('drop', (e) => {
 			e.preventDefault();
 			fileUploadArea.style.borderColor = 'var(--slate-border)';
 			fileUploadArea.style.background = 'transparent';
@@ -3774,7 +3626,7 @@ class OpenWrtApp {
 			}
 		});
 
-		fileInput.addEventListener('change', e => {
+		fileInput.addEventListener('change', (e) => {
 			const file = e.target.files[0];
 			if (file) {
 				fileUploadText.innerHTML = `Selected: <span style="color: var(--neon-cyan);">${this.escapeHtml(file.name)}</span> (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
@@ -3806,7 +3658,7 @@ class OpenWrtApp {
 			this.showToast('Info', 'Validating firmware...', 'info');
 
 			const reader = new FileReader();
-			reader.onload = async e => {
+			reader.onload = async (e) => {
 				try {
 					const arrayBuffer = e.target.result;
 					const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
@@ -3828,18 +3680,11 @@ class OpenWrtApp {
 						detailsDiv.innerHTML = `
 							<div style="color: var(--neon-green); margin-bottom: 8px;">✓ Firmware image is valid</div>
 							<div style="margin-left: 16px;">
-								${
-									result.tests
-										? Object.entries(result.tests)
-												.map(
-													([test, passed]) =>
-														`<div style="color: ${passed ? 'var(--neon-green)' : 'var(--neon-red)'};">
+								${result.tests ? Object.entries(result.tests).map(([test, passed]) =>
+									`<div style="color: ${passed ? 'var(--neon-green)' : 'var(--neon-red)'};">
 										${passed ? '✓' : '✗'} ${test}
 									</div>`
-												)
-												.join('')
-										: ''
-								}
+								).join('') : ''}
 							</div>
 						`;
 						infoDiv.style.display = 'block';
@@ -3848,22 +3693,15 @@ class OpenWrtApp {
 					} else {
 						detailsDiv.innerHTML = `
 							<div style="color: var(--neon-red);">✗ Firmware image validation failed</div>
-							${
-								result && result.tests
-									? `
+							${result && result.tests ? `
 								<div style="margin-left: 16px; margin-top: 8px;">
-									${Object.entries(result.tests)
-										.map(
-											([test, passed]) =>
-												`<div style="color: ${passed ? 'var(--neon-green)' : 'var(--neon-red)'};">
+									${Object.entries(result.tests).map(([test, passed]) =>
+										`<div style="color: ${passed ? 'var(--neon-green)' : 'var(--neon-red)'};">
 											${passed ? '✓' : '✗'} ${test}
 										</div>`
-										)
-										.join('')}
+									).join('')}
 								</div>
-							`
-									: ''
-							}
+							` : ''}
 						`;
 						infoDiv.style.display = 'block';
 						this.showToast('Error', 'Firmware validation failed', 'error');
@@ -3884,13 +3722,9 @@ class OpenWrtApp {
 	async flashFirmware() {
 		const keepSettings = document.getElementById('keep-settings').checked;
 
-		if (
-			!confirm(
-				'⚠ WARNING: This will upgrade the firmware and reboot the device.\n\n' +
-					(keepSettings ? 'Settings will be preserved.' : 'Settings will be reset to defaults.') +
-					'\n\nDo you want to continue?'
-			)
-		) {
+		if (!confirm('⚠ WARNING: This will upgrade the firmware and reboot the device.\n\n' +
+			(keepSettings ? 'Settings will be preserved.' : 'Settings will be reset to defaults.') +
+			'\n\nDo you want to continue?')) {
 			return;
 		}
 
@@ -3905,37 +3739,31 @@ class OpenWrtApp {
 			document.getElementById('flash-firmware-btn').disabled = true;
 			document.getElementById('firmware-file').disabled = true;
 
-			const command = keepSettings
-				? '/sbin/sysupgrade /tmp/firmware.bin'
-				: '/sbin/sysupgrade -n /tmp/firmware.bin';
+			const command = keepSettings ?
+				'/sbin/sysupgrade /tmp/firmware.bin' :
+				'/sbin/sysupgrade -n /tmp/firmware.bin';
 
 			statusDiv.innerHTML += '<div style="color: var(--steel-light);">Flashing firmware...</div>';
-			statusDiv.innerHTML +=
-				'<div style="color: var(--steel-muted); font-size: 11px;">This may take several minutes. Do not power off the device.</div>';
+			statusDiv.innerHTML += '<div style="color: var(--steel-muted); font-size: 11px;">This may take several minutes. Do not power off the device.</div>';
 
 			await this.ubusCall('file', 'exec', {
 				command: '/sbin/sysupgrade',
 				params: keepSettings ? ['/tmp/firmware.bin'] : ['-n', '/tmp/firmware.bin']
 			});
 
-			statusDiv.innerHTML +=
-				'<div style="color: var(--neon-green); margin-top: 12px;">✓ Firmware flashed successfully</div>';
+			statusDiv.innerHTML += '<div style="color: var(--neon-green); margin-top: 12px;">✓ Firmware flashed successfully</div>';
 			statusDiv.innerHTML += '<div style="color: var(--steel-light);">Device is rebooting...</div>';
-			statusDiv.innerHTML +=
-				'<div style="color: var(--steel-muted); font-size: 11px; margin-top: 8px;">The device will be available in approximately 2-3 minutes.</div>';
+			statusDiv.innerHTML += '<div style="color: var(--steel-muted); font-size: 11px; margin-top: 8px;">The device will be available in approximately 2-3 minutes.</div>';
 
 			this.showToast('Success', 'Firmware upgrade initiated', 'success');
 
 			setTimeout(() => {
-				statusDiv.innerHTML +=
-					'<div style="color: var(--steel-light); margin-top: 12px;">Waiting for device to come back online...</div>';
+				statusDiv.innerHTML += '<div style="color: var(--steel-light); margin-top: 12px;">Waiting for device to come back online...</div>';
 			}, 5000);
+
 		} catch (err) {
 			console.error('Failed to flash firmware:', err);
-			document.getElementById('upgrade-status').innerHTML +=
-				'<div style="color: var(--neon-red); margin-top: 12px;">✗ Firmware upgrade failed: ' +
-				this.escapeHtml(err.message) +
-				'</div>';
+			document.getElementById('upgrade-status').innerHTML += '<div style="color: var(--neon-red); margin-top: 12px;">✗ Firmware upgrade failed: ' + this.escapeHtml(err.message) + '</div>';
 			this.showToast('Error', 'Failed to flash firmware', 'error');
 		}
 	}

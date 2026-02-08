@@ -2,7 +2,7 @@
 <html>
 <head>
 	<meta charset="UTF-8">
-	<title>Based - Manual Tests</title>
+	<title>MoCI - Manual Tests</title>
 	<style>
 		body {
 			font-family: system-ui, sans-serif;
@@ -31,13 +31,13 @@
 	</style>
 </head>
 <body>
-	<h1>Based - Manual Test Checklist</h1>
+	<h1>MoCI - Manual Test Checklist</h1>
 	<p>Run these tests after deploying to verify functionality:</p>
 
 	<div class="test">
-		<h3>✓ Authentication</h3>
+		<h3>Authentication</h3>
 		<ul>
-			<li>Navigate to <code>http://router-ip/custom/</code></li>
+			<li>Navigate to <code>http://router-ip/moci/</code></li>
 			<li>Login form should appear with WiFi icon logo</li>
 			<li>Enter credentials and click LOGIN</li>
 			<li>Should redirect to dashboard on success</li>
@@ -46,7 +46,7 @@
 	</div>
 
 	<div class="test">
-		<h3>✓ Dashboard</h3>
+		<h3>Dashboard</h3>
 		<ul>
 			<li>System stats should load (hostname, uptime, memory, load)</li>
 			<li>Memory progress bar should display</li>
@@ -58,9 +58,9 @@
 	</div>
 
 	<div class="test">
-		<h3>✓ Network - Interfaces</h3>
+		<h3>Network - Interfaces</h3>
 		<ul>
-			<li>Click NETWORK → INTERFACES tab</li>
+			<li>Click NETWORK INTERFACES tab</li>
 			<li>Interface table should load with LAN, loopback, etc.</li>
 			<li>Click "Configure" on an interface</li>
 			<li>Modal should open with current settings</li>
@@ -71,7 +71,7 @@
 	</div>
 
 	<div class="test">
-		<h3>✓ Network - Diagnostics</h3>
+		<h3>Network - Diagnostics</h3>
 		<ul>
 			<li>Click DIAGNOSTICS tab</li>
 			<li>Enter <code>8.8.8.8</code> in ping field</li>
@@ -83,7 +83,7 @@
 	</div>
 
 	<div class="test">
-		<h3>✓ Network - DHCP</h3>
+		<h3>Network - DHCP</h3>
 		<ul>
 			<li>Click DHCP tab</li>
 			<li>Active leases table should populate</li>
@@ -93,9 +93,9 @@
 	</div>
 
 	<div class="test">
-		<h3>✓ System Settings</h3>
+		<h3>System Settings</h3>
 		<ul>
-			<li>Click SYSTEM → GENERAL</li>
+			<li>Click SYSTEM GENERAL</li>
 			<li>Hostname field should be pre-populated</li>
 			<li>Timezone field should show current value</li>
 			<li>Click ADMINISTRATION tab</li>
@@ -104,7 +104,7 @@
 	</div>
 
 	<div class="test">
-		<h3>✓ UI/UX</h3>
+		<h3>UI/UX</h3>
 		<ul>
 			<li>Dark theme with glassmorphic cards</li>
 			<li>Monospace font for data values</li>
@@ -116,7 +116,7 @@
 	</div>
 
 	<div class="test">
-		<h3>✓ Session & Security</h3>
+		<h3>Session & Security</h3>
 		<ul>
 			<li>Session persists on page reload</li>
 			<li>Logout button clears session</li>
@@ -127,7 +127,7 @@
 	</div>
 
 	<div class="test">
-		<h3>✓ Performance</h3>
+		<h3>Performance</h3>
 		<ul>
 			<li>Page loads in under 1 second on router</li>
 			<li>No console errors in browser DevTools</li>

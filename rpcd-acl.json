@@ -1,6 +1,6 @@
 {
-	"based-openwrt": {
-		"description": "ACL permissions for Based OpenWrt interface",
+	"moci": {
+		"description": "ACL permissions for MoCI OpenWrt interface",
 		"read": {
 			"file": {
 				"/usr/lib/opkg/status": ["read"],
@@ -23,7 +23,7 @@
 				"luci-rpc": ["getDHCPLeases"],
 				"service": ["list"]
 			},
-			"uci": ["based"]
+			"uci": ["moci"]
 		},
 		"write": {
 			"ubus": {

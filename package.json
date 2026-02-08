@@ -1,5 +1,5 @@
 {
-	"name": "based-owrt",
+	"name": "moci",
 	"version": "0.1.0",
 	"type": "module",
 	"description": "Modern management interface for OpenWrt routers",
@@ -18,10 +18,10 @@
 	"scripts": {
 		"dev": "node scripts/watch.js qemu",
 		"dev:physical": "node scripts/watch.js",
-		"deploy": "scp -r custom/* root@192.168.1.1:/www/custom/",
+		"deploy": "scp -r moci/* root@192.168.1.1:/www/moci/",
 		"build": "node scripts/build.js",
-		"format": "prettier --write \"custom/**/*.{js,css,html}\" \"scripts/**/*.js\" \"index.html\"",
-		"format:check": "prettier --check \"custom/**/*.{js,css,html}\" \"scripts/**/*.js\" \"index.html\""
+		"format": "prettier --write \"moci/**/*.{js,css,html}\" \"scripts/**/*.js\" \"index.html\"",
+		"format:check": "prettier --check \"moci/**/*.{js,css,html}\" \"scripts/**/*.js\" \"index.html\""
 	},
 	"devDependencies": {
 		"chokidar": "^5.0.0",
@@ -31,6 +31,6 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/HudsonGraeme/based-owrt"
+		"url": "https://github.com/HudsonGraeme/MoCI"
 	}
 }

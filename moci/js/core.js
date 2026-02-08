@@ -100,7 +100,7 @@ export class OpenWrtCore {
 
 	async loadFeatures() {
 		try {
-			const [status, result] = await this.uciGet('based', 'features');
+			const [status, result] = await this.uciGet('moci', 'features');
 
 			if (status === 0 && result && result.values) {
 				this.features = result.values;

@@ -1,16 +1,16 @@
 <div align="center">
 
-# Based
+# MoCI
 
-**Modern OpenWrt Management Interface**
+**Modern Configuration Interface for OpenWrt**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-[Demo](https://hudsongraeme.github.io/based-owrt/) • [Install](#installation) • [Features](#features)
+[Demo](https://hudsongraeme.github.io/MoCI/) • [Install](#installation) • [Features](#features)
 
 </div>
 
-![Based OpenWrt Dashboard](https://github.com/user-attachments/assets/dc150d3c-75fc-480b-a0bd-10b67cdc6226)
+![MoCI Dashboard](https://github.com/user-attachments/assets/dc150d3c-75fc-480b-a0bd-10b67cdc6226)
 
 ---
 
@@ -19,8 +19,8 @@
 A complete standalone web interface for OpenWrt routers. Not a LuCI theme—pure vanilla JavaScript SPA using OpenWrt's native ubus API.
 
 ```bash
-scp -r custom/* root@192.168.1.1:/www/custom/
-# Access at http://192.168.1.1/custom/
+scp -r moci/* root@192.168.1.1:/www/moci/
+# Access at http://192.168.1.1/moci/
 ```
 
 ---
@@ -31,14 +31,14 @@ scp -r custom/* root@192.168.1.1:/www/custom/
 <tr>
 <td width="50%">
 
-### 📊 Dashboard
+### Dashboard
 - Live system stats & graphs
 - Network traffic monitoring
 - System logs
 - Active connections
 - Quick actions
 
-### 🌐 Network
+### Network
 - Interface configuration
 - Wireless management (SSID, encryption)
 - Firewall & port forwarding
@@ -48,7 +48,7 @@ scp -r custom/* root@192.168.1.1:/www/custom/
 </td>
 <td width="50%">
 
-### ⚙️ System
+### System
 - Hostname & timezone
 - Password management
 - Backup & restore
@@ -56,7 +56,7 @@ scp -r custom/* root@192.168.1.1:/www/custom/
 - Service control
 - Init script management
 
-### 🎨 Design
+### Design
 - Dark glassmorphic UI
 - Responsive tables
 - Real-time updates
@@ -73,11 +73,11 @@ scp -r custom/* root@192.168.1.1:/www/custom/
 
 ### Option 1: Package (Recommended)
 
-Download the ipk for your architecture from [Releases](https://github.com/HudsonGraeme/based-owrt/releases/latest):
+Download the ipk for your architecture from [Releases](https://github.com/HudsonGraeme/MoCI/releases/latest):
 
 ```bash
-wget https://github.com/HudsonGraeme/based-owrt/releases/latest/download/based-ui_VERSION_ARCH.ipk
-opkg install based-ui_VERSION_ARCH.ipk
+wget https://github.com/HudsonGraeme/MoCI/releases/latest/download/moci_VERSION_ARCH.ipk
+opkg install moci_VERSION_ARCH.ipk
 ```
 
 Available architectures: x86_64, ramips/mt7621, ath79, mediatek/filogic, bcm27xx, ipq40xx, mvebu, ipq806x
@@ -89,8 +89,8 @@ Replace `VERSION_ARCH` with your specific file from the releases page.
 **Quick start:**
 
 ```bash
-scp -r custom/* root@192.168.1.1:/www/custom/
-scp rpcd-acl.json root@192.168.1.1:/usr/share/rpcd/acl.d/based-openwrt.json
+scp -r moci/* root@192.168.1.1:/www/moci/
+scp rpcd-acl.json root@192.168.1.1:/usr/share/rpcd/acl.d/moci.json
 ssh root@192.168.1.1 "/etc/init.d/rpcd restart"
 ```
 
@@ -109,7 +109,7 @@ uci commit uhttpd
 - Device count
 - Package list viewing in Software tab
 
-Access at `http://192.168.1.1/custom/` and login with your root credentials.
+Access at `http://192.168.1.1/moci/` and login with your root credentials.
 
 ---
 
@@ -119,11 +119,11 @@ To build the ipk package yourself:
 
 ```bash
 # In OpenWrt buildroot
-git clone https://github.com/HudsonGraeme/based-owrt.git package/based-ui
-make package/based-ui/compile
+git clone https://github.com/HudsonGraeme/MoCI.git package/moci
+make package/moci/compile
 ```
 
-The package will be in `bin/packages/*/base/based-ui_*.ipk`
+The package will be in `bin/packages/*/base/moci_*.ipk`
 
 ---
 
@@ -131,8 +131,8 @@ The package will be in `bin/packages/*/base/based-ui_*.ipk`
 
 Uses OpenWrt's native authentication system. Same security model as LuCI:
 
-| Feature | Based | LuCI |
-|---------|-------|------|
+| Feature | MoCI | LuCI |
+|---------|------|------|
 | Authentication | ubus sessions | ubus sessions |
 | Authorization | rpcd ACLs | rpcd ACLs |
 
@@ -155,7 +155,7 @@ pnpm dev:physical 192.168.1.1
 **Project structure:**
 
 ```
-custom/
+moci/
 ├── index.html    - Application shell
 ├── app.css       - Styling
 └── js/
@@ -166,7 +166,6 @@ custom/
 **Adding features:**
 
 ```javascript
-// All ubus calls use this pattern:
 const [status, result] = await this.ubusCall('system', 'info', {});
 ```
 
@@ -181,4 +180,3 @@ Chrome 90+ • Firefox 88+ • Safari 14+ • Any modern browser
 ## License
 
 MIT
-
