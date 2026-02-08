@@ -88,17 +88,21 @@ export class OpenWrtCore {
 		});
 	}
 
+	async initSession() {
+		await this.loadFeatures();
+		await this.loadAddonManifests();
+		await this.loadModules();
+		await this.loadAddons();
+		this.applyFeatureFlags();
+		this.showMainView();
+		this.startApplication();
+	}
+
 	async init() {
 		if (this.sessionId) {
 			const valid = await this.validateSession();
 			if (valid) {
-				await this.loadFeatures();
-				await this.loadAddonManifests();
-				await this.loadModules();
-				await this.loadAddons();
-				this.applyFeatureFlags();
-				this.showMainView();
-				this.startApplication();
+				await this.initSession();
 				return;
 			}
 		}
@@ -317,13 +321,7 @@ export class OpenWrtCore {
 				this.saveCredentials(username, password);
 			}
 
-			await this.loadFeatures();
-			await this.loadAddonManifests();
-			await this.loadModules();
-			await this.loadAddons();
-			this.applyFeatureFlags();
-			this.showMainView();
-			this.startApplication();
+			await this.initSession();
 		} else {
 			throw new Error('Login failed');
 		}
@@ -679,8 +677,7 @@ export class OpenWrtCore {
 			if (typeof instance.getExtensions === 'function') {
 				const extensions = instance.getExtensions();
 				for (const [pointName, contribution] of Object.entries(extensions)) {
-					contribution._addonId = id;
-					this.registerExtension(pointName, contribution);
+					this.registerExtension(pointName, { ...contribution, _addonId: id });
 				}
 			}
 			return instance;
@@ -701,6 +698,8 @@ export class OpenWrtCore {
 
 	injectAddonCSS(id, manifest) {
 		if (!manifest.css) return;
+		if (/(?:^|\/)\.\.(?:\/|$)/.test(manifest.css) || manifest.css.startsWith('/') || manifest.css.includes('\\'))
+			return;
 		if (document.querySelector(`link[data-addon="${id}"]`)) return;
 		const link = document.createElement('link');
 		link.rel = 'stylesheet';

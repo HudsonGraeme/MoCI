@@ -131,7 +131,7 @@ export default class AddonsModule {
 		const listEl = document.getElementById('registry-addons-list');
 		if (!listEl) return;
 
-		if (this.registryCache) {
+		if (this.registryCache && Date.now() - this.registryCacheTime < 300000) {
 			this.renderRegistry(this.registryCache.addons || []);
 			return;
 		}
@@ -141,6 +141,7 @@ export default class AddonsModule {
 			if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 			const data = await resp.json();
 			this.registryCache = data;
+			this.registryCacheTime = Date.now();
 			this.renderRegistry(data.addons || []);
 		} catch {
 			listEl.innerHTML =
@@ -368,7 +369,7 @@ export default class AddonsModule {
 			return;
 		}
 
-		if (!/^[a-zA-Z0-9-]+$/.test(id)) {
+		if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
 			this.core.showToast('Invalid add-on ID', 'error');
 			return;
 		}
@@ -619,7 +620,9 @@ export default class AddonsModule {
 				command: '/etc/init.d/rpcd',
 				params: ['restart']
 			});
-		} catch {}
+		} catch (err) {
+			console.warn('Failed to restart rpcd:', err);
+		}
 	}
 
 	cleanup() {
@@ -628,5 +631,7 @@ export default class AddonsModule {
 			if (fn) fn();
 		}
 		this.cleanups = [];
+		this._installedCleanup = null;
+		this._registryCleanup = null;
 	}
 }
