@@ -12,7 +12,9 @@
 				"/etc/dropbear/authorized_keys": ["read"],
 				"/etc/hosts": ["read"],
 				"/tmp/firmware.bin": ["read"],
-				"/tmp/backup.tar.gz": ["read"]
+				"/tmp/backup.tar.gz": ["read"],
+				"/www/moci/js/addons/*": ["read", "list"],
+				"/usr/share/rpcd/acl.d/moci-addon-*.json": ["read"]
 			},
 			"ubus": {
 				"network.interface": ["dump"],
@@ -26,6 +28,14 @@
 			"uci": ["moci"]
 		},
 		"write": {
+			"file": {
+				"/www/moci/js/addons/*": ["write"],
+				"/usr/share/rpcd/acl.d/moci-addon-*.json": ["write"],
+				"/bin/mkdir -p /www/moci/js/addons/*": ["exec"],
+				"/bin/rm -rf /www/moci/js/addons/*": ["exec"],
+				"/bin/rm -f /usr/share/rpcd/acl.d/moci-addon-*.json": ["exec"],
+				"/etc/init.d/rpcd reload": ["exec"]
+			},
 			"ubus": {
 				"uci": ["set", "add", "delete", "commit"],
 				"file": ["write", "exec"],

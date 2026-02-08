@@ -62,6 +62,8 @@ export class OpenWrtCore {
 			for (const [routePath, handler] of this.routes) {
 				if (fullPath === routePath || fullPath.startsWith(routePath + '/')) {
 					await handler(fullPath, subPaths);
+					const addonPage = document.getElementById(`addon-${basePath}-page`);
+					if (addonPage) addonPage.classList.remove('hidden');
 					this.currentRoute = fullPath;
 					return;
 				}
