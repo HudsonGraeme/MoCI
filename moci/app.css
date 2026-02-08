@@ -1160,4 +1160,110 @@ select.form-input {
 	opacity: 0.3;
 }
 
-/* cache bust */
+.addon-card {
+	background: var(--slate-bg);
+	border: 1px solid var(--slate-border);
+	border-radius: 8px;
+	padding: 20px;
+	margin-bottom: 16px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 16px;
+}
+
+.addon-card-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.addon-card-name {
+	font-weight: 600;
+	color: var(--steel-light);
+	font-size: 14px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.addon-card-desc {
+	color: var(--steel-muted);
+	font-size: 12px;
+	margin-top: 4px;
+	line-height: 1.4;
+}
+
+.addon-card-meta {
+	display: flex;
+	gap: 12px;
+	margin-top: 8px;
+	font-size: 11px;
+	color: var(--steel-muted);
+}
+
+.addon-card-meta span {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.addon-card-actions {
+	display: flex;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+.addon-card-actions .action-btn {
+	font-size: 11px;
+	padding: 6px 12px;
+}
+
+.nav-group {
+	position: relative;
+}
+
+.nav-dropdown {
+	display: flex;
+	gap: 4px;
+}
+
+.nav-dropdown a {
+	font-size: 11px;
+	opacity: 0.7;
+}
+
+.nav-dropdown a:hover {
+	opacity: 1;
+}
+
+.addon-install-details {
+	line-height: 1.8;
+	font-size: 13px;
+}
+
+.addon-install-details dt {
+	color: var(--steel-muted);
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	margin-top: 12px;
+}
+
+.addon-install-details dd {
+	color: var(--steel-light);
+	margin: 0;
+}
+
+.addon-install-details .addon-files-list {
+	font-family: monospace;
+	font-size: 12px;
+	color: var(--steel-muted);
+}
+
+.addon-progress {
+	margin-top: 16px;
+	padding: 12px;
+	background: var(--slate-bg);
+	border-radius: 6px;
+	font-size: 12px;
+	color: var(--steel-muted);
+}

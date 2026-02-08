@@ -40,6 +40,9 @@ define Package/moci/install
 	$(INSTALL_DATA) ./dist/moci/js/modules/system.js $(1)/www/moci/js/modules/
 	$(INSTALL_DATA) ./dist/moci/js/modules/vpn.js $(1)/www/moci/js/modules/
 	$(INSTALL_DATA) ./dist/moci/js/modules/services.js $(1)/www/moci/js/modules/
+	$(INSTALL_DATA) ./dist/moci/js/modules/addons.js $(1)/www/moci/js/modules/
+
+	$(INSTALL_DIR) $(1)/www/moci/js/addons
 
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
 	$(INSTALL_DATA) ./rpcd-acl.json $(1)/usr/share/rpcd/acl.d/moci.json

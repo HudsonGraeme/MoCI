@@ -5,6 +5,9 @@ export class OpenWrtCore {
 		this.modules = new Map();
 		this.routes = new Map();
 		this.currentRoute = null;
+		this.extensionPoints = new Map();
+		this.addons = new Map();
+		this.addonManifests = new Map();
 	}
 
 	registerRoute(path, handler) {
@@ -19,9 +22,15 @@ export class OpenWrtCore {
 		const routeModuleMap = {
 			dashboard: 'dashboard',
 			network: 'network',
-			system: 'system'
+			system: 'system',
+			addons: 'addons'
 		};
-		return routeModuleMap[basePath];
+		if (routeModuleMap[basePath]) return routeModuleMap[basePath];
+		for (const [id, manifest] of this.addonManifests) {
+			const addonBase = manifest.nav?.route?.split('/').filter(Boolean)[0];
+			if (addonBase === basePath) return `addon:${id}`;
+		}
+		return null;
 	}
 
 	async handleRouteChange() {
@@ -34,7 +43,9 @@ export class OpenWrtCore {
 		document.querySelectorAll('.page').forEach(page => page.classList.add('hidden'));
 		document.querySelectorAll('.nav a').forEach(link => link.classList.remove('active'));
 
-		const activeLink = document.querySelector(`.nav a[href="#/${basePath}"]`);
+		const activeLink =
+			document.querySelector(`.nav a[href="#/${basePath}"]`) ||
+			document.querySelector(`.nav a[data-addon][href^="#/${basePath}"]`);
 		if (activeLink) activeLink.classList.add('active');
 
 		if (basePath === 'dashboard') {
@@ -57,7 +68,8 @@ export class OpenWrtCore {
 				}
 			}
 
-			const pageElement = document.getElementById(`${basePath}-page`);
+			const pageElement =
+				document.getElementById(`${basePath}-page`) || document.getElementById(`addon-${basePath}-page`);
 			if (pageElement) {
 				pageElement.classList.remove('hidden');
 				this.currentRoute = fullPath;
@@ -82,7 +94,9 @@ export class OpenWrtCore {
 			const valid = await this.validateSession();
 			if (valid) {
 				await this.loadFeatures();
+				await this.loadAddonManifests();
 				await this.loadModules();
+				await this.loadAddons();
 				this.applyFeatureFlags();
 				this.showMainView();
 				this.startApplication();
@@ -132,7 +146,8 @@ export class OpenWrtCore {
 			ssh_keys: '1',
 			storage: '1',
 			leds: '1',
-			firmware: '1'
+			firmware: '1',
+			addons: '1'
 		};
 	}
 
@@ -146,11 +161,16 @@ export class OpenWrtCore {
 			network: './modules/network.js',
 			system: './modules/system.js',
 			vpn: './modules/vpn.js',
-			services: './modules/services.js'
+			services: './modules/services.js',
+			addons: './modules/addons.js'
 		};
 	}
 
 	async loadModule(name) {
+		if (name?.startsWith('addon:')) {
+			return this.loadAddon(name.substring(6));
+		}
+
 		if (this.modules.has(name)) return this.modules.get(name);
 
 		if (!this.shouldLoadModule(name)) return null;
@@ -181,7 +201,8 @@ export class OpenWrtCore {
 			network: ['network', 'wireless', 'firewall', 'dhcp', 'dns', 'diagnostics'],
 			system: ['system', 'backup', 'packages', 'services', 'ssh_keys', 'storage', 'leds', 'firmware'],
 			vpn: ['wireguard'],
-			services: ['qos', 'ddns']
+			services: ['qos', 'ddns'],
+			addons: ['addons']
 		};
 
 		const features = moduleFeatures[moduleName] || [];
@@ -298,7 +319,9 @@ export class OpenWrtCore {
 			}
 
 			await this.loadFeatures();
+			await this.loadAddonManifests();
 			await this.loadModules();
+			await this.loadAddons();
 			this.applyFeatureFlags();
 			this.showMainView();
 			this.startApplication();
@@ -603,6 +626,144 @@ export class OpenWrtCore {
 		};
 		container.addEventListener('click', handler);
 		return () => container.removeEventListener('click', handler);
+	}
+
+	registerExtension(pointName, contribution) {
+		if (!this.extensionPoints.has(pointName)) {
+			this.extensionPoints.set(pointName, []);
+		}
+		this.extensionPoints.get(pointName).push(contribution);
+	}
+
+	getExtensions(pointName) {
+		return this.extensionPoints.get(pointName) || [];
+	}
+
+	async loadAddonManifests() {
+		if (!this.isFeatureEnabled('addons')) return;
+		try {
+			const [status, result] = await this.uciGet('moci');
+			if (status !== 0 || !result?.values) return;
+			const sections = result.values;
+			for (const [key, val] of Object.entries(sections)) {
+				if (typeof val !== 'object' || val['.type'] !== 'addon') continue;
+				if (val.enabled !== '1') continue;
+				try {
+					const [ms, mr] = await this.ubusCall('file', 'read', {
+						path: `/www/moci/js/addons/${val.addon_id}/manifest.json`
+					});
+					if (ms === 0 && mr?.data) {
+						this.addonManifests.set(val.addon_id, JSON.parse(mr.data));
+					}
+				} catch {}
+			}
+		} catch {}
+	}
+
+	async loadAddon(id) {
+		if (this.addons.has(id)) return this.addons.get(id);
+		try {
+			const module = await import(`./addons/${id}/addon.js`);
+			const instance = new module.default(this);
+			if (typeof instance.init === 'function') await instance.init();
+			this.addons.set(id, instance);
+			if (typeof instance.getExtensions === 'function') {
+				const extensions = instance.getExtensions();
+				for (const [pointName, contribution] of Object.entries(extensions)) {
+					contribution._addonId = id;
+					this.registerExtension(pointName, contribution);
+				}
+			}
+			return instance;
+		} catch (err) {
+			console.error(`Failed to load addon ${id}:`, err);
+			return null;
+		}
+	}
+
+	async loadAddons() {
+		for (const [id, manifest] of this.addonManifests) {
+			await this.loadAddon(id);
+			this.injectAddonCSS(id, manifest);
+			this.injectAddonNav(id, manifest);
+			this.createAddonPage(id, manifest);
+		}
+	}
+
+	injectAddonCSS(id, manifest) {
+		if (!manifest.css) return;
+		if (document.querySelector(`link[data-addon="${id}"]`)) return;
+		const link = document.createElement('link');
+		link.rel = 'stylesheet';
+		link.href = `/moci/js/addons/${id}/${manifest.css}`;
+		link.setAttribute('data-addon', id);
+		document.head.appendChild(link);
+	}
+
+	injectAddonNav(id, manifest) {
+		if (!manifest.nav || manifest.nav.placement === 'none') return;
+		if (document.querySelector(`[data-addon="${id}"]`)) return;
+
+		const link = document.createElement('a');
+		link.href = `#${manifest.nav.route}`;
+		link.textContent = manifest.nav.label;
+		link.setAttribute('data-addon', id);
+
+		const nav = document.querySelector('.nav');
+		if (!nav) return;
+
+		if (manifest.nav.placement === 'top') {
+			const addonsLink = nav.querySelector('a[href="#/addons"]');
+			if (addonsLink) {
+				nav.insertBefore(link, addonsLink);
+			} else {
+				nav.appendChild(link);
+			}
+		} else if (manifest.nav.placement === 'addons') {
+			let group = document.getElementById('addons-nav-group');
+			if (!group) {
+				group = document.createElement('div');
+				group.id = 'addons-nav-group';
+				group.className = 'nav-group';
+				const dropdown = document.createElement('div');
+				dropdown.className = 'nav-dropdown';
+				group.appendChild(dropdown);
+				const addonsLink = nav.querySelector('a[href="#/addons"]');
+				if (addonsLink) {
+					nav.insertBefore(group, addonsLink.nextSibling);
+				} else {
+					nav.appendChild(group);
+				}
+			}
+			group.querySelector('.nav-dropdown').appendChild(link);
+			group.classList.remove('hidden');
+		}
+	}
+
+	createAddonPage(id, manifest) {
+		if (!manifest.nav || manifest.nav.placement === 'none') return;
+		const pageId = `addon-${id}-page`;
+		if (document.getElementById(pageId)) return;
+		const page = document.createElement('div');
+		page.id = pageId;
+		page.className = 'page hidden';
+		document.querySelector('.content')?.appendChild(page);
+	}
+
+	removeAddon(id) {
+		const instance = this.addons.get(id);
+		if (instance?.cleanup) instance.cleanup();
+		this.addons.delete(id);
+		this.addonManifests.delete(id);
+		document.querySelector(`a[data-addon="${id}"]`)?.remove();
+		document.getElementById(`addon-${id}-page`)?.remove();
+		document.querySelector(`link[data-addon="${id}"]`)?.remove();
+		for (const [key, contribs] of this.extensionPoints) {
+			this.extensionPoints.set(
+				key,
+				contribs.filter(c => c._addonId !== id)
+			);
+		}
 	}
 
 	resetModal(modalId) {

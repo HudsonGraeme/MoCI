@@ -69,6 +69,7 @@
 						<a href="#/dashboard" class="active">DASHBOARD</a>
 						<a href="#/network">NETWORK</a>
 						<a href="#/system">SYSTEM</a>
+						<a href="#/addons" data-feature="addons">ADD-ONS</a>
 					</nav>
 					<button id="logout-btn" class="logout-btn">LOGOUT</button>
 				</header>
@@ -1681,6 +1682,52 @@
 										style="color: var(--steel-light); font-size: 13px; line-height: 1.8"
 									></div>
 								</div>
+							</div>
+						</div>
+					</div>
+
+					<div id="addons-page" class="page hidden" data-feature="addons">
+						<h2>ADD-ONS</h2>
+						<div class="tabs">
+							<button class="tab-btn active" data-tab="installed">INSTALLED</button>
+							<button class="tab-btn" data-tab="browse">BROWSE</button>
+						</div>
+
+						<div class="tab-content" id="tab-installed">
+							<div id="installed-addons-list"></div>
+							<div id="no-addons-msg" class="stat-card" style="text-align: center; color: var(--steel-muted); padding: 48px">
+								No add-ons installed
+							</div>
+						</div>
+
+						<div class="tab-content hidden" id="tab-browse">
+							<div class="stat-card">
+								<div class="section-title">INSTALL FROM URL</div>
+								<div class="diagnostic-form">
+									<input type="text" id="addon-url-input" placeholder="https://github.com/user/moci-addon-example" class="diag-input" />
+									<button class="action-btn" id="addon-install-url-btn">FETCH</button>
+								</div>
+							</div>
+							<div class="stat-card" style="margin-top: 24px">
+								<div class="section-title">REGISTRY</div>
+								<div id="registry-addons-list">
+									<div style="text-align: center; color: var(--steel-muted)">Loading registry...</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="modal hidden" id="addon-install-modal">
+						<div class="modal-backdrop"></div>
+						<div class="modal-content">
+							<div class="modal-header">
+								<h3 class="modal-title">INSTALL ADD-ON</h3>
+								<button class="modal-close" id="close-addon-install-modal">&times;</button>
+							</div>
+							<div class="modal-body" id="addon-install-info"></div>
+							<div class="modal-footer">
+								<button class="action-btn" id="cancel-addon-install-btn">CANCEL</button>
+								<button class="action-btn" id="confirm-addon-install-btn">INSTALL</button>
 							</div>
 						</div>
 					</div>

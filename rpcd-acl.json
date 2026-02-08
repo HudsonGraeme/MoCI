@@ -18,7 +18,7 @@
 				"network.interface": ["dump"],
 				"network.wireless": ["status"],
 				"uci": ["get"],
-				"file": ["read"],
+				"file": ["read", "list"],
 				"system": ["info", "board"],
 				"luci-rpc": ["getDHCPLeases"],
 				"service": ["list"]
@@ -39,7 +39,8 @@
 				"dhcp",
 				"system",
 				"qos",
-				"ddns"
+				"ddns",
+				"moci"
 			]
 		}
 	}
