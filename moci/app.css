@@ -1282,12 +1282,12 @@ select.form-input {
 	margin-bottom: 8px;
 }
 
-.addon-section-verified {
+.addon-section-details {
 	background: rgba(226, 226, 229, 0.03);
 	border: 1px solid rgba(226, 226, 229, 0.1);
 }
 
-.addon-section-verified .addon-install-section-label {
+.addon-section-details .addon-install-section-label {
 	color: var(--starship-steel);
 }
 

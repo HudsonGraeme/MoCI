@@ -131,6 +131,11 @@ export default class AddonsModule {
 		const listEl = document.getElementById('registry-addons-list');
 		if (!listEl) return;
 
+		if (this.registryCache) {
+			this.renderRegistry(this.registryCache.addons || []);
+			return;
+		}
+
 		try {
 			const resp = await fetch(this.registryUrl);
 			if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -253,8 +258,8 @@ export default class AddonsModule {
 
 		const esc = t => this.core.escapeHtml(t);
 
-		const verifiedSection = `<div class="addon-install-section addon-section-verified">
-			<div class="addon-install-section-label">Verified by MoCI</div>
+		const verifiedSection = `<div class="addon-install-section addon-section-details">
+			<div class="addon-install-section-label">Installation details</div>
 			<dl class="addon-install-details">
 				<dt>SOURCE</dt><dd>${esc(githubUrl)}</dd>
 				<dt>INSTALL PATH</dt><dd style="font-family: var(--font-mono); font-size: 12px">/www/moci/js/addons/${esc(manifest.id)}/</dd>
@@ -363,7 +368,7 @@ export default class AddonsModule {
 			return;
 		}
 
-		if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+		if (!/^[a-zA-Z0-9-]+$/.test(id)) {
 			this.core.showToast('Invalid add-on ID', 'error');
 			return;
 		}
@@ -371,7 +376,7 @@ export default class AddonsModule {
 		const addonDir = `/www/moci/js/addons/${id}`;
 
 		try {
-			this.core.showToast('Installing ' + manifest.name + '...', 'info');
+			this.core.showToast('Installing ' + (manifest.name || id) + '...', 'info');
 
 			await this.core.ubusCall('file', 'exec', {
 				command: '/bin/mkdir',
@@ -382,11 +387,19 @@ export default class AddonsModule {
 				if (/(?:^|\/)\.\.(?:\/|$)/.test(file) || file.startsWith('/') || file.includes('\\')) {
 					throw new Error(`Invalid filename: ${file}`);
 				}
+				const filePath = `${addonDir}/${file}`;
+				const parentDir = filePath.substring(0, filePath.lastIndexOf('/'));
+				if (parentDir !== addonDir) {
+					await this.core.ubusCall('file', 'exec', {
+						command: '/bin/mkdir',
+						params: ['-p', parentDir]
+					});
+				}
 				const resp = await fetch(`${rawBase}/${file}`);
 				if (!resp.ok) throw new Error(`Failed to fetch ${file}`);
 				const text = await resp.text();
 				await this.core.ubusCall('file', 'write', {
-					path: `${addonDir}/${file}`,
+					path: filePath,
 					data: text
 				});
 			}
@@ -417,7 +430,7 @@ export default class AddonsModule {
 			this.core.injectAddonNav(id, manifest);
 			this.core.createAddonPage(id, manifest);
 
-			this.core.showToast(manifest.name + ' installed', 'success');
+			this.core.showToast((manifest.name || id) + ' installed', 'success');
 			this.renderInstalled();
 		} catch (err) {
 			this.core.showToast('Install failed: ' + err.message, 'error');

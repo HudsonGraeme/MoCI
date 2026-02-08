@@ -8,6 +8,7 @@ export class OpenWrtCore {
 		this.extensionPoints = new Map();
 		this.addons = new Map();
 		this.addonManifests = new Map();
+		this.addonRouteMap = new Map();
 	}
 
 	registerRoute(path, handler) {
@@ -26,10 +27,8 @@ export class OpenWrtCore {
 			addons: 'addons'
 		};
 		if (routeModuleMap[basePath]) return routeModuleMap[basePath];
-		for (const [id, manifest] of this.addonManifests) {
-			const addonBase = manifest.nav?.route?.split('/').filter(Boolean)[0];
-			if (addonBase === basePath) return `addon:${id}`;
-		}
+		const addonId = this.addonRouteMap.get(basePath);
+		if (addonId) return `addon:${addonId}`;
 		return null;
 	}
 
@@ -655,7 +654,10 @@ export class OpenWrtCore {
 						path: `/www/moci/js/addons/${addonId}/manifest.json`
 					});
 					if (ms === 0 && mr?.data) {
-						this.addonManifests.set(addonId, JSON.parse(mr.data));
+						const manifest = JSON.parse(mr.data);
+						this.addonManifests.set(addonId, manifest);
+						const addonBase = manifest.nav?.route?.split('/').filter(Boolean)[0];
+						if (addonBase) this.addonRouteMap.set(addonBase, addonId);
 					}
 				} catch (err) {
 					console.warn('Failed to load addon manifest:', addonId, err);
@@ -761,6 +763,11 @@ export class OpenWrtCore {
 		const instance = this.addons.get(id);
 		if (instance?.cleanup) instance.cleanup();
 		this.addons.delete(id);
+		const manifest = this.addonManifests.get(id);
+		if (manifest) {
+			const addonBase = manifest.nav?.route?.split('/').filter(Boolean)[0];
+			if (addonBase) this.addonRouteMap.delete(addonBase);
+		}
 		this.addonManifests.delete(id);
 		document.querySelector(`a[data-addon="${id}"]`)?.remove();
 		document.getElementById(`addon-${id}-page`)?.remove();
