@@ -3,18 +3,18 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import CleanCSS from 'clean-css';
 
-const distDir = 'dist/custom';
+const distDir = 'dist/moci';
 
 async function buildJS() {
 	console.log('Minifying JavaScript...');
 
 	const files = [
-		'custom/js/core.js',
-		'custom/js/modules/dashboard.js',
-		'custom/js/modules/network.js',
-		'custom/js/modules/system.js',
-		'custom/js/modules/vpn.js',
-		'custom/js/modules/services.js'
+		'moci/js/core.js',
+		'moci/js/modules/dashboard.js',
+		'moci/js/modules/network.js',
+		'moci/js/modules/system.js',
+		'moci/js/modules/vpn.js',
+		'moci/js/modules/services.js'
 	];
 
 	await mkdir(join(distDir, 'js/modules'), { recursive: true });
@@ -34,7 +34,7 @@ async function buildJS() {
 			}
 		});
 
-		const outPath = file.replace('custom/', distDir + '/');
+		const outPath = file.replace('moci/', distDir + '/');
 		await writeFile(outPath, result.code);
 		console.log(`  ${file} -> ${outPath} (${((1 - result.code.length / code.length) * 100).toFixed(1)}% smaller)`);
 	}
@@ -43,20 +43,20 @@ async function buildJS() {
 async function buildCSS() {
 	console.log('Minifying CSS...');
 
-	const css = await readFile('custom/app.css', 'utf8');
+	const css = await readFile('moci/app.css', 'utf8');
 	const result = new CleanCSS({
 		level: 2
 	}).minify(css);
 
 	await writeFile(join(distDir, 'app.css'), result.styles);
 	console.log(
-		`  custom/app.css -> ${distDir}/app.css (${((1 - result.styles.length / css.length) * 100).toFixed(1)}% smaller)`
+		`  moci/app.css -> ${distDir}/app.css (${((1 - result.styles.length / css.length) * 100).toFixed(1)}% smaller)`
 	);
 }
 
 async function copyHTML() {
 	console.log('Copying HTML...');
-	const html = await readFile('custom/index.html', 'utf8');
+	const html = await readFile('moci/index.html', 'utf8');
 	await writeFile(join(distDir, 'index.html'), html);
 }
 

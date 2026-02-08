@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Based - Live Demo</title>
+		<title>MoCI - Live Demo</title>
 		<style>
 			body {
 				margin: 0;
@@ -39,7 +39,7 @@
 	</head>
 	<body>
 		<div class="demo-banner">Live Demo Mode - All data is simulated</div>
-		<iframe id="demo-frame" src="custom/index.html"></iframe>
+		<iframe id="demo-frame" src="moci/index.html"></iframe>
 
 		<script type="module">
 			const frame = document.getElementById('demo-frame');
@@ -124,7 +124,7 @@ Jan 25 12:37:22 OpenWrt daemon.notice netifd: Interface 'wan' is now up`
 								result = [0, { stdout: mockData.syslog }];
 							}
 						} else if (object === 'uci' && method === 'get') {
-							if (params.config === 'based' && params.section === 'features') {
+							if (params.config === 'moci' && params.section === 'features') {
 								result = [
 									0,
 									{

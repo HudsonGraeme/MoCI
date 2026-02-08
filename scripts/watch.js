@@ -31,10 +31,10 @@ if (target === 'qemu') {
 	targetName = `Physical router (${target})`;
 }
 
-console.log(`Watching for changes in custom/...`);
+console.log(`Watching for changes in moci/...`);
 console.log(`Target: ${targetName}\n`);
 
-const watcher = chokidar.watch('custom', {
+const watcher = chokidar.watch('moci', {
 	persistent: true,
 	ignoreInitial: true,
 	awaitWriteFinish: {
@@ -70,23 +70,23 @@ function deploy() {
 	try {
 		console.log(`Deploying to ${targetName}...`);
 
-		execSync(`${SSH} "mkdir -p /www/custom/js/modules"`, { stdio: 'pipe' });
+		execSync(`${SSH} "mkdir -p /www/moci/js/modules"`, { stdio: 'pipe' });
 
-		execSync(`cat custom/index.html | ${SSH} "cat > /www/custom/index.html"`, { stdio: 'pipe' });
-		execSync(`cat custom/app.css | ${SSH} "cat > /www/custom/app.css"`, { stdio: 'pipe' });
+		execSync(`cat moci/index.html | ${SSH} "cat > /www/moci/index.html"`, { stdio: 'pipe' });
+		execSync(`cat moci/app.css | ${SSH} "cat > /www/moci/app.css"`, { stdio: 'pipe' });
 
-		execSync(`cat custom/js/core.js | ${SSH} "cat > /www/custom/js/core.js"`, { stdio: 'pipe' });
-		execSync(`cat custom/js/modules/dashboard.js | ${SSH} "cat > /www/custom/js/modules/dashboard.js"`, {
+		execSync(`cat moci/js/core.js | ${SSH} "cat > /www/moci/js/core.js"`, { stdio: 'pipe' });
+		execSync(`cat moci/js/modules/dashboard.js | ${SSH} "cat > /www/moci/js/modules/dashboard.js"`, {
 			stdio: 'pipe'
 		});
-		execSync(`cat custom/js/modules/network.js | ${SSH} "cat > /www/custom/js/modules/network.js"`, {
+		execSync(`cat moci/js/modules/network.js | ${SSH} "cat > /www/moci/js/modules/network.js"`, {
 			stdio: 'pipe'
 		});
-		execSync(`cat custom/js/modules/system.js | ${SSH} "cat > /www/custom/js/modules/system.js"`, {
+		execSync(`cat moci/js/modules/system.js | ${SSH} "cat > /www/moci/js/modules/system.js"`, {
 			stdio: 'pipe'
 		});
-		execSync(`cat custom/js/modules/vpn.js | ${SSH} "cat > /www/custom/js/modules/vpn.js"`, { stdio: 'pipe' });
-		execSync(`cat custom/js/modules/services.js | ${SSH} "cat > /www/custom/js/modules/services.js"`, {
+		execSync(`cat moci/js/modules/vpn.js | ${SSH} "cat > /www/moci/js/modules/vpn.js"`, { stdio: 'pipe' });
+		execSync(`cat moci/js/modules/services.js | ${SSH} "cat > /www/moci/js/modules/services.js"`, {
 			stdio: 'pipe'
 		});
 
@@ -100,7 +100,7 @@ function deployACL() {
 	try {
 		console.log(`Deploying ACL to ${targetName}...`);
 
-		execSync(`cat rpcd-acl.json | ${SSH} "cat > /usr/share/rpcd/acl.d/based-openwrt.json"`, { stdio: 'pipe' });
+		execSync(`cat rpcd-acl.json | ${SSH} "cat > /usr/share/rpcd/acl.d/moci.json"`, { stdio: 'pipe' });
 		execSync(`${SSH} "/etc/init.d/rpcd restart"`, { stdio: 'pipe' });
 
 		console.log('ACL deployed and rpcd restarted\n');
@@ -109,4 +109,4 @@ function deployACL() {
 	}
 }
 
-console.log('Ready. Save files in custom/ or rpcd-acl.json to trigger deploy.');
+console.log('Ready. Save files in moci/ or rpcd-acl.json to trigger deploy.');
