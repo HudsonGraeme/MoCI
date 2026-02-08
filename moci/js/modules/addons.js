@@ -434,6 +434,13 @@ export default class AddonsModule {
 			this.core.showToast((manifest.name || id) + ' installed', 'success');
 			this.renderInstalled();
 		} catch (err) {
+			this.core.addonManifests.delete(id);
+			try {
+				await this.core.ubusCall('file', 'exec', { command: '/bin/rm', params: ['-rf', addonDir] });
+				const sn = id.replace(/-/g, '_');
+				await this.core.uciDelete('moci', sn);
+				await this.core.uciCommit('moci');
+			} catch {}
 			this.core.showToast('Install failed: ' + err.message, 'error');
 		}
 	}
@@ -456,11 +463,10 @@ export default class AddonsModule {
 
 			this.core.removeAddon(id);
 			this.core.showToast(name + ' uninstalled', 'success');
+			this.renderInstalled();
 		} catch (err) {
 			this.core.showToast('Uninstall error: ' + err.message, 'error');
 		}
-
-		this.renderInstalled();
 	}
 
 	async toggleAddon(id, enable) {
@@ -516,6 +522,9 @@ export default class AddonsModule {
 				return;
 			}
 
+			const sectionName = id.replace(/-/g, '_');
+			await this.core.uciDelete('moci', sectionName);
+			await this.core.uciCommit('moci');
 			this.core.removeAddon(id);
 			await this.performInstall(latest, rawBase, source);
 		} catch (err) {
@@ -618,7 +627,7 @@ export default class AddonsModule {
 		try {
 			await this.core.ubusCall('file', 'exec', {
 				command: '/etc/init.d/rpcd',
-				params: ['restart']
+				params: ['reload']
 			});
 		} catch (err) {
 			console.warn('Failed to restart rpcd:', err);
