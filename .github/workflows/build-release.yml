@@ -10,9 +10,51 @@ permissions:
   contents: write
 
 jobs:
+  prepare:
+    name: Build assets
+    if: github.event_name == 'release' || github.event.label.name == 'run-build' || (github.event_name == 'pull_request' && github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'run-build'))
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build minified assets
+        run: pnpm run build
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=0.0.0-pr${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 1
+
   build-ipk:
     name: Build ipk ${{ matrix.arch }}
-    if: github.event_name == 'release' || github.event.label.name == 'run-build' || (github.event_name == 'pull_request' && github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'run-build'))
+    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -46,23 +88,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Download dist
+        uses: actions/download-artifact@v4
         with:
-          node-version: '20'
+          name: dist
+          path: dist/
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Cache SDK
+        id: cache-sdk
+        uses: actions/cache@v4
         with:
-          version: 9
-
-      - name: Install Node dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build minified assets
-        run: pnpm run build
+          path: ${{ matrix.sdk_name }}
+          key: sdk-${{ matrix.sdk_name }}
 
       - name: Download and extract SDK
+        if: steps.cache-sdk.outputs.cache-hit != 'true'
         run: |
           SDK_URL="https://downloads.openwrt.org/releases/24.10.5/targets/${{ matrix.target }}/${{ matrix.sdk_name }}.tar.zst"
           curl -L -o sdk.tar.zst "$SDK_URL"
@@ -71,11 +111,7 @@ jobs:
 
       - name: Copy package files
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            VERSION=${GITHUB_REF#refs/tags/}
-          else
-            VERSION="0.0.0-pr${{ github.event.pull_request.number }}"
-          fi
+          VERSION="${{ needs.prepare.outputs.version }}"
           mkdir -p ${{ matrix.sdk_name }}/package/moci
           sed "s/PKG_VERSION:=.*/PKG_VERSION:=$VERSION/" Makefile > ${{ matrix.sdk_name }}/package/moci/Makefile
           cp -r dist ${{ matrix.sdk_name }}/package/moci/
@@ -83,6 +119,7 @@ jobs:
           cp -r files ${{ matrix.sdk_name }}/package/moci/
 
       - name: Update feeds
+        if: steps.cache-sdk.outputs.cache-hit != 'true'
         working-directory: ${{ matrix.sdk_name }}
         run: |
           ./scripts/feeds update -a
@@ -103,11 +140,7 @@ jobs:
             echo "Error: ipk package not found!"
             exit 1
           fi
-          if [ "${{ github.event_name }}" = "release" ]; then
-            VERSION=${GITHUB_REF#refs/tags/}
-          else
-            VERSION="0.0.0-pr${{ github.event.pull_request.number }}"
-          fi
+          VERSION="${{ needs.prepare.outputs.version }}"
           NEW_NAME="moci_${VERSION}-r1_${{ matrix.arch }}.ipk"
           mv "$IPK_FILE" "/tmp/$NEW_NAME"
           echo "package_name=$NEW_NAME" >> $GITHUB_OUTPUT
@@ -127,7 +160,7 @@ jobs:
 
   build-apk:
     name: Build apk ${{ matrix.arch }}
-    if: github.event_name == 'release' || github.event.label.name == 'run-build' || (github.event_name == 'pull_request' && github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'run-build'))
+    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -161,23 +194,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Download dist
+        uses: actions/download-artifact@v4
         with:
-          node-version: '20'
+          name: dist
+          path: dist/
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Cache SDK
+        id: cache-sdk
+        uses: actions/cache@v4
         with:
-          version: 9
-
-      - name: Install Node dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build minified assets
-        run: pnpm run build
+          path: ${{ matrix.sdk_name }}
+          key: sdk-${{ matrix.sdk_name }}
 
       - name: Download and extract SDK
+        if: steps.cache-sdk.outputs.cache-hit != 'true'
         run: |
           SDK_URL="https://downloads.openwrt.org/releases/25.12.0/targets/${{ matrix.target }}/${{ matrix.sdk_name }}.tar.zst"
           curl -L -o sdk.tar.zst "$SDK_URL"
@@ -186,11 +217,7 @@ jobs:
 
       - name: Copy package files
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            VERSION=${GITHUB_REF#refs/tags/}
-          else
-            VERSION="0.0.0-pr${{ github.event.pull_request.number }}"
-          fi
+          VERSION="${{ needs.prepare.outputs.version }}"
           mkdir -p ${{ matrix.sdk_name }}/package/moci
           sed "s/PKG_VERSION:=.*/PKG_VERSION:=$VERSION/" Makefile > ${{ matrix.sdk_name }}/package/moci/Makefile
           cp -r dist ${{ matrix.sdk_name }}/package/moci/
@@ -198,6 +225,7 @@ jobs:
           cp -r files ${{ matrix.sdk_name }}/package/moci/
 
       - name: Update feeds
+        if: steps.cache-sdk.outputs.cache-hit != 'true'
         working-directory: ${{ matrix.sdk_name }}
         run: |
           ./scripts/feeds update -a
@@ -218,11 +246,7 @@ jobs:
             echo "Error: apk package not found!"
             exit 1
           fi
-          if [ "${{ github.event_name }}" = "release" ]; then
-            VERSION=${GITHUB_REF#refs/tags/}
-          else
-            VERSION="0.0.0-pr${{ github.event.pull_request.number }}"
-          fi
+          VERSION="${{ needs.prepare.outputs.version }}"
           NEW_NAME="moci_${VERSION}-r1_${{ matrix.arch }}.apk"
           mv "$APK_FILE" "/tmp/$NEW_NAME"
           echo "package_name=$NEW_NAME" >> $GITHUB_OUTPUT
