@@ -73,14 +73,23 @@ scp -r moci/* root@192.168.1.1:/www/moci/
 
 ### Option 1: Package (Recommended)
 
-Download the ipk for your architecture from [Releases](https://github.com/HudsonGraeme/MoCI/releases/latest):
+Download the package for your architecture from [Releases](https://github.com/HudsonGraeme/MoCI/releases/latest).
+
+**OpenWrt 24.10 and earlier (opkg):**
 
 ```bash
 wget https://github.com/HudsonGraeme/MoCI/releases/latest/download/moci_VERSION_ARCH.ipk
 opkg install moci_VERSION_ARCH.ipk
 ```
 
-Available architectures: x86_64, ramips/mt7621, ath79, mediatek/filogic, bcm27xx, ipq40xx, mvebu, ipq806x
+**OpenWrt 25.12+ (apk):**
+
+```bash
+wget https://github.com/HudsonGraeme/MoCI/releases/latest/download/moci_VERSION_ARCH.apk
+apk add --allow-untrusted moci_VERSION_ARCH.apk
+```
+
+Available architectures: x86_64, mipsel_24kc, mips_24kc, aarch64_cortex-a53, aarch64_cortex-a72, arm_cortex-a7_neon-vfpv4, arm_cortex-a9_vfpv3-d16, arm_cortex-a15_neon-vfpv4
 
 Replace `VERSION_ARCH` with your specific file from the releases page.
 
@@ -123,7 +132,7 @@ git clone https://github.com/HudsonGraeme/MoCI.git package/moci
 make package/moci/compile
 ```
 
-The package will be in `bin/packages/*/base/moci_*.ipk`
+The package will be in `bin/packages/*/base/moci_*.ipk` (24.10) or `bin/packages/*/base/moci-*.apk` (25.12+)
 
 ---
 
