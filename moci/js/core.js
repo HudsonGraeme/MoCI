@@ -684,7 +684,7 @@ export class OpenWrtCore {
 			await this.uciCommit(config);
 			this.closeModal(modalId);
 			this.showToast(successMsg || 'Saved', 'success');
-			reloadFn();
+			if (reloadFn) await reloadFn();
 		} catch {
 			this.showToast('Failed to save', 'error');
 		}
@@ -696,7 +696,7 @@ export class OpenWrtCore {
 			await this.uciDelete(config, id);
 			await this.uciCommit(config);
 			this.showToast('Deleted', 'success');
-			reloadFn();
+			if (reloadFn) await reloadFn();
 		} catch {
 			this.showToast('Failed to delete', 'error');
 		}

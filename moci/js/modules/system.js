@@ -94,7 +94,9 @@ export default class SystemModule {
 			this.subTabs.cleanup();
 			this.subTabs = null;
 		}
-		this.cleanups.filter(Boolean).forEach(fn => fn());
+		this.cleanups.filter(Boolean).forEach(fn => {
+			fn();
+		});
 		this.cleanups = [];
 	}
 

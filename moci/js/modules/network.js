@@ -45,15 +45,15 @@ export default class NetworkModule {
 			{ prefix: 'wg-peer', save: () => this.saveWgPeer() }
 		];
 
-		modals.forEach(m =>
+		modals.forEach(m => {
 			this.core.setupModal({
 				modalId: `${m.prefix}-modal`,
 				closeBtnId: `close-${m.prefix}-modal`,
 				cancelBtnId: `cancel-${m.prefix}-btn`,
 				saveBtnId: `save-${m.prefix}-btn`,
 				saveHandler: m.save
-			})
-		);
+			});
+		});
 
 		const addButtons = [
 			['add-forward-btn', 'forward-modal'],

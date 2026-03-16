@@ -77,7 +77,7 @@ export default class DashboardModule {
 			if (this.lastCpuStats) {
 				const idleDelta = current.idle - this.lastCpuStats.idle;
 				const totalDelta = current.total - this.lastCpuStats.total;
-				const usage = ((1 - idleDelta / totalDelta) * 100).toFixed(1);
+				const usage = totalDelta > 0 ? ((1 - idleDelta / totalDelta) * 100).toFixed(1) : '0.0';
 				const cpuEl = document.getElementById('cpu');
 				const cpuBarEl = document.getElementById('cpu-bar');
 				if (cpuEl) cpuEl.textContent = usage + '%';
