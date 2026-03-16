@@ -112,7 +112,7 @@ export class OpenWrtCore {
 
 	async loadFeatures() {
 		try {
-			const [status, result] = await this.uciGet('based', 'features');
+			const [status, result] = await this.uciGet('moci', 'features');
 
 			if (status === 0 && result && result.values) {
 				this.features = result.values;
@@ -222,18 +222,33 @@ export class OpenWrtCore {
 
 	startPolling() {
 		if (this.pollInterval) clearInterval(this.pollInterval);
+		if (this._visibilityHandler) {
+			document.removeEventListener('visibilitychange', this._visibilityHandler);
+		}
 
 		this.pollInterval = setInterval(() => {
+			if (document.hidden) return;
 			if (this.modules.has('dashboard')) {
 				this.modules.get('dashboard').update();
 			}
 		}, 3000);
+
+		this._visibilityHandler = () => {
+			if (!document.hidden && this.modules.has('dashboard')) {
+				this.modules.get('dashboard').update();
+			}
+		};
+		document.addEventListener('visibilitychange', this._visibilityHandler);
 	}
 
 	stopPolling() {
 		if (this.pollInterval) {
 			clearInterval(this.pollInterval);
 			this.pollInterval = null;
+		}
+		if (this._visibilityHandler) {
+			document.removeEventListener('visibilitychange', this._visibilityHandler);
+			this._visibilityHandler = null;
 		}
 	}
 
@@ -364,7 +379,7 @@ export class OpenWrtCore {
 		this.showNeedsSetup();
 	}
 
-	async ubusCall(object, method, params = {}) {
+	async ubusCall(object, method, params = {}, { timeout = 10000, retries = 0 } = {}) {
 		const baseUrl = this.routerIP ? `http://${this.routerIP}` : '';
 		const url = `${baseUrl}/ubus`;
 		const body = JSON.stringify({
@@ -374,38 +389,61 @@ export class OpenWrtCore {
 			params: [this.sessionId || '00000000000000000000000000000000', object, method, params]
 		});
 
-		let data;
-		if (this.isTauri) {
-			const result = await window.__TAURI_INTERNALS__.invoke('http_post', { url, body });
-			if (result.status < 200 || result.status >= 300) {
-				throw new Error(`HTTP ${result.status}`);
+		let lastError;
+		for (let attempt = 0; attempt <= retries; attempt++) {
+			try {
+				let data;
+				if (this.isTauri) {
+					const result = await window.__TAURI_INTERNALS__.invoke('http_post', { url, body });
+					if (result.status < 200 || result.status >= 300) {
+						throw new Error(`HTTP ${result.status}`);
+					}
+					data = JSON.parse(result.data);
+				} else {
+					const controller = new AbortController();
+					const timer = setTimeout(() => controller.abort(), timeout);
+					try {
+						const response = await fetch(url, {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							signal: controller.signal,
+							body
+						});
+						clearTimeout(timer);
+						data = await response.json();
+					} catch (err) {
+						clearTimeout(timer);
+						throw err.name === 'AbortError'
+							? new Error(`${object}.${method} timed out after ${timeout}ms`)
+							: err;
+					}
+				}
+				if (data.error) throw new Error(data.error.message || `${object}.${method} failed`);
+				return data.result;
+			} catch (err) {
+				lastError = err;
+				if (attempt < retries) {
+					await new Promise(r => setTimeout(r, 1000 * 2 ** attempt));
+				}
 			}
-			data = JSON.parse(result.data);
-		} else {
-			const response = await fetch(url, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: body
-			});
-			data = await response.json();
 		}
-
-		if (data.error) throw new Error(data.error.message || 'ubus call failed');
-		return data.result;
+		throw lastError;
 	}
 
 	uciGet(config, section = null) {
 		const params = { config };
 		if (section) params.section = section;
-		return this.ubusCall('uci', 'get', params);
+		return this.ubusCall('uci', 'get', params, { retries: 2 });
 	}
 
 	uciSet(config, section, values) {
 		return this.ubusCall('uci', 'set', { config, section, values });
 	}
 
-	uciAdd(config, type) {
-		return this.ubusCall('uci', 'add', { config, type });
+	uciAdd(config, type, name = null) {
+		const params = { config, type };
+		if (name) params.name = name;
+		return this.ubusCall('uci', 'add', params);
 	}
 
 	uciDelete(config, section, option = null) {
@@ -463,16 +501,8 @@ export class OpenWrtCore {
 	}
 
 	renderActionButtons(id) {
-		return `
-			<div class="action-buttons">
-				<button class="btn-icon btn-edit" data-action="edit" data-id="${this.escapeHtml(id)}">
-					<svg viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
-				</button>
-				<button class="btn-icon btn-delete" data-action="delete" data-id="${this.escapeHtml(id)}">
-					<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-				</button>
-			</div>
-		`;
+		const eid = this.escapeHtml(id);
+		return `<button class="action-btn-sm" data-action="edit" data-id="${eid}">EDIT</button><button class="action-btn-sm danger" data-action="delete" data-id="${eid}">DELETE</button>`;
 	}
 
 	showToast(message, type = 'info') {
@@ -584,5 +614,51 @@ export class OpenWrtCore {
 		const element = document.getElementById(elementId);
 		if (!element) return;
 		element.classList.remove('loading-skeleton');
+	}
+
+	async loadResource(tableId, colspan, feature, fetcher) {
+		if (feature && !this.isFeatureEnabled(feature)) return;
+		this.showSkeleton(tableId);
+		try {
+			await fetcher();
+		} catch (err) {
+			console.error(`Failed to load ${tableId}:`, err);
+			const tbody = document.querySelector(`#${tableId} tbody`);
+			if (tbody) this.renderEmptyTable(tbody, colspan, 'Failed to load data');
+		} finally {
+			this.hideSkeleton(tableId);
+		}
+	}
+
+	delegateActions(containerId, handlers) {
+		const container = document.getElementById(containerId);
+		if (!container) return null;
+		const handler = e => {
+			const button = e.target.closest('[data-action]');
+			if (!button) return;
+			const action = button.getAttribute('data-action');
+			const id = button.getAttribute('data-id');
+			if (handlers[action]) handlers[action](id);
+		};
+		container.addEventListener('click', handler);
+		return () => container.removeEventListener('click', handler);
+	}
+
+	resetModal(modalId) {
+		const modal = document.getElementById(modalId);
+		if (!modal) return;
+		modal.querySelectorAll('input[type="hidden"]').forEach(el => {
+			el.value = '';
+		});
+		modal.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]), textarea').forEach(el => {
+			el.value = el.defaultValue || '';
+		});
+		modal.querySelectorAll('select').forEach(el => {
+			const defaultOpt = [...el.options].findIndex(o => o.defaultSelected);
+			el.selectedIndex = defaultOpt >= 0 ? defaultOpt : 0;
+		});
+		modal.querySelectorAll('input[type="checkbox"]').forEach(el => {
+			el.checked = el.defaultChecked;
+		});
 	}
 }

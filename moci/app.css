@@ -510,6 +510,12 @@ body {
 	transform: scale(0.98);
 }
 
+.action-btn-sm.danger:hover {
+	border-color: var(--alert-red);
+	color: var(--alert-red);
+	box-shadow: 0 0 8px rgba(255, 51, 51, 0.15);
+}
+
 .section-title {
 	font-family: var(--font-mono);
 	font-size: 12px;

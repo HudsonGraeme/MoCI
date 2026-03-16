@@ -2778,7 +2778,7 @@ class OpenWrtApp {
 					<td colspan="3" style="text-align: left; color: var(--steel-muted); padding: 16px;">
 						<div style="margin-bottom: 12px;">Package viewing requires ACL configuration. Run these commands:</div>
 						<code style="display: block; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 4px; font-size: 11px; line-height: 1.6;">
-							scp rpcd-acl.json root@192.168.1.1:/usr/share/rpcd/acl.d/based-openwrt.json<br>
+							scp rpcd-acl.json root@192.168.1.1:/usr/share/rpcd/acl.d/moci.json<br>
 							ssh root@192.168.1.1 "/etc/init.d/rpcd restart"
 						</code>
 					</td>
@@ -2791,7 +2791,7 @@ class OpenWrtApp {
 					<td colspan="3" style="text-align: left; color: var(--steel-muted); padding: 16px;">
 						<div style="margin-bottom: 12px;">Package viewing requires ACL configuration. Run these commands:</div>
 						<code style="display: block; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 4px; font-size: 11px; line-height: 1.6;">
-							scp rpcd-acl.json root@192.168.1.1:/usr/share/rpcd/acl.d/based-openwrt.json<br>
+							scp rpcd-acl.json root@192.168.1.1:/usr/share/rpcd/acl.d/moci.json<br>
 							ssh root@192.168.1.1 "/etc/init.d/rpcd restart"
 						</code>
 					</td>

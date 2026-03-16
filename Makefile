@@ -1,6 +1,6 @@
 include $(TOPDIR)/rules.mk
 
-PKG_NAME:=based-ui
+PKG_NAME:=moci
 PKG_VERSION:=0.1.0
 PKG_RELEASE:=1
 
@@ -10,15 +10,15 @@ PKG_LICENSE_FILES:=LICENSE
 
 include $(INCLUDE_DIR)/package.mk
 
-define Package/based-ui
+define Package/moci
   SECTION:=admin
   CATEGORY:=Administration
-  TITLE:=Based - Modern OpenWrt Management Interface
+  TITLE:=MoCI - Modern Configuration Interface for OpenWrt
   PKGARCH:=all
   DEPENDS:=+uhttpd +rpcd
 endef
 
-define Package/based-ui/description
+define Package/moci/description
   Modern web interface for OpenWrt routers.
   Pure vanilla JavaScript SPA using OpenWrt's native ubus API.
 endef
@@ -26,34 +26,34 @@ endef
 define Build/Compile
 endef
 
-define Package/based-ui/install
-	$(INSTALL_DIR) $(1)/www/custom
-	$(INSTALL_DATA) ./dist/custom/index.html $(1)/www/custom/
-	$(INSTALL_DATA) ./dist/custom/app.css $(1)/www/custom/
+define Package/moci/install
+	$(INSTALL_DIR) $(1)/www/moci
+	$(INSTALL_DATA) ./dist/moci/index.html $(1)/www/moci/
+	$(INSTALL_DATA) ./dist/moci/app.css $(1)/www/moci/
 
-	$(INSTALL_DIR) $(1)/www/custom/js
-	$(INSTALL_DATA) ./dist/custom/js/core.js $(1)/www/custom/js/
+	$(INSTALL_DIR) $(1)/www/moci/js
+	$(INSTALL_DATA) ./dist/moci/js/core.js $(1)/www/moci/js/
 
-	$(INSTALL_DIR) $(1)/www/custom/js/modules
-	$(INSTALL_DATA) ./dist/custom/js/modules/dashboard.js $(1)/www/custom/js/modules/
-	$(INSTALL_DATA) ./dist/custom/js/modules/network.js $(1)/www/custom/js/modules/
-	$(INSTALL_DATA) ./dist/custom/js/modules/system.js $(1)/www/custom/js/modules/
-	$(INSTALL_DATA) ./dist/custom/js/modules/vpn.js $(1)/www/custom/js/modules/
-	$(INSTALL_DATA) ./dist/custom/js/modules/services.js $(1)/www/custom/js/modules/
+	$(INSTALL_DIR) $(1)/www/moci/js/modules
+	$(INSTALL_DATA) ./dist/moci/js/modules/dashboard.js $(1)/www/moci/js/modules/
+	$(INSTALL_DATA) ./dist/moci/js/modules/network.js $(1)/www/moci/js/modules/
+	$(INSTALL_DATA) ./dist/moci/js/modules/system.js $(1)/www/moci/js/modules/
+	$(INSTALL_DATA) ./dist/moci/js/modules/vpn.js $(1)/www/moci/js/modules/
+	$(INSTALL_DATA) ./dist/moci/js/modules/services.js $(1)/www/moci/js/modules/
 
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
-	$(INSTALL_DATA) ./rpcd-acl.json $(1)/usr/share/rpcd/acl.d/based-openwrt.json
+	$(INSTALL_DATA) ./rpcd-acl.json $(1)/usr/share/rpcd/acl.d/moci.json
 
 	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_CONF) ./files/based.config $(1)/etc/config/based
+	$(INSTALL_CONF) ./files/moci.config $(1)/etc/config/moci
 endef
 
-define Package/based-ui/postinst
+define Package/moci/postinst
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || {
 	/etc/init.d/rpcd restart
-	echo "Based UI installed. Access at http://[router-ip]/custom/"
+	echo "MoCI installed. Access at http://[router-ip]/moci/"
 }
 endef
 
-$(eval $(call BuildPackage,based-ui))
+$(eval $(call BuildPackage,moci))
