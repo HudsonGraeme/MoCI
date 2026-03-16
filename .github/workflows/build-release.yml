@@ -3,6 +3,8 @@ name: Build Release Packages
 on:
   release:
     types: [published]
+  pull_request:
+    types: [labeled, synchronize]
 
 permissions:
   contents: write
@@ -10,6 +12,7 @@ permissions:
 jobs:
   build:
     name: Build ${{ matrix.target }}
+    if: github.event_name == 'release' || github.event.label.name == 'run-build' || (github.event_name == 'pull_request' && github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'run-build'))
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -76,7 +79,11 @@ jobs:
 
       - name: Copy package files
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION="0.0.0-pr${{ github.event.pull_request.number }}"
+          fi
           mkdir -p ${{ matrix.sdk_name }}/package/moci
           sed "s/PKG_VERSION:=.*/PKG_VERSION:=$VERSION/" Makefile > ${{ matrix.sdk_name }}/package/moci/Makefile
           cp -r dist ${{ matrix.sdk_name }}/package/moci/
@@ -108,7 +115,11 @@ jobs:
             echo "Error: ipk package not found!"
             exit 1
           fi
-          VERSION=${GITHUB_REF#refs/tags/}
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION="0.0.0-pr${{ github.event.pull_request.number }}"
+          fi
           ARCH_SUFFIX="${{ matrix.arch }}"
           NEW_NAME="moci_${VERSION}-r1_${ARCH_SUFFIX}.ipk"
           mv "$IPK_FILE" "/tmp/$NEW_NAME"
@@ -136,7 +147,11 @@ jobs:
             echo "found=false" >> $GITHUB_OUTPUT
             exit 0
           fi
-          VERSION=${GITHUB_REF#refs/tags/}
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION="0.0.0-pr${{ github.event.pull_request.number }}"
+          fi
           ARCH_SUFFIX="${{ matrix.arch }}"
           NEW_NAME="moci_${VERSION}-r1_${ARCH_SUFFIX}.apk"
           mv "$APK_FILE" "/tmp/$NEW_NAME"
@@ -144,8 +159,18 @@ jobs:
           echo "found=true" >> $GITHUB_OUTPUT
 
       - name: Upload to release
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: |
+            /tmp/${{ steps.find_ipk.outputs.package_name }}
+            /tmp/${{ steps.find_apk.outputs.package_name }}
+
+      - name: Upload build artifacts
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: moci-${{ matrix.arch }}
+          path: |
             /tmp/${{ steps.find_ipk.outputs.package_name }}
             /tmp/${{ steps.find_apk.outputs.package_name }}
