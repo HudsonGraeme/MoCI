@@ -89,37 +89,63 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Configure SDK
+      - name: Configure SDK (ipk)
         working-directory: ${{ matrix.sdk_name }}
         run: |
           make defconfig
 
-      - name: Build package
+      - name: Build ipk package
         working-directory: ${{ matrix.sdk_name }}
         run: |
           make package/moci/compile V=s
 
-      - name: Find package
-        id: find_package
+      - name: Find ipk package
+        id: find_ipk
         working-directory: ${{ matrix.sdk_name }}
         run: |
           IPK_FILE=$(find bin/packages -name "moci_*.ipk" | head -n 1)
           if [ -z "$IPK_FILE" ]; then
-            echo "Error: Package not found!"
+            echo "Error: ipk package not found!"
             exit 1
           fi
-          echo "package_path=$IPK_FILE" >> $GITHUB_OUTPUT
           VERSION=${GITHUB_REF#refs/tags/}
           ARCH_SUFFIX="${{ matrix.arch }}"
           NEW_NAME="moci_${VERSION}-r1_${ARCH_SUFFIX}.ipk"
+          mv "$IPK_FILE" "/tmp/$NEW_NAME"
           echo "package_name=$NEW_NAME" >> $GITHUB_OUTPUT
 
-      - name: Rename package
+      - name: Configure SDK (apk)
         working-directory: ${{ matrix.sdk_name }}
         run: |
-          mv ${{ steps.find_package.outputs.package_path }} /tmp/${{ steps.find_package.outputs.package_name }}
+          echo "CONFIG_USE_APK=y" >> .config
+          make defconfig
+
+      - name: Build apk package
+        working-directory: ${{ matrix.sdk_name }}
+        run: |
+          make package/moci/clean V=s
+          make package/moci/compile V=s
+
+      - name: Find apk package
+        id: find_apk
+        working-directory: ${{ matrix.sdk_name }}
+        run: |
+          APK_FILE=$(find bin/packages -name "moci*.apk" | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            echo "Warning: apk package not found, skipping"
+            echo "found=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          VERSION=${GITHUB_REF#refs/tags/}
+          ARCH_SUFFIX="${{ matrix.arch }}"
+          NEW_NAME="moci_${VERSION}-r1_${ARCH_SUFFIX}.apk"
+          mv "$APK_FILE" "/tmp/$NEW_NAME"
+          echo "package_name=$NEW_NAME" >> $GITHUB_OUTPUT
+          echo "found=true" >> $GITHUB_OUTPUT
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          files: /tmp/${{ steps.find_package.outputs.package_name }}
+          files: |
+            /tmp/${{ steps.find_ipk.outputs.package_name }}
+            /tmp/${{ steps.find_apk.outputs.package_name }}
