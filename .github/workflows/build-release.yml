@@ -3,13 +3,58 @@ name: Build Release Packages
 on:
   release:
     types: [published]
+  pull_request:
+    types: [labeled, synchronize]
 
 permissions:
   contents: write
 
 jobs:
+  prepare:
+    name: Build assets
+    if: github.event_name == 'release' || github.event.label.name == 'run-build' || (github.event_name == 'pull_request' && github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'run-build'))
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build minified assets
+        run: pnpm run build
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=0.0.0-pr${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 1
+
   build:
     name: Build ${{ matrix.target }}
+    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -43,40 +88,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Download dist
+        uses: actions/download-artifact@v4
         with:
-          node-version: '20'
+          name: dist
+          path: dist/
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Cache SDK
+        id: cache-sdk
+        uses: actions/cache@v4
         with:
-          version: 9
-
-      - name: Install Node dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build minified assets
-        run: pnpm run build
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y zstd
+          path: ${{ matrix.sdk_name }}
+          key: sdk-${{ matrix.sdk_name }}
 
       - name: Download SDK
+        if: steps.cache-sdk.outputs.cache-hit != 'true'
         run: |
           SDK_URL="https://downloads.openwrt.org/releases/24.10.5/targets/${{ matrix.target }}/${{ matrix.sdk_name }}.tar.zst"
-          echo "Downloading SDK from: $SDK_URL"
           curl -L -o sdk.tar.zst "$SDK_URL"
-
-      - name: Extract SDK
-        run: |
           tar --use-compress-program=unzstd -xf sdk.tar.zst
+          rm sdk.tar.zst
 
       - name: Copy package files
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION="${{ needs.prepare.outputs.version }}"
           mkdir -p ${{ matrix.sdk_name }}/package/moci
           sed "s/PKG_VERSION:=.*/PKG_VERSION:=$VERSION/" Makefile > ${{ matrix.sdk_name }}/package/moci/Makefile
           cp -r dist ${{ matrix.sdk_name }}/package/moci/
@@ -84,42 +119,86 @@ jobs:
           cp -r files ${{ matrix.sdk_name }}/package/moci/
 
       - name: Update feeds
+        if: steps.cache-sdk.outputs.cache-hit != 'true'
         working-directory: ${{ matrix.sdk_name }}
         run: |
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Configure SDK
+      - name: Configure SDK (ipk)
         working-directory: ${{ matrix.sdk_name }}
         run: |
           make defconfig
 
-      - name: Build package
+      - name: Build ipk package
         working-directory: ${{ matrix.sdk_name }}
         run: |
           make package/moci/compile V=s
 
-      - name: Find package
-        id: find_package
+      - name: Find ipk package
+        id: find_ipk
         working-directory: ${{ matrix.sdk_name }}
         run: |
           IPK_FILE=$(find bin/packages -name "moci_*.ipk" | head -n 1)
           if [ -z "$IPK_FILE" ]; then
-            echo "Error: Package not found!"
+            echo "Error: ipk package not found!"
             exit 1
           fi
-          echo "package_path=$IPK_FILE" >> $GITHUB_OUTPUT
-          VERSION=${GITHUB_REF#refs/tags/}
-          ARCH_SUFFIX="${{ matrix.arch }}"
-          NEW_NAME="moci_${VERSION}-r1_${ARCH_SUFFIX}.ipk"
+          VERSION="${{ needs.prepare.outputs.version }}"
+          NEW_NAME="moci_${VERSION}-r1_${{ matrix.arch }}.ipk"
+          mv "$IPK_FILE" "/tmp/$NEW_NAME"
           echo "package_name=$NEW_NAME" >> $GITHUB_OUTPUT
 
-      - name: Rename package
+      - name: Configure SDK (apk)
         working-directory: ${{ matrix.sdk_name }}
         run: |
-          mv ${{ steps.find_package.outputs.package_path }} /tmp/${{ steps.find_package.outputs.package_name }}
+          echo "CONFIG_USE_APK=y" >> .config
+          make defconfig
 
-      - name: Upload to release
+      - name: Build apk package
+        working-directory: ${{ matrix.sdk_name }}
+        run: |
+          make package/moci/clean V=s
+          make package/moci/compile V=s
+
+      - name: Find apk package
+        id: find_apk
+        working-directory: ${{ matrix.sdk_name }}
+        run: |
+          APK_FILE=$(find bin/packages -name "moci*.apk" | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            echo "Warning: apk package not found, skipping"
+            echo "found=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          VERSION="${{ needs.prepare.outputs.version }}"
+          NEW_NAME="moci_${VERSION}-r1_${{ matrix.arch }}.apk"
+          mv "$APK_FILE" "/tmp/$NEW_NAME"
+          echo "package_name=$NEW_NAME" >> $GITHUB_OUTPUT
+          echo "found=true" >> $GITHUB_OUTPUT
+
+      - name: Upload ipk to release
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: /tmp/${{ steps.find_package.outputs.package_name }}
+          files: /tmp/${{ steps.find_ipk.outputs.package_name }}
+
+      - name: Upload apk to release
+        if: github.event_name == 'release' && steps.find_apk.outputs.found == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: /tmp/${{ steps.find_apk.outputs.package_name }}
+
+      - name: Upload ipk artifact
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: moci-ipk-${{ matrix.arch }}
+          path: /tmp/${{ steps.find_ipk.outputs.package_name }}
+
+      - name: Upload apk artifact
+        if: github.event_name != 'release' && steps.find_apk.outputs.found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: moci-apk-${{ matrix.arch }}
+          path: /tmp/${{ steps.find_apk.outputs.package_name }}
