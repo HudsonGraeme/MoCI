@@ -52,8 +52,8 @@ jobs:
           path: dist/
           retention-days: 1
 
-  build:
-    name: Build ${{ matrix.target }}
+  build-ipk:
+    name: Build ipk ${{ matrix.arch }}
     needs: prepare
     runs-on: ubuntu-latest
     strategy:
@@ -101,7 +101,7 @@ jobs:
           path: ${{ matrix.sdk_name }}
           key: sdk-${{ matrix.sdk_name }}
 
-      - name: Download SDK
+      - name: Download and extract SDK
         if: steps.cache-sdk.outputs.cache-hit != 'true'
         run: |
           SDK_URL="https://downloads.openwrt.org/releases/24.10.5/targets/${{ matrix.target }}/${{ matrix.sdk_name }}.tar.zst"
@@ -125,17 +125,13 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Configure SDK (ipk)
-        working-directory: ${{ matrix.sdk_name }}
-        run: |
-          make defconfig
-
       - name: Build ipk package
         working-directory: ${{ matrix.sdk_name }}
         run: |
+          make defconfig
           make package/moci/compile V=s
 
-      - name: Find ipk package
+      - name: Find and rename ipk
         id: find_ipk
         working-directory: ${{ matrix.sdk_name }}
         run: |
@@ -149,55 +145,120 @@ jobs:
           mv "$IPK_FILE" "/tmp/$NEW_NAME"
           echo "package_name=$NEW_NAME" >> $GITHUB_OUTPUT
 
-      - name: Configure SDK (apk)
-        working-directory: ${{ matrix.sdk_name }}
-        run: |
-          echo "CONFIG_USE_APK=y" >> .config
-          make defconfig
-
-      - name: Build apk package
-        working-directory: ${{ matrix.sdk_name }}
-        run: |
-          make package/moci/clean V=s
-          make package/moci/compile V=s
-
-      - name: Find apk package
-        id: find_apk
-        working-directory: ${{ matrix.sdk_name }}
-        run: |
-          APK_FILE=$(find bin/packages -name "moci*.apk" | head -n 1)
-          if [ -z "$APK_FILE" ]; then
-            echo "Warning: apk package not found, skipping"
-            echo "found=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          VERSION="${{ needs.prepare.outputs.version }}"
-          NEW_NAME="moci_${VERSION}-r1_${{ matrix.arch }}.apk"
-          mv "$APK_FILE" "/tmp/$NEW_NAME"
-          echo "package_name=$NEW_NAME" >> $GITHUB_OUTPUT
-          echo "found=true" >> $GITHUB_OUTPUT
-
-      - name: Upload ipk to release
+      - name: Upload to release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: /tmp/${{ steps.find_ipk.outputs.package_name }}
 
-      - name: Upload apk to release
-        if: github.event_name == 'release' && steps.find_apk.outputs.found == 'true'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: /tmp/${{ steps.find_apk.outputs.package_name }}
-
-      - name: Upload ipk artifact
+      - name: Upload artifact
         if: github.event_name != 'release'
         uses: actions/upload-artifact@v4
         with:
           name: moci-ipk-${{ matrix.arch }}
           path: /tmp/${{ steps.find_ipk.outputs.package_name }}
 
-      - name: Upload apk artifact
-        if: github.event_name != 'release' && steps.find_apk.outputs.found == 'true'
+  build-apk:
+    name: Build apk ${{ matrix.arch }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86/64
+            arch: x86_64
+            sdk_name: openwrt-sdk-25.12.0-x86-64_gcc-14.3.0_musl.Linux-x86_64
+          - target: ramips/mt7621
+            arch: mipsel_24kc
+            sdk_name: openwrt-sdk-25.12.0-ramips-mt7621_gcc-14.3.0_musl.Linux-x86_64
+          - target: ath79/generic
+            arch: mips_24kc
+            sdk_name: openwrt-sdk-25.12.0-ath79-generic_gcc-14.3.0_musl.Linux-x86_64
+          - target: mediatek/filogic
+            arch: aarch64_cortex-a53
+            sdk_name: openwrt-sdk-25.12.0-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64
+          - target: bcm27xx/bcm2711
+            arch: aarch64_cortex-a72
+            sdk_name: openwrt-sdk-25.12.0-bcm27xx-bcm2711_gcc-14.3.0_musl.Linux-x86_64
+          - target: ipq40xx/generic
+            arch: arm_cortex-a7_neon-vfpv4
+            sdk_name: openwrt-sdk-25.12.0-ipq40xx-generic_gcc-14.3.0_musl_eabi.Linux-x86_64
+          - target: mvebu/cortexa9
+            arch: arm_cortex-a9_vfpv3-d16
+            sdk_name: openwrt-sdk-25.12.0-mvebu-cortexa9_gcc-14.3.0_musl_eabi.Linux-x86_64
+          - target: ipq806x/generic
+            arch: arm_cortex-a15_neon-vfpv4
+            sdk_name: openwrt-sdk-25.12.0-ipq806x-generic_gcc-14.3.0_musl_eabi.Linux-x86_64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Cache SDK
+        id: cache-sdk
+        uses: actions/cache@v4
+        with:
+          path: ${{ matrix.sdk_name }}
+          key: sdk-${{ matrix.sdk_name }}
+
+      - name: Download and extract SDK
+        if: steps.cache-sdk.outputs.cache-hit != 'true'
+        run: |
+          SDK_URL="https://downloads.openwrt.org/releases/25.12.0/targets/${{ matrix.target }}/${{ matrix.sdk_name }}.tar.zst"
+          curl -L -o sdk.tar.zst "$SDK_URL"
+          tar --use-compress-program=unzstd -xf sdk.tar.zst
+          rm sdk.tar.zst
+
+      - name: Copy package files
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+          mkdir -p ${{ matrix.sdk_name }}/package/moci
+          sed "s/PKG_VERSION:=.*/PKG_VERSION:=$VERSION/" Makefile > ${{ matrix.sdk_name }}/package/moci/Makefile
+          cp -r dist ${{ matrix.sdk_name }}/package/moci/
+          cp rpcd-acl.json ${{ matrix.sdk_name }}/package/moci/
+          cp -r files ${{ matrix.sdk_name }}/package/moci/
+
+      - name: Update feeds
+        if: steps.cache-sdk.outputs.cache-hit != 'true'
+        working-directory: ${{ matrix.sdk_name }}
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Build apk package
+        working-directory: ${{ matrix.sdk_name }}
+        run: |
+          make defconfig
+          make package/moci/compile V=s
+
+      - name: Find and rename apk
+        id: find_apk
+        working-directory: ${{ matrix.sdk_name }}
+        run: |
+          APK_FILE=$(find bin/packages -name "moci*.apk" | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            echo "Error: apk package not found!"
+            exit 1
+          fi
+          VERSION="${{ needs.prepare.outputs.version }}"
+          NEW_NAME="moci_${VERSION}-r1_${{ matrix.arch }}.apk"
+          mv "$APK_FILE" "/tmp/$NEW_NAME"
+          echo "package_name=$NEW_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: /tmp/${{ steps.find_apk.outputs.package_name }}
+
+      - name: Upload artifact
+        if: github.event_name != 'release'
         uses: actions/upload-artifact@v4
         with:
           name: moci-apk-${{ matrix.arch }}
