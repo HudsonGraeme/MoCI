@@ -42,7 +42,7 @@ jobs:
           if [ "${{ github.event_name }}" = "release" ]; then
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            echo "version=0.0.0-pr${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+            echo "version=0.0.0.${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Upload dist
