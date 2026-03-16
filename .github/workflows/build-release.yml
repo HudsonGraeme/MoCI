@@ -158,19 +158,28 @@ jobs:
           echo "package_name=$NEW_NAME" >> $GITHUB_OUTPUT
           echo "found=true" >> $GITHUB_OUTPUT
 
-      - name: Upload to release
+      - name: Upload ipk to release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            /tmp/${{ steps.find_ipk.outputs.package_name }}
-            /tmp/${{ steps.find_apk.outputs.package_name }}
+          files: /tmp/${{ steps.find_ipk.outputs.package_name }}
 
-      - name: Upload build artifacts
+      - name: Upload apk to release
+        if: github.event_name == 'release' && steps.find_apk.outputs.found == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: /tmp/${{ steps.find_apk.outputs.package_name }}
+
+      - name: Upload ipk artifact
         if: github.event_name != 'release'
         uses: actions/upload-artifact@v4
         with:
-          name: moci-${{ matrix.arch }}
-          path: |
-            /tmp/${{ steps.find_ipk.outputs.package_name }}
-            /tmp/${{ steps.find_apk.outputs.package_name }}
+          name: moci-ipk-${{ matrix.arch }}
+          path: /tmp/${{ steps.find_ipk.outputs.package_name }}
+
+      - name: Upload apk artifact
+        if: github.event_name != 'release' && steps.find_apk.outputs.found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: moci-apk-${{ matrix.arch }}
+          path: /tmp/${{ steps.find_apk.outputs.package_name }}
