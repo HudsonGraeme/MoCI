@@ -144,9 +144,7 @@ export class OpenWrtCore {
 		return {
 			dashboard: './modules/dashboard.js',
 			network: './modules/network.js',
-			system: './modules/system.js',
-			vpn: './modules/vpn.js',
-			services: './modules/services.js'
+			system: './modules/system.js'
 		};
 	}
 
@@ -178,10 +176,8 @@ export class OpenWrtCore {
 	shouldLoadModule(moduleName) {
 		const moduleFeatures = {
 			dashboard: ['dashboard'],
-			network: ['network', 'wireless', 'firewall', 'dhcp', 'dns', 'diagnostics'],
-			system: ['system', 'backup', 'packages', 'services', 'ssh_keys', 'storage', 'leds', 'firmware'],
-			vpn: ['wireguard'],
-			services: ['qos', 'ddns']
+			network: ['network', 'wireless', 'firewall', 'dhcp', 'dns', 'diagnostics', 'wireguard', 'qos', 'ddns'],
+			system: ['system', 'backup', 'packages', 'services', 'ssh_keys', 'storage', 'leds', 'firmware']
 		};
 
 		const features = moduleFeatures[moduleName] || [];
@@ -595,6 +591,134 @@ export class OpenWrtCore {
 		};
 		container.addEventListener('click', handler);
 		return () => container.removeEventListener('click', handler);
+	}
+
+	renderTable(tableSelector, items, colspan, emptyMsg, rowFn) {
+		const tbody = document.querySelector(`${tableSelector} tbody`);
+		if (!tbody) return;
+		if (items.length === 0) {
+			this.renderEmptyTable(tbody, colspan, emptyMsg);
+			return;
+		}
+		tbody.innerHTML = items.map(rowFn).join('');
+	}
+
+	filterUciSections(config, type) {
+		return Object.entries(config)
+			.filter(([, v]) => v['.type'] === type)
+			.map(([k, v]) => ({ section: k, ...v }));
+	}
+
+	getFormValues(fieldMap) {
+		const values = {};
+		for (const [elementId, uciKey] of Object.entries(fieldMap)) {
+			const el = document.getElementById(elementId);
+			if (!el) continue;
+			const formVal = el.type === 'checkbox' ? el.checked : el.value;
+			if (Array.isArray(uciKey)) {
+				for (const key of uciKey) values[key] = formVal;
+			} else {
+				values[uciKey] = formVal;
+			}
+		}
+		return values;
+	}
+
+	setFormValues(fieldMap, data) {
+		for (const [elementId, uciKey] of Object.entries(fieldMap)) {
+			const el = document.getElementById(elementId);
+			if (!el) continue;
+			let val;
+			if (Array.isArray(uciKey)) {
+				for (const key of uciKey) {
+					if (data[key] !== undefined && data[key] !== '') {
+						val = data[key];
+						break;
+					}
+				}
+			} else {
+				val = data[uciKey];
+			}
+			if (el.type === 'checkbox') {
+				el.checked = !!val;
+			} else {
+				el.value = Array.isArray(val) ? val.join(', ') : val || '';
+			}
+		}
+	}
+
+	async uciEdit(config, id, fieldMap, modalId, sectionIdField) {
+		try {
+			const [status, result] = await this.uciGet(config, id);
+			if (status !== 0 || !result?.values) throw new Error('Not found');
+			if (sectionIdField) document.getElementById(sectionIdField).value = id;
+			this.setFormValues(fieldMap, result.values);
+			this.openModal(modalId);
+		} catch {
+			this.showToast('Failed to load config', 'error');
+		}
+	}
+
+	async uciSave({
+		config,
+		uciType,
+		modalId,
+		sectionIdField,
+		fieldMap,
+		defaults,
+		reloadFn,
+		successMsg,
+		sectionNameField
+	}) {
+		const section = sectionIdField ? document.getElementById(sectionIdField)?.value : '';
+		const values = { ...this.getFormValues(fieldMap), ...defaults };
+		try {
+			if (section) {
+				await this.uciSet(config, section, values);
+			} else {
+				const name = sectionNameField ? document.getElementById(sectionNameField)?.value || null : null;
+				const [, res] = await this.uciAdd(config, uciType, name);
+				if (!res?.section) throw new Error('Failed to create section');
+				await this.uciSet(config, res.section, values);
+			}
+			await this.uciCommit(config);
+			this.closeModal(modalId);
+			this.showToast(successMsg || 'Saved', 'success');
+			reloadFn();
+		} catch {
+			this.showToast('Failed to save', 'error');
+		}
+	}
+
+	async uciDeleteEntry(config, id, confirmMsg, reloadFn) {
+		if (!confirm(confirmMsg)) return;
+		try {
+			await this.uciDelete(config, id);
+			await this.uciCommit(config);
+			this.showToast('Deleted', 'success');
+			reloadFn();
+		} catch {
+			this.showToast('Failed to delete', 'error');
+		}
+	}
+
+	spliceFileLines(raw, dataFilter, index, newLine) {
+		const lines = raw.split('\n');
+		const dataIndices = lines.map((l, i) => (dataFilter(l) ? i : -1)).filter(i => i >= 0);
+		if (index !== '' && index !== undefined) {
+			const origIdx = dataIndices[parseInt(index)];
+			if (origIdx !== undefined) {
+				if (newLine === null) {
+					lines.splice(origIdx, 1);
+				} else {
+					lines[origIdx] = newLine;
+				}
+			}
+		} else if (newLine !== null) {
+			if (lines.length && lines[lines.length - 1] === '') lines.pop();
+			lines.push(newLine);
+		}
+		return lines.join('\n') + (raw.endsWith('\n') ? '' : '\n');
 	}
 
 	resetModal(modalId) {
