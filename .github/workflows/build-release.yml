@@ -7,7 +7,7 @@ on:
     types: [labeled, synchronize]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   prepare:
@@ -56,7 +56,10 @@ jobs:
     name: Build ipk ${{ matrix.arch }}
     needs: prepare
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: x86/64
@@ -128,6 +131,7 @@ jobs:
       - name: Build ipk package
         working-directory: ${{ matrix.sdk_name }}
         run: |
+          rm -rf bin/packages
           make defconfig
           make package/moci/compile V=s
 
@@ -162,7 +166,10 @@ jobs:
     name: Build apk ${{ matrix.arch }}
     needs: prepare
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: x86/64
@@ -234,6 +241,7 @@ jobs:
       - name: Build apk package
         working-directory: ${{ matrix.sdk_name }}
         run: |
+          rm -rf bin/packages
           make defconfig
           make package/moci/compile V=s
 
