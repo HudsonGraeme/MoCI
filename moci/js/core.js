@@ -718,7 +718,8 @@ export class OpenWrtCore {
 			if (lines.length && lines[lines.length - 1] === '') lines.pop();
 			lines.push(newLine);
 		}
-		return lines.join('\n') + (raw.endsWith('\n') ? '' : '\n');
+		const result = lines.join('\n');
+		return result.endsWith('\n') ? result : result + '\n';
 	}
 
 	resetModal(modalId) {

@@ -32,10 +32,8 @@ export default class DashboardModule {
 		if (hostnameEl) hostnameEl.textContent = boardInfo.hostname || 'OpenWrt';
 		if (uptimeEl) uptimeEl.textContent = this.core.formatUptime(systemInfo.uptime);
 
-		const memPercent = (
-			((systemInfo.memory.total - systemInfo.memory.free) / systemInfo.memory.total) *
-			100
-		).toFixed(0);
+		const memTotal = systemInfo.memory.total || 1;
+		const memPercent = (((memTotal - systemInfo.memory.free) / memTotal) * 100).toFixed(0);
 		if (memoryEl) memoryEl.textContent = this.core.formatMemory(systemInfo.memory);
 		if (memoryBarEl) memoryBarEl.style.width = memPercent + '%';
 	}

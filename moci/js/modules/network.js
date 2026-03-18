@@ -878,6 +878,11 @@ export default class NetworkModule {
 
 	saveWgPeer() {
 		const ifaceName = document.getElementById('wg-interface').value || 'wg0';
+		const allowedIpsRaw = document.getElementById('edit-wg-peer-allowed-ips')?.value || '';
+		const allowed_ips = allowedIpsRaw
+			.split(/[,\s]+/)
+			.map(s => s.trim())
+			.filter(Boolean);
 		this.core.uciSave({
 			config: 'network',
 			uciType: `wireguard_${ifaceName}`,
@@ -886,10 +891,10 @@ export default class NetworkModule {
 			fieldMap: {
 				'edit-wg-peer-name': 'description',
 				'edit-wg-peer-public-key': 'public_key',
-				'edit-wg-peer-allowed-ips': 'allowed_ips',
 				'edit-wg-peer-keepalive': 'persistent_keepalive',
 				'edit-wg-peer-preshared-key': 'preshared_key'
 			},
+			defaults: { allowed_ips },
 			reloadFn: () => this.loadVPN(),
 			successMsg: 'WireGuard peer saved'
 		});
