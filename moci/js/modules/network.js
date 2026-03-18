@@ -548,6 +548,15 @@ export default class NetworkModule {
 			return;
 		}
 
+		const entries = this.parseHosts(this.hostsRaw);
+		const parsedIndex = index === '' ? null : parseInt(index, 10);
+		if (
+			parsedIndex !== null &&
+			(!Number.isInteger(parsedIndex) || parsedIndex < 0 || parsedIndex >= entries.length)
+		) {
+			this.core.showToast('Hosts entry is out of date. Reload and try again.', 'error');
+			return;
+		}
 		const newContent = this.core.spliceFileLines(
 			this.hostsRaw,
 			l => l.trim() && !l.trim().startsWith('#'),
@@ -566,6 +575,12 @@ export default class NetworkModule {
 
 	async deleteHostEntry(index) {
 		if (!confirm('Delete this hosts entry?')) return;
+		const entries = this.parseHosts(this.hostsRaw);
+		const parsedIndex = parseInt(index, 10);
+		if (!Number.isInteger(parsedIndex) || parsedIndex < 0 || parsedIndex >= entries.length) {
+			this.core.showToast('Hosts entry is out of date. Reload and try again.', 'error');
+			return;
+		}
 		const newContent = this.core.spliceFileLines(
 			this.hostsRaw,
 			l => l.trim() && !l.trim().startsWith('#'),
@@ -747,11 +762,16 @@ export default class NetworkModule {
 		try {
 			const ifaceName = document.getElementById('wg-interface').value || 'wg0';
 			const disabled = document.getElementById('wg-enabled').value === '0';
+			const addr = (document.getElementById('wg-address').value || '').trim();
+			if (!addr) {
+				this.core.showToast('WireGuard address is required', 'error');
+				return;
+			}
 			const values = {
 				proto: 'wireguard',
 				listen_port: document.getElementById('wg-port').value,
 				private_key: document.getElementById('wg-private-key').value,
-				addresses: [document.getElementById('wg-address').value],
+				addresses: [addr],
 				disabled: disabled ? '1' : '0'
 			};
 			await this.core.uciSet('network', ifaceName, values);

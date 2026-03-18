@@ -85,6 +85,8 @@ export default class DashboardModule {
 		} catch {
 			const cpuEl = document.getElementById('cpu');
 			if (cpuEl) cpuEl.textContent = 'N/A';
+			const cpuBarEl = document.getElementById('cpu-bar');
+			if (cpuBarEl) cpuBarEl.style.width = '0%';
 		}
 	}
 
@@ -108,8 +110,8 @@ export default class DashboardModule {
 
 			const current = { rx: totalRx, tx: totalTx };
 			if (this.lastNetStats) {
-				const rxRate = (current.rx - this.lastNetStats.rx) / 1024 / 3;
-				const txRate = (current.tx - this.lastNetStats.tx) / 1024 / 3;
+				const rxRate = Math.max(0, current.rx - this.lastNetStats.rx) / 1024 / 3;
+				const txRate = Math.max(0, current.tx - this.lastNetStats.tx) / 1024 / 3;
 
 				const downEl = document.getElementById('bandwidth-down');
 				const upEl = document.getElementById('bandwidth-up');
