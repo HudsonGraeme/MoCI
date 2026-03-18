@@ -1,3 +1,49 @@
+const FORWARD_FIELDS = {
+	'edit-forward-name': 'name',
+	'edit-forward-proto': 'proto',
+	'edit-forward-src-dport': 'src_dport',
+	'edit-forward-dest-ip': 'dest_ip',
+	'edit-forward-dest-port': 'dest_port',
+	'edit-forward-enabled': 'enabled'
+};
+
+const FW_RULE_FIELDS = {
+	'edit-fw-rule-name': 'name',
+	'edit-fw-rule-target': 'target',
+	'edit-fw-rule-src': 'src',
+	'edit-fw-rule-dest': 'dest',
+	'edit-fw-rule-proto': 'proto',
+	'edit-fw-rule-dest-port': 'dest_port',
+	'edit-fw-rule-src-ip': 'src_ip'
+};
+
+const STATIC_LEASE_FIELDS = {
+	'edit-static-lease-name': 'name',
+	'edit-static-lease-mac': 'mac',
+	'edit-static-lease-ip': 'ip'
+};
+
+const DNS_ENTRY_FIELDS = {
+	'edit-dns-hostname': 'name',
+	'edit-dns-ip': 'ip'
+};
+
+const QOS_RULE_FIELDS = {
+	'edit-qos-rule-priority': 'target',
+	'edit-qos-rule-proto': 'proto',
+	'edit-qos-rule-ports': 'ports',
+	'edit-qos-rule-srchost': 'srchost'
+};
+
+const DDNS_FIELDS = {
+	'edit-ddns-service': 'service_name',
+	'edit-ddns-hostname': ['lookup_host', 'domain'],
+	'edit-ddns-username': 'username',
+	'edit-ddns-password': 'password',
+	'edit-ddns-check-interval': 'check_interval',
+	'edit-ddns-enabled': 'enabled'
+};
+
 export default class NetworkModule {
 	constructor(core) {
 		this.core = core;
@@ -107,7 +153,9 @@ export default class NetworkModule {
 			this.subTabs.cleanup();
 			this.subTabs = null;
 		}
-		this.cleanups.filter(Boolean).forEach(fn => fn());
+		this.cleanups.filter(Boolean).forEach(fn => {
+			fn();
+		});
 		this.cleanups = [];
 	}
 
@@ -311,20 +359,7 @@ export default class NetworkModule {
 	}
 
 	editForward(id) {
-		this.core.uciEdit(
-			'firewall',
-			id,
-			{
-				'edit-forward-name': 'name',
-				'edit-forward-proto': 'proto',
-				'edit-forward-src-dport': 'src_dport',
-				'edit-forward-dest-ip': 'dest_ip',
-				'edit-forward-dest-port': 'dest_port',
-				'edit-forward-enabled': 'enabled'
-			},
-			'forward-modal',
-			'edit-forward-section'
-		);
+		this.core.uciEdit('firewall', id, FORWARD_FIELDS, 'forward-modal', 'edit-forward-section');
 	}
 
 	saveForward() {
@@ -333,14 +368,7 @@ export default class NetworkModule {
 			uciType: 'redirect',
 			modalId: 'forward-modal',
 			sectionIdField: 'edit-forward-section',
-			fieldMap: {
-				'edit-forward-name': 'name',
-				'edit-forward-proto': 'proto',
-				'edit-forward-src-dport': 'src_dport',
-				'edit-forward-dest-ip': 'dest_ip',
-				'edit-forward-dest-port': 'dest_port',
-				'edit-forward-enabled': 'enabled'
-			},
+			fieldMap: FORWARD_FIELDS,
 			defaults: { src: 'wan', dest: 'lan', target: 'DNAT' },
 			reloadFn: () => this.loadFirewall(),
 			successMsg: 'Port forward saved'
@@ -352,21 +380,7 @@ export default class NetworkModule {
 	}
 
 	editFirewallRule(id) {
-		this.core.uciEdit(
-			'firewall',
-			id,
-			{
-				'edit-fw-rule-name': 'name',
-				'edit-fw-rule-target': 'target',
-				'edit-fw-rule-src': 'src',
-				'edit-fw-rule-dest': 'dest',
-				'edit-fw-rule-proto': 'proto',
-				'edit-fw-rule-dest-port': 'dest_port',
-				'edit-fw-rule-src-ip': 'src_ip'
-			},
-			'fw-rule-modal',
-			'edit-fw-rule-section'
-		);
+		this.core.uciEdit('firewall', id, FW_RULE_FIELDS, 'fw-rule-modal', 'edit-fw-rule-section');
 	}
 
 	saveFirewallRule() {
@@ -375,15 +389,7 @@ export default class NetworkModule {
 			uciType: 'rule',
 			modalId: 'fw-rule-modal',
 			sectionIdField: 'edit-fw-rule-section',
-			fieldMap: {
-				'edit-fw-rule-name': 'name',
-				'edit-fw-rule-target': 'target',
-				'edit-fw-rule-src': 'src',
-				'edit-fw-rule-dest': 'dest',
-				'edit-fw-rule-proto': 'proto',
-				'edit-fw-rule-dest-port': 'dest_port',
-				'edit-fw-rule-src-ip': 'src_ip'
-			},
+			fieldMap: FW_RULE_FIELDS,
 			reloadFn: () => this.loadFirewall(),
 			successMsg: 'Firewall rule saved'
 		});
@@ -434,17 +440,7 @@ export default class NetworkModule {
 	}
 
 	editStaticLease(id) {
-		this.core.uciEdit(
-			'dhcp',
-			id,
-			{
-				'edit-static-lease-name': 'name',
-				'edit-static-lease-mac': 'mac',
-				'edit-static-lease-ip': 'ip'
-			},
-			'static-lease-modal',
-			'edit-static-lease-section'
-		);
+		this.core.uciEdit('dhcp', id, STATIC_LEASE_FIELDS, 'static-lease-modal', 'edit-static-lease-section');
 	}
 
 	saveStaticLease() {
@@ -453,11 +449,7 @@ export default class NetworkModule {
 			uciType: 'host',
 			modalId: 'static-lease-modal',
 			sectionIdField: 'edit-static-lease-section',
-			fieldMap: {
-				'edit-static-lease-name': 'name',
-				'edit-static-lease-mac': 'mac',
-				'edit-static-lease-ip': 'ip'
-			},
+			fieldMap: STATIC_LEASE_FIELDS,
 			reloadFn: () => this.loadDHCP(),
 			successMsg: 'Static lease saved'
 		});
@@ -518,16 +510,7 @@ export default class NetworkModule {
 	}
 
 	editDnsEntry(id) {
-		this.core.uciEdit(
-			'dhcp',
-			id,
-			{
-				'edit-dns-hostname': 'name',
-				'edit-dns-ip': 'ip'
-			},
-			'dns-entry-modal',
-			'edit-dns-entry-section'
-		);
+		this.core.uciEdit('dhcp', id, DNS_ENTRY_FIELDS, 'dns-entry-modal', 'edit-dns-entry-section');
 	}
 
 	saveDnsEntry() {
@@ -536,10 +519,7 @@ export default class NetworkModule {
 			uciType: 'domain',
 			modalId: 'dns-entry-modal',
 			sectionIdField: 'edit-dns-entry-section',
-			fieldMap: {
-				'edit-dns-hostname': 'name',
-				'edit-dns-ip': 'ip'
-			},
+			fieldMap: DNS_ENTRY_FIELDS,
 			reloadFn: () => this.loadDNS(),
 			successMsg: 'DNS entry saved'
 		});
@@ -624,22 +604,9 @@ export default class NetworkModule {
 		});
 	}
 
-	editDDNS(id) {
-		this.core.uciEdit(
-			'ddns',
-			id,
-			{
-				'edit-ddns-name': '.name',
-				'edit-ddns-service': 'service_name',
-				'edit-ddns-hostname': ['lookup_host', 'domain'],
-				'edit-ddns-username': 'username',
-				'edit-ddns-password': 'password',
-				'edit-ddns-check-interval': 'check_interval',
-				'edit-ddns-enabled': 'enabled'
-			},
-			'ddns-modal',
-			'edit-ddns-section'
-		);
+	async editDDNS(id) {
+		document.getElementById('edit-ddns-name').value = id;
+		await this.core.uciEdit('ddns', id, DDNS_FIELDS, 'ddns-modal', 'edit-ddns-section');
 	}
 
 	saveDDNS() {
@@ -649,14 +616,7 @@ export default class NetworkModule {
 			modalId: 'ddns-modal',
 			sectionIdField: 'edit-ddns-section',
 			sectionNameField: 'edit-ddns-name',
-			fieldMap: {
-				'edit-ddns-service': 'service_name',
-				'edit-ddns-hostname': ['lookup_host', 'domain'],
-				'edit-ddns-username': 'username',
-				'edit-ddns-password': 'password',
-				'edit-ddns-check-interval': 'check_interval',
-				'edit-ddns-enabled': 'enabled'
-			},
+			fieldMap: DDNS_FIELDS,
 			defaults: {
 				ip_source: 'network',
 				ip_network: 'wan',
@@ -722,20 +682,9 @@ export default class NetworkModule {
 		}
 	}
 
-	editQoSRule(id) {
-		this.core.uciEdit(
-			'qos',
-			id,
-			{
-				'edit-qos-rule-name': '.name',
-				'edit-qos-rule-priority': 'target',
-				'edit-qos-rule-proto': 'proto',
-				'edit-qos-rule-ports': 'ports',
-				'edit-qos-rule-srchost': 'srchost'
-			},
-			'qos-rule-modal',
-			'edit-qos-rule-section'
-		);
+	async editQoSRule(id) {
+		document.getElementById('edit-qos-rule-name').value = id;
+		await this.core.uciEdit('qos', id, QOS_RULE_FIELDS, 'qos-rule-modal', 'edit-qos-rule-section');
 	}
 
 	saveQoSRule() {
@@ -744,12 +693,7 @@ export default class NetworkModule {
 			uciType: 'classify',
 			modalId: 'qos-rule-modal',
 			sectionIdField: 'edit-qos-rule-section',
-			fieldMap: {
-				'edit-qos-rule-priority': 'target',
-				'edit-qos-rule-proto': 'proto',
-				'edit-qos-rule-ports': 'ports',
-				'edit-qos-rule-srchost': 'srchost'
-			},
+			fieldMap: QOS_RULE_FIELDS,
 			reloadFn: () => this.loadQoS(),
 			successMsg: 'QoS rule saved'
 		});

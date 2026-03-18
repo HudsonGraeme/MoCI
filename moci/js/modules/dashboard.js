@@ -292,6 +292,7 @@ export default class DashboardModule {
 	}
 
 	drawSeries(data, max, stepX, padding, height, fillColor, strokeColor) {
+		if (data.length < 2) return;
 		const ctx = this.bandwidthCtx;
 		ctx.fillStyle = fillColor;
 		ctx.beginPath();
