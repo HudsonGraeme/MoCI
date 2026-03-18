@@ -18,15 +18,15 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v6.0.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v6.3.0
         with:
           node-version: '20'
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@a15d269cd4658e1107c09f1fabf4cbd7bd1f308a # v4.4.0
         with:
           version: 9
 
@@ -46,7 +46,7 @@ jobs:
           fi
 
       - name: Upload dist
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@53b83947a5a98c8d113130e565377fae1a50d02f # v7.0.0
         with:
           name: dist
           path: dist/
@@ -89,17 +89,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v6.0.2
 
       - name: Download dist
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dist
           path: dist/
 
       - name: Cache SDK
         id: cache-sdk
-        uses: actions/cache@v4
+        uses: actions/cache@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v5.0.3
         with:
           path: ${{ matrix.sdk_name }}
           key: sdk-${{ matrix.sdk_name }}
@@ -151,13 +151,13 @@ jobs:
 
       - name: Upload to release
         if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
         with:
           files: /tmp/${{ steps.find_ipk.outputs.package_name }}
 
       - name: Upload artifact
         if: github.event_name != 'release'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@53b83947a5a98c8d113130e565377fae1a50d02f # v7.0.0
         with:
           name: moci-ipk-${{ matrix.arch }}
           path: /tmp/${{ steps.find_ipk.outputs.package_name }}
@@ -199,17 +199,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v6.0.2
 
       - name: Download dist
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dist
           path: dist/
 
       - name: Cache SDK
         id: cache-sdk
-        uses: actions/cache@v4
+        uses: actions/cache@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v5.0.3
         with:
           path: ${{ matrix.sdk_name }}
           key: sdk-${{ matrix.sdk_name }}
@@ -261,13 +261,13 @@ jobs:
 
       - name: Upload to release
         if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
         with:
           files: /tmp/${{ steps.find_apk.outputs.package_name }}
 
       - name: Upload artifact
         if: github.event_name != 'release'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@53b83947a5a98c8d113130e565377fae1a50d02f # v7.0.0
         with:
           name: moci-apk-${{ matrix.arch }}
           path: /tmp/${{ steps.find_apk.outputs.package_name }}
