@@ -1210,7 +1210,7 @@ select.form-input {
 	}
 
 	.nav {
-		position: absolute;
+		position: fixed;
 		top: 64px;
 		left: 0;
 		right: 0;
@@ -1222,7 +1222,7 @@ select.form-input {
 		border-bottom: 1px solid var(--glass-border);
 		box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
 		display: none;
-		z-index: 99;
+		z-index: 200;
 	}
 
 	.nav.open {
