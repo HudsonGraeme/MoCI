@@ -52,6 +52,15 @@ const aclWatcher = chokidar.watch('rpcd-acl.json', {
 	}
 });
 
+const serviceWatcher = chokidar.watch(['files/moci-ping-monitor.sh', 'files/ping-monitor.init', 'files/moci-speedtest-monitor.sh'], {
+	persistent: true,
+	ignoreInitial: true,
+	awaitWriteFinish: {
+		stabilityThreshold: 300,
+		pollInterval: 100
+	}
+});
+
 watcher.on('all', (event, path) => {
 	console.log(`[${event}] ${path}`);
 	if (event === 'change' || event === 'add') {
@@ -63,6 +72,13 @@ aclWatcher.on('all', (event, path) => {
 	console.log(`[${event}] ${path}`);
 	if (event === 'change' || event === 'add') {
 		deployACL();
+	}
+});
+
+serviceWatcher.on('all', (event, path) => {
+	console.log(`[${event}] ${path}`);
+	if (event === 'change' || event === 'add') {
+		deployPingService();
 	}
 });
 
@@ -79,10 +95,23 @@ function deploy() {
 		execSync(`cat moci/js/modules/dashboard.js | ${SSH} "cat > /www/moci/js/modules/dashboard.js"`, {
 			stdio: 'pipe'
 		});
+		execSync(`cat moci/js/modules/devices.js | ${SSH} "cat > /www/moci/js/modules/devices.js"`, {
+			stdio: 'pipe'
+		});
 		execSync(`cat moci/js/modules/network.js | ${SSH} "cat > /www/moci/js/modules/network.js"`, {
 			stdio: 'pipe'
 		});
+		execSync(`cat moci/js/modules/monitoring.js | ${SSH} "cat > /www/moci/js/modules/monitoring.js"`, {
+			stdio: 'pipe'
+		});
 		execSync(`cat moci/js/modules/system.js | ${SSH} "cat > /www/moci/js/modules/system.js"`, {
+			stdio: 'pipe'
+		});
+		execSync(`cat moci/js/modules/vpn.js | ${SSH} "cat > /www/moci/js/modules/vpn.js"`, { stdio: 'pipe' });
+		execSync(`cat moci/js/modules/services.js | ${SSH} "cat > /www/moci/js/modules/services.js"`, {
+			stdio: 'pipe'
+		});
+		execSync(`cat moci/js/modules/netify.js | ${SSH} "cat > /www/moci/js/modules/netify.js"`, {
 			stdio: 'pipe'
 		});
 
@@ -102,6 +131,27 @@ function deployACL() {
 		console.log('ACL deployed and rpcd restarted\n');
 	} catch (err) {
 		console.error('ACL deploy failed:', err.message);
+	}
+}
+
+function deployPingService() {
+	try {
+		console.log(`Deploying ping monitor service to ${targetName}...`);
+
+		execSync(`cat files/moci-ping-monitor.sh | ${SSH} "cat > /usr/bin/moci-ping-monitor && chmod +x /usr/bin/moci-ping-monitor"`, {
+			stdio: 'pipe'
+		});
+		execSync(`cat files/ping-monitor.init | ${SSH} "cat > /etc/init.d/ping-monitor && chmod +x /etc/init.d/ping-monitor"`, {
+			stdio: 'pipe'
+		});
+		execSync(`cat files/moci-speedtest-monitor.sh | ${SSH} "cat > /usr/bin/moci-speedtest-monitor && chmod +x /usr/bin/moci-speedtest-monitor"`, {
+			stdio: 'pipe'
+		});
+		execSync(`${SSH} "/etc/init.d/ping-monitor enable || true; /etc/init.d/ping-monitor restart"`, { stdio: 'pipe' });
+
+		console.log('Ping monitor service deployed and restarted\n');
+	} catch (err) {
+		console.error('Ping service deploy failed:', err.message);
 	}
 }
 

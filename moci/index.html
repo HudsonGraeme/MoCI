@@ -13,11 +13,11 @@
 	</head>
 	<body>
 		<div id="app">
-			<div id="login-view" class="view hidden">
+			<div id="login-view" class="view">
 				<div class="login-card">
 					<h1>OPENWRT</h1>
 					<form id="login-form">
-						<input type="text" id="username" placeholder="Username" autocomplete="username" />
+						<input type="text" id="username" placeholder="Username" autocomplete="username" value="root" />
 						<input type="password" id="password" placeholder="Password" autocomplete="current-password" />
 						<label class="remember-label">
 							<input type="checkbox" id="remember-me" class="custom-checkbox" />
@@ -65,119 +65,233 @@
 						</svg>
 						<span>OPENWRT</span>
 					</div>
-					<button class="menu-toggle" aria-label="Toggle menu" aria-expanded="false">
-						<span></span><span></span><span></span>
-					</button>
 					<nav class="nav">
 						<a href="#/dashboard" class="active">DASHBOARD</a>
+						<a href="#/devices" data-feature="devices">DEVICES</a>
+						<a href="#/netify" data-feature="netify">NETIFY</a>
+						<a href="#/monitoring" data-feature="monitoring">MONITORING</a>
 						<a href="#/network">NETWORK</a>
 						<a href="#/system">SYSTEM</a>
 					</nav>
 					<button id="logout-btn" class="logout-btn">LOGOUT</button>
 				</header>
 
-				<main class="content">
-					<div id="dashboard-page" class="page">
-						<div class="hero-card" id="wan-status-hero">
-							<div class="hero-status">
-								<div class="hero-indicator">●</div>
-								<div class="hero-text">
-									<div class="hero-label">INTERNET STATUS</div>
-									<div class="hero-value" id="wan-status">CHECKING...</div>
+					<main class="content">
+						<div id="dashboard-page" class="page">
+							<div class="hero-card dashboard-status-slim" id="wan-status-hero">
+								<div class="hero-status">
+									<div class="hero-indicator">●</div>
+									<div class="hero-text">
+										<div class="hero-label">INTERNET STATUS</div>
+										<div class="hero-value" id="wan-status">CHECKING...</div>
+									</div>
+								</div>
+								<div class="hero-details">
+									<div class="hero-detail hidden" id="lan-detail">
+										<span class="hero-detail-label">LAN</span>
+										<span class="hero-detail-value" id="lan-ip">---.---.---.---</span>
+									</div>
+									<div class="hero-detail">
+										<span class="hero-detail-label">WAN</span>
+										<span class="hero-detail-value" id="wan-ip">---.---.---.---</span>
+									</div>
+									<div class="hero-detail">
+										<span class="hero-detail-label">DOWNLOAD</span>
+										<span class="hero-detail-value" id="bandwidth-down">0 Mbps</span>
+									</div>
+									<div class="hero-detail">
+										<span class="hero-detail-label">UPLOAD</span>
+										<span class="hero-detail-value" id="bandwidth-up">0 Mbps</span>
+									</div>
 								</div>
 							</div>
-							<div class="hero-details">
-								<div class="hero-detail">
-									<span class="hero-detail-label">LAN</span>
-									<span class="hero-detail-value" id="lan-ip">---.---.---.---</span>
-								</div>
-								<div class="hero-detail">
-									<span class="hero-detail-label">WAN</span>
-									<span class="hero-detail-value" id="wan-ip">---.---.---.---</span>
-								</div>
-							</div>
-						</div>
 
-						<div class="stats-grid metrics-3col" style="margin-top: 24px">
-							<div class="stat-card metric-card">
-								<div class="metric-icon">↓</div>
-								<div class="metric-content">
-									<div class="metric-value" id="bandwidth-down">0 Mbps</div>
-									<div class="metric-label">DOWNLOAD</div>
+							<div class="stats-grid" style="margin-top: 24px">
+								<div class="stat-card">
+									<div class="stat-label">CPU USAGE</div>
+									<div class="stat-value" id="cpu">0%</div>
+									<div class="progress-bar">
+										<div class="progress-fill" id="cpu-bar" style="width: 0%"></div>
+									</div>
+								</div>
+								<div class="stat-card">
+									<div class="stat-label">MEMORY</div>
+									<div class="stat-value" id="memory">Loading...</div>
+									<div class="progress-bar">
+										<div class="progress-fill" id="memory-bar" style="width: 0%"></div>
+									</div>
+								</div>
+								<div class="stat-card">
+									<div class="stat-label">UPTIME</div>
+									<div class="stat-value" id="uptime">Loading...</div>
+								</div>
+								<div class="stat-card">
+									<div class="stat-label">DEVICES</div>
+									<div class="stat-value" id="clients">0</div>
 								</div>
 							</div>
-							<div class="stat-card metric-card">
-								<div class="metric-icon">↑</div>
-								<div class="metric-content">
-									<div class="metric-value" id="bandwidth-up">0 Mbps</div>
-									<div class="metric-label">UPLOAD</div>
-								</div>
-							</div>
-							<div class="stat-card metric-card">
-								<div class="metric-icon">◆</div>
-								<div class="metric-content">
-									<div class="metric-value" id="clients">0</div>
-									<div class="metric-label">DEVICES</div>
-								</div>
-							</div>
-						</div>
 
-						<div class="stat-card" style="margin-top: 24px">
-							<div class="section-title">NETWORK ACTIVITY (60s)</div>
-							<div class="bandwidth-graph-container">
-								<canvas id="bandwidth-graph" width="800" height="200"></canvas>
-							</div>
-							<div class="bandwidth-legend">
-								<div class="legend-item">
-									<span class="legend-color" style="background: rgba(226, 226, 229, 0.9)"></span>
-									<span>Download</span>
+							<div class="stat-card" style="margin-top: 24px">
+								<div class="section-title">NETWORK ACTIVITY (60s)</div>
+								<div class="bandwidth-graph-container">
+									<canvas id="bandwidth-graph" width="800" height="200"></canvas>
 								</div>
-								<div class="legend-item">
-									<span class="legend-color" style="background: rgba(226, 226, 229, 0.5)"></span>
-									<span>Upload</span>
+								<div class="bandwidth-legend">
+									<div class="legend-item">
+										<span class="legend-color legend-download"></span>
+										<span>Download</span>
+									</div>
+									<div class="legend-item">
+										<span class="legend-color legend-upload"></span>
+										<span>Upload</span>
+									</div>
 								</div>
 							</div>
-						</div>
 
-						<div class="stats-grid" style="margin-top: 24px">
+							<div class="stat-card" style="margin-top: 24px" data-feature="traffic_history">
+								<div class="traffic-header-row">
+									<div class="section-title" style="margin: 0; border-bottom: none; padding-bottom: 0">
+										TRAFFIC HISTORY (VNSTAT)
+									</div>
+									<div class="traffic-period-switch">
+										<button class="action-btn-sm" id="traffic-period-5min">5 MIN</button>
+										<button class="action-btn-sm is-active" id="traffic-period-hourly">HOURLY</button>
+										<button class="action-btn-sm" id="traffic-period-daily">DAILY</button>
+										<button class="action-btn-sm" id="traffic-period-monthly">MONTHLY</button>
+									</div>
+								</div>
+								<div class="monthly-traffic-meta" id="monthly-traffic-meta">Loading monthly data...</div>
+								<div class="monthly-traffic-graph-container">
+									<canvas id="monthly-traffic-graph" width="800" height="220"></canvas>
+								</div>
+								<div class="bandwidth-legend">
+									<div class="legend-item">
+										<span class="legend-color legend-download"></span>
+										<span>Download</span>
+									</div>
+									<div class="legend-item">
+										<span class="legend-color legend-upload"></span>
+										<span>Upload</span>
+									</div>
+								</div>
+							</div>
+
+							<div class="stat-card" style="margin-top: 24px">
+								<div class="section-title">ACTIVE CONNECTIONS</div>
+								<div class="stat-value" id="conntrack-usage">Loading...</div>
+								<div class="stat-label" id="conntrack-detail" style="margin-top: 6px">Polling conntrack...</div>
+								<div class="progress-bar" style="margin-top: 12px">
+									<div class="progress-fill conntrack-progress-fill" id="conntrack-bar" style="width: 0%"></div>
+								</div>
+							</div>
+
+							<div class="section-title">SYSTEM LOG</div>
 							<div class="stat-card">
-								<div class="stat-label">CPU USAGE</div>
-								<div class="stat-value" id="cpu">0%</div>
-								<div class="progress-bar">
-									<div class="progress-fill" id="cpu-bar" style="width: 0%"></div>
+								<div class="form-group" style="margin-bottom: 12px">
+									<input type="text" id="system-log-search" class="form-input" placeholder="Search system logs..." />
+								</div>
+								<div class="log-viewer" id="system-log" style="max-height: 460px; overflow-y: auto">
+									<div class="log-line">Loading system logs...</div>
 								</div>
 							</div>
-							<div class="stat-card">
-								<div class="stat-label">MEMORY</div>
-								<div class="stat-value" id="memory">Loading...</div>
-								<div class="progress-bar">
-									<div class="progress-fill" id="memory-bar" style="width: 0%"></div>
-								</div>
-							</div>
-							<div class="stat-card">
-								<div class="stat-label">UPTIME</div>
-								<div class="stat-value" id="uptime">Loading...</div>
-							</div>
-							<div class="stat-card">
-								<div class="stat-label">HOSTNAME</div>
-								<div class="stat-value" id="hostname">Loading...</div>
+
+							<div class="section-title" style="margin-top: 32px">QUICK ACTIONS</div>
+							<div class="quick-actions">
+								<button class="action-btn danger" id="reboot-btn">Reboot</button>
+								<button class="action-btn" id="restart-network-btn">Restart Network</button>
+								<button class="action-btn" id="restart-firewall-btn">Restart Firewall</button>
 							</div>
 						</div>
 
-						<div class="section-title" style="margin-top: 32px">QUICK ACTIONS</div>
-						<div class="quick-actions">
-							<button class="action-btn danger" id="reboot-btn">Reboot</button>
-							<button class="action-btn" id="restart-network-btn">Restart Network</button>
-							<button class="action-btn" id="restart-firewall-btn">Restart Firewall</button>
-						</div>
+						<div id="devices-page" class="page hidden" data-feature="devices">
+							<h2>DEVICES</h2>
+							<div class="stat-card">
+								<div
+									style="
+										display: flex;
+										align-items: center;
+										justify-content: space-between;
+										gap: 12px;
+										flex-wrap: wrap;
+									"
+								>
+									<div class="section-title" style="margin: 0; border-bottom: none; padding-bottom: 0">
+										DEVICES
+									</div>
+									<button class="action-btn" id="devices-refresh-btn">REFRESH</button>
+								</div>
+								<div
+									id="devices-source-status"
+									style="margin-top: 12px; font-size: 11px; color: var(--steel-muted); font-family: var(--font-mono)"
+								></div>
+								<table class="data-table" id="devices-table">
+									<thead>
+										<tr>
+											<th>HOSTNAME</th>
+											<th>IP ADDRESS</th>
+											<th>MAC ADDRESS</th>
+											<th>UPLOAD</th>
+											<th>DOWNLOAD</th>
+											<th>ONLINE</th>
+											<th>ACTIONS</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td colspan="7" style="text-align: center; color: var(--steel-muted)">
+												Loading...
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
 
-						<div class="section-title">SYSTEM LOG</div>
-						<div class="stat-card">
-							<div class="log-viewer" id="system-log">
-								<div class="log-line">Loading system logs...</div>
+							<div class="modal hidden" id="devices-pin-modal">
+								<div class="modal-backdrop"></div>
+								<div class="modal-content">
+									<div class="modal-header">
+										<h3 class="modal-title">DEVICE SETTINGS</h3>
+										<button class="modal-close" id="close-devices-pin-modal">&times;</button>
+									</div>
+									<div class="modal-body">
+										<input type="hidden" id="devices-pin-section" />
+										<div class="form-group">
+											<label class="form-label">HOSTNAME</label>
+											<input
+												type="text"
+												id="devices-pin-hostname"
+												class="form-input"
+												placeholder="laptop, desktop, etc."
+											/>
+										</div>
+										<div class="form-group">
+											<label class="form-label">MAC ADDRESS</label>
+											<input type="text" id="devices-pin-mac" class="form-input" readonly />
+										</div>
+										<div class="form-group">
+											<label class="form-label">STATIC IP ADDRESS</label>
+											<div style="display: flex; align-items: center; gap: 8px">
+												<input
+													type="text"
+													id="devices-pin-ip"
+													class="form-input"
+													placeholder="192.168.1.50"
+													style="flex: 1"
+												/>
+												<label style="display: flex; align-items: center; gap: 6px; white-space: nowrap; padding: 8px 10px; border: 1px solid var(--glass-border); border-radius: 6px; background: rgba(255,255,255,0.02); cursor: pointer;">
+													<input type="checkbox" id="devices-pin-static" />
+													<span style="font-size: 11px; font-family: var(--font-mono); letter-spacing: 0.06em;">STATIC IP</span>
+												</label>
+											</div>
+										</div>
+									</div>
+									<div class="modal-footer">
+										<button class="action-btn" id="cancel-devices-pin-btn">CANCEL</button>
+										<button class="action-btn" id="save-devices-pin-btn">SAVE</button>
+									</div>
+								</div>
 							</div>
 						</div>
-					</div>
 
 					<div id="network-page" class="page hidden">
 						<h2>NETWORK</h2>
@@ -187,9 +301,11 @@
 							<button class="tab-btn" data-tab="firewall">FIREWALL</button>
 							<button class="tab-btn" data-tab="dhcp" data-feature="dhcp">DHCP</button>
 							<button class="tab-btn" data-tab="dns">DNS & HOSTS</button>
+							<button class="tab-btn" data-tab="adblock" data-feature="adblock">ADBLOCK</button>
 							<button class="tab-btn" data-tab="ddns">DDNS</button>
 							<button class="tab-btn" data-tab="qos">QOS</button>
 							<button class="tab-btn" data-tab="vpn">VPN</button>
+							<button class="tab-btn" data-tab="connections">CONNECTIONS</button>
 							<button class="tab-btn" data-tab="diagnostics">DIAGNOSTICS</button>
 						</div>
 
@@ -431,6 +547,7 @@
 										<tr>
 											<th>NAME</th>
 											<th>SOURCE</th>
+											<th>SOURCE IP</th>
 											<th>DESTINATION</th>
 											<th>PROTOCOL</th>
 											<th>PORT</th>
@@ -440,7 +557,7 @@
 									</thead>
 									<tbody>
 										<tr>
-											<td colspan="7" style="text-align: center; color: var(--steel-muted)">
+											<td colspan="8" style="text-align: center; color: var(--steel-muted)">
 												Loading...
 											</td>
 										</tr>
@@ -494,8 +611,10 @@
 											type="text"
 											id="edit-forward-dest-ip"
 											class="form-input"
+											list="forward-device-list"
 											placeholder="192.168.1.100"
 										/>
+										<datalist id="forward-device-list"></datalist>
 									</div>
 
 									<div class="form-group">
@@ -597,6 +716,16 @@
 											id="edit-fw-rule-src-ip"
 											class="form-input"
 											placeholder="0.0.0.0/0 for any"
+										/>
+									</div>
+
+									<div class="form-group">
+										<label class="form-label">DESTINATION IP (CIDR)</label>
+										<input
+											type="text"
+											id="edit-fw-rule-dest-ip"
+											class="form-input"
+											placeholder="192.168.1.0/24 or leave empty"
 										/>
 									</div>
 								</div>
@@ -1136,30 +1265,43 @@
 								</div>
 								<div class="modal-body">
 									<input type="hidden" id="edit-cron-index" />
-
 									<div class="form-group">
-										<label class="form-label">MINUTE (0-59, * for every)</label>
-										<input type="text" id="edit-cron-minute" class="form-input" placeholder="*" />
+										<label class="form-label">TIME</label>
+										<input type="time" id="edit-cron-time" class="form-input" value="00:00" />
 									</div>
 
 									<div class="form-group">
-										<label class="form-label">HOUR (0-23, * for every)</label>
-										<input type="text" id="edit-cron-hour" class="form-input" placeholder="*" />
-									</div>
-
-									<div class="form-group">
-										<label class="form-label">DAY OF MONTH (1-31, * for every)</label>
-										<input type="text" id="edit-cron-day" class="form-input" placeholder="*" />
-									</div>
-
-									<div class="form-group">
-										<label class="form-label">MONTH (1-12, * for every)</label>
-										<input type="text" id="edit-cron-month" class="form-input" placeholder="*" />
-									</div>
-
-									<div class="form-group">
-										<label class="form-label">DAY OF WEEK (0-6, 0=Sunday, * for every)</label>
-										<input type="text" id="edit-cron-weekday" class="form-input" placeholder="*" />
+										<label class="form-label">DAYS</label>
+										<div style="display:grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px">
+											<label style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; border:1px solid var(--glass-border); border-radius:6px; background: rgba(255,255,255,0.02); cursor:pointer;">
+												<input type="checkbox" class="cron-dow" id="cron-dow-0" value="0" checked />
+												<span style="font-size:11px">SUN</span>
+											</label>
+											<label style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; border:1px solid var(--glass-border); border-radius:6px; background: rgba(255,255,255,0.02); cursor:pointer;">
+												<input type="checkbox" class="cron-dow" id="cron-dow-1" value="1" checked />
+												<span style="font-size:11px">MON</span>
+											</label>
+											<label style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; border:1px solid var(--glass-border); border-radius:6px; background: rgba(255,255,255,0.02); cursor:pointer;">
+												<input type="checkbox" class="cron-dow" id="cron-dow-2" value="2" checked />
+												<span style="font-size:11px">TUE</span>
+											</label>
+											<label style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; border:1px solid var(--glass-border); border-radius:6px; background: rgba(255,255,255,0.02); cursor:pointer;">
+												<input type="checkbox" class="cron-dow" id="cron-dow-3" value="3" checked />
+												<span style="font-size:11px">WED</span>
+											</label>
+											<label style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; border:1px solid var(--glass-border); border-radius:6px; background: rgba(255,255,255,0.02); cursor:pointer;">
+												<input type="checkbox" class="cron-dow" id="cron-dow-4" value="4" checked />
+												<span style="font-size:11px">THU</span>
+											</label>
+											<label style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; border:1px solid var(--glass-border); border-radius:6px; background: rgba(255,255,255,0.02); cursor:pointer;">
+												<input type="checkbox" class="cron-dow" id="cron-dow-5" value="5" checked />
+												<span style="font-size:11px">FRI</span>
+											</label>
+											<label style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; border:1px solid var(--glass-border); border-radius:6px; background: rgba(255,255,255,0.02); cursor:pointer;">
+												<input type="checkbox" class="cron-dow" id="cron-dow-6" value="6" checked />
+												<span style="font-size:11px">SAT</span>
+											</label>
+										</div>
 									</div>
 
 									<div class="form-group">
@@ -1260,15 +1402,15 @@
 							</div>
 						</div>
 
-						<div class="tab-content hidden" id="tab-diagnostics">
+						<div class="tab-content hidden" id="tab-connections">
 							<div class="stat-card">
-								<div class="section-title">ACTIVE CONNECTIONS</div>
-								<table class="data-table" id="connections-table">
+								<div class="section-title">CONNECTIONS</div>
+								<table class="data-table" id="network-active-connections-table">
 									<thead>
 										<tr>
-											<th>IP ADDRESS</th>
-											<th>MAC ADDRESS</th>
-											<th>HOSTNAME</th>
+											<th>SOURCE</th>
+											<th>DESTINATION</th>
+											<th>PROTOCOL</th>
 											<th>STATUS</th>
 										</tr>
 									</thead>
@@ -1281,8 +1423,78 @@
 									</tbody>
 								</table>
 							</div>
+						</div>
+
+						<div class="tab-content hidden" id="tab-adblock" data-feature="adblock">
+							<div class="stat-card">
+								<div class="section-title">ADBLOCK-FAST CONFIGURATION</div>
+								<div class="form-group">
+									<label class="form-label">ENABLE ADBLOCK-FAST</label>
+									<select id="adblock-enabled" class="form-input">
+										<option value="0">Disabled</option>
+										<option value="1">Enabled</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label class="form-label">ENABLE CONFIG AUTO-UPDATE</label>
+									<select id="adblock-config-update" class="form-input">
+										<option value="0">Disabled</option>
+										<option value="1">Enabled</option>
+									</select>
+								</div>
+								<div class="quick-actions">
+									<button class="action-btn" id="save-adblock-settings-btn">SAVE CONFIGURATION</button>
+									<button class="action-btn" id="refresh-adblock-btn">REFRESH STATUS</button>
+								</div>
+							</div>
 
 							<div class="stat-card" style="margin-top: 24px">
+								<div class="section-title">TARGET LISTS</div>
+								<div class="form-group">
+									<label class="form-label">LIST NAME</label>
+									<input type="text" id="adblock-new-list-name" class="form-input" placeholder="my_custom_list" />
+								</div>
+								<div class="form-group">
+									<label class="form-label">LIST URL</label>
+									<input
+										type="text"
+										id="adblock-new-list-url"
+										class="form-input"
+										placeholder="https://example.com/blocklist.txt"
+									/>
+								</div>
+								<div class="form-group">
+									<label class="form-label">LIST STATUS</label>
+									<select id="adblock-new-list-enabled" class="form-input">
+										<option value="1">Enabled</option>
+										<option value="0">Disabled</option>
+									</select>
+								</div>
+								<div class="quick-actions" style="margin-bottom: 16px">
+									<button class="action-btn" id="add-adblock-list-btn">ADD TARGET LIST</button>
+								</div>
+								<table class="data-table" id="adblock-targets-table">
+									<thead>
+										<tr>
+											<th>NAME</th>
+											<th>URL</th>
+											<th>STATUS</th>
+											<th>ACTIONS</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td colspan="4" style="text-align: center; color: var(--steel-muted)">
+												Loading...
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+
+						<div class="tab-content hidden" id="tab-diagnostics">
+							<div class="stat-card">
 								<div class="section-title">PING</div>
 								<div class="diagnostic-form">
 									<input
@@ -1319,6 +1531,24 @@
 							</div>
 
 							<div class="stat-card" style="margin-top: 24px">
+								<div class="section-title">NSLOOKUP</div>
+								<div class="diagnostic-form">
+									<input
+										type="text"
+										id="nslookup-host"
+										placeholder="Enter hostname or domain"
+										class="diag-input"
+									/>
+									<button class="action-btn" id="nslookup-btn">RUN NSLOOKUP</button>
+								</div>
+								<div class="log-viewer" id="nslookup-output" style="min-height: 200px">
+									<div class="log-line" style="color: var(--steel-muted)">
+										Enter a hostname/domain and click Run Nslookup
+									</div>
+								</div>
+							</div>
+
+							<div class="stat-card" style="margin-top: 24px">
 								<div class="section-title">WAKE-ON-LAN</div>
 								<div class="diagnostic-form">
 									<input
@@ -1326,8 +1556,13 @@
 										id="wol-mac"
 										placeholder="Enter MAC address (aa:bb:cc:dd:ee:ff)"
 										class="diag-input"
+										list="wol-device-list"
 									/>
+									<datalist id="wol-device-list"></datalist>
 									<button class="action-btn" id="wol-btn">SEND WOL PACKET</button>
+								</div>
+								<div id="wol-hint" style="margin-top: 8px; color: var(--steel-muted); font-size: 12px">
+									Start typing to pick a DHCP lease, or enter a MAC manually.
 								</div>
 								<div class="log-viewer" id="wol-output" style="min-height: 100px">
 									<div class="log-line" style="color: var(--steel-muted)">
@@ -1335,11 +1570,377 @@
 									</div>
 								</div>
 							</div>
+							</div>
 						</div>
-					</div>
 
-					<div id="system-page" class="page hidden">
-						<h2>SYSTEM</h2>
+						<div id="monitoring-page" class="page hidden" data-feature="monitoring">
+							<h2>MONITORING</h2>
+							<div class="tab-buttons" style="margin-bottom: 24px">
+								<button class="tab-btn active" data-tab="ping">PING TEST</button>
+								<button class="tab-btn" data-tab="speedtest">SPEEDTEST</button>
+							</div>
+
+							<div class="tab-content" id="tab-ping">
+								<div class="stats-grid monitoring-metrics-grid">
+									<div class="stat-card">
+										<div class="stat-label">CURRENT LATENCY</div>
+										<div class="stat-value" id="monitoring-latency">N/A</div>
+									</div>
+									<div class="stat-card">
+										<div class="stat-label">STATUS</div>
+										<div class="stat-value" id="monitoring-status"></div>
+									</div>
+									<div class="stat-card">
+										<div class="stat-label">AVERAGE (LAST 12)</div>
+										<div class="stat-value" id="monitoring-avg">0.0 ms</div>
+									</div>
+									<div class="stat-card">
+										<div class="stat-label">PACKET LOSS (LAST 12)</div>
+										<div class="stat-value" id="monitoring-loss">0%</div>
+									</div>
+								</div>
+
+								<div class="stat-card" style="margin-top: 24px">
+									<div class="section-title">NETWORK PERFORMANCE TIMELINE</div>
+									<div class="monitoring-timeline-wrap">
+										<div class="monitoring-timeline-bars" id="monitoring-timeline-bars"></div>
+										<div class="monitoring-timeline-labels" id="monitoring-timeline-labels"></div>
+									</div>
+								</div>
+
+								<div class="stat-card" style="margin-top: 24px">
+									<div class="section-title">RECENT PING SAMPLES</div>
+									<table class="data-table" id="monitoring-recent-table">
+										<thead>
+											<tr>
+												<th>TIME</th>
+												<th>TARGET</th>
+												<th>LATENCY</th>
+												<th>STATUS</th>
+											</tr>
+										</thead>
+										<tbody>
+											<tr>
+												<td colspan="4" style="text-align: center; color: var(--steel-muted)">No ping samples yet</td>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+
+								<div class="stat-card netify-collapsible-card" style="margin-top: 24px">
+									<div class="netify-collapsible-header">
+										<div class="section-title" style="margin: 0; border-bottom: none; padding-bottom: 0">
+											PING SETTINGS
+										</div>
+										<button class="netify-toggle-btn" id="monitoring-settings-toggle-btn" type="button" aria-expanded="false">
+											<span id="monitoring-settings-toggle-icon">▸</span>
+										</button>
+									</div>
+									<div id="monitoring-settings-body" style="margin-top: 16px; display: none">
+										<div class="monitoring-controls">
+											<div class="form-group">
+												<label class="form-label">TARGET HOST / IP</label>
+												<input type="text" id="monitoring-target" class="form-input" value="1.1.1.1" />
+											</div>
+											<div class="form-group">
+												<label class="form-label">INTERVAL (SECONDS)</label>
+												<input
+													type="number"
+													id="monitoring-interval"
+													class="form-input"
+													min="5"
+													max="3600"
+													value="60"
+												/>
+											</div>
+											<div class="form-group">
+												<label class="form-label">THRESHOLD (MS)</label>
+												<input
+													type="number"
+													id="monitoring-threshold"
+													class="form-input"
+													min="1"
+													max="10000"
+													value="100"
+												/>
+											</div>
+										</div>
+										<div class="quick-actions">
+											<button class="action-btn" id="monitoring-apply-btn">APPLY</button>
+											<button class="action-btn" id="monitoring-toggle-btn">START SERVICE</button>
+											<button class="action-btn" id="monitoring-run-now-btn">RUN ONCE</button>
+											<button class="action-btn" id="monitoring-clear-btn">CLEAR HISTORY</button>
+										</div>
+									</div>
+								</div>
+							</div>
+
+							<div class="tab-content hidden" id="tab-speedtest">
+								<div class="stat-card">
+									<div class="section-title">DAILY SPEEDTEST (SPEEDTESTCPP)</div>
+									<div class="stats-grid monitoring-speedtest-metrics-grid">
+										<div class="stat-card">
+											<div class="stat-label">LAST DOWNLOAD</div>
+											<div class="stat-value" id="monitoring-speedtest-download">N/A</div>
+										</div>
+										<div class="stat-card">
+											<div class="stat-label">LAST UPLOAD</div>
+											<div class="stat-value" id="monitoring-speedtest-upload">N/A</div>
+										</div>
+										<div class="stat-card">
+											<div class="stat-label">LAST RUN</div>
+											<div class="stat-value" id="monitoring-speedtest-last-run">Never</div>
+										</div>
+									</div>
+									<div class="monitoring-speedtest-chart-wrap">
+										<svg id="monitoring-speedtest-chart" class="monitoring-speedtest-chart" viewBox="0 0 860 240" preserveAspectRatio="none"></svg>
+										<div class="monitoring-speedtest-labels" id="monitoring-speedtest-labels"></div>
+									</div>
+									<table class="data-table" id="monitoring-speedtest-table" style="margin-top: 16px">
+										<thead>
+											<tr>
+												<th>DATE</th>
+												<th>DOWNLOAD</th>
+												<th>UPLOAD</th>
+												<th>STATUS</th>
+											</tr>
+										</thead>
+										<tbody>
+											<tr>
+												<td colspan="4" style="text-align: center; color: var(--steel-muted)">No speedtest samples yet</td>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+
+								<div class="stat-card netify-collapsible-card" style="margin-top: 24px">
+									<div class="netify-collapsible-header">
+										<div class="section-title" style="margin: 0; border-bottom: none; padding-bottom: 0">
+											DAILY SPEEDTEST SETTINGS
+										</div>
+										<button class="netify-toggle-btn" id="monitoring-speedtest-settings-toggle-btn" type="button" aria-expanded="false">
+											<span id="monitoring-speedtest-settings-toggle-icon">▸</span>
+										</button>
+									</div>
+									<div id="monitoring-speedtest-settings-body" style="margin-top: 16px; display: none">
+										<div class="monitoring-speedtest-controls">
+											<div class="form-group">
+												<label class="form-label">DAILY RUN TIME</label>
+												<input type="time" id="monitoring-speedtest-time" class="form-input" value="03:15" />
+											</div>
+											<div class="quick-actions monitoring-speedtest-toggle-actions">
+												<button class="action-btn-sm success" id="monitoring-speedtest-enable-btn">ENABLE</button>
+												<button class="action-btn-sm danger" id="monitoring-speedtest-disable-btn">DISABLE</button>
+											</div>
+										</div>
+										<div class="quick-actions">
+											<button class="action-btn" id="monitoring-speedtest-run-now-btn">RUN SPEEDTEST NOW</button>
+											<button class="action-btn" id="monitoring-speedtest-clear-btn">CLEAR SPEEDTEST HISTORY</button>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div id="netify-page" class="page hidden" data-feature="netify">
+							<h2>NETIFY</h2>
+							<div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px">
+								<div class="stat-card">
+									<div class="stat-label">FLOWS</div>
+									<div class="stat-value" id="netify-flow-count">0</div>
+								</div>
+								<div class="stat-card">
+									<div class="stat-label">DEVICES</div>
+									<div class="stat-value" id="netify-device-count">0</div>
+								</div>
+								<div class="stat-card">
+									<div class="stat-label">APPLICATIONS</div>
+									<div class="stat-value" id="netify-app-count">0</div>
+								</div>
+								<div class="stat-card">
+									<div class="stat-label">TOTAL BYTES</div>
+									<div class="stat-value" id="netify-total-bytes">0 B</div>
+								</div>
+							</div>
+
+							<div class="stat-card" style="margin-top: 24px">
+								<div class="section-title">TOP APPLICATIONS</div>
+								<table class="data-table" id="netify-top-apps-table">
+									<thead>
+										<tr>
+											<th>APPLICATION</th>
+											<th>FLOWS</th>
+											<th>LAST SEEN</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td colspan="3" style="text-align: center; color: var(--steel-muted)">Loading...</td>
+										</tr>
+									</tbody>
+								</table>
+								<div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px">
+									<span id="netify-top-apps-page-info" style="font-family: var(--font-mono); font-size: 11px; color: var(--steel-muted)">
+										0-0 of 0
+									</span>
+									<button class="action-btn-sm" id="netify-top-apps-prev-btn" type="button" aria-label="Previous top applications page">◀</button>
+									<button class="action-btn-sm" id="netify-top-apps-next-btn" type="button" aria-label="Next top applications page">▶</button>
+								</div>
+							</div>
+
+							<div class="stat-card" style="margin-top: 24px">
+								<div class="traffic-header-row" style="margin-bottom: 8px">
+									<div class="section-title" style="margin: 0; border-bottom: none; padding-bottom: 0">RECENT FLOWS</div>
+									<button class="action-btn-sm" id="netify-auto-refresh-toggle-btn" type="button">PAUSE</button>
+								</div>
+								<div class="form-group" style="margin-bottom: 12px">
+									<div style="display: grid; grid-template-columns: 1fr 320px; gap: 10px">
+										<input
+											type="text"
+											id="netify-flow-search"
+											class="form-input"
+											placeholder="Search flows (hostname, app, protocol, IP, MAC, port)"
+										/>
+										<input
+											type="text"
+											id="netify-flow-protocol-filter"
+											class="form-input"
+											placeholder="Protocol filter (comma separated)"
+											title="Example: HTTP/S, DNS, ICMPv6"
+										/>
+									</div>
+								</div>
+								<table class="data-table" id="netify-flows-table">
+									<thead>
+										<tr>
+											<th>TIME</th>
+											<th>DEVICE</th>
+											<th>LOCAL IP</th>
+											<th>FQDN</th>
+											<th>APPLICATION</th>
+											<th>PROTOCOL</th>
+											<th>DESTINATION IP</th>
+											<th>PORT</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td colspan="8" style="text-align: center; color: var(--steel-muted)">Loading...</td>
+										</tr>
+									</tbody>
+								</table>
+								<div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px">
+									<span id="netify-flows-page-info" style="font-family: var(--font-mono); font-size: 11px; color: var(--steel-muted)">
+										0-0 of 0
+									</span>
+									<button class="action-btn-sm" id="netify-flows-prev-btn" type="button" aria-label="Previous page">◀</button>
+									<button class="action-btn-sm" id="netify-flows-next-btn" type="button" aria-label="Next page">▶</button>
+								</div>
+							</div>
+
+							<div class="modal hidden" id="netify-flow-action-modal">
+								<div class="modal-backdrop"></div>
+								<div class="modal-content">
+									<div class="modal-header">
+										<h3 class="modal-title">FLOW ACTION</h3>
+										<button class="modal-close" id="close-netify-flow-action-modal">&times;</button>
+									</div>
+									<div class="modal-body">
+										<input type="hidden" id="netify-action-flow-index" />
+
+										<div class="form-group">
+											<label class="form-label">ACTION TYPE</label>
+											<select id="netify-action-type" class="form-input">
+												<option value="domain">BLOCK DOMAIN (CUSTOM DNS)</option>
+												<option value="ip">BLOCK DESTINATION IP (FIREWALL)</option>
+											</select>
+										</div>
+
+										<div class="form-group" id="netify-domain-group">
+											<label class="form-label">DOMAIN</label>
+											<input type="text" id="netify-action-domain" class="form-input" />
+											<div style="margin-top: 8px">
+												<label class="form-label">BLOCK SCOPE</label>
+												<select id="netify-action-domain-scope" class="form-input">
+													<option value="full">THIS EXACT DOMAIN / SUBDOMAIN</option>
+													<option value="root">ROOT DOMAIN</option>
+												</select>
+											</div>
+										</div>
+
+										<div id="netify-ip-block-group" class="hidden">
+											<div class="form-group">
+												<label class="form-label">SCOPE</label>
+												<select id="netify-action-scope" class="form-input">
+													<option value="source_dest">THIS SOURCE TO DESTINATION</option>
+													<option value="all_sources">ALL SOURCES TO DESTINATION</option>
+												</select>
+											</div>
+											<div class="form-group">
+												<label class="form-label">SOURCE IP</label>
+												<input type="text" id="netify-action-source-ip" class="form-input" readonly />
+											</div>
+											<div class="form-group">
+												<label class="form-label">DESTINATION IP</label>
+												<input type="text" id="netify-action-dest-ip" class="form-input" readonly />
+											</div>
+										</div>
+									</div>
+									<div class="modal-footer">
+										<button class="action-btn" id="cancel-netify-flow-action-btn">CANCEL</button>
+										<button class="action-btn" id="save-netify-flow-action-btn">SAVE ACTION</button>
+									</div>
+								</div>
+							</div>
+
+							<div class="stat-card netify-collapsible-card" style="margin-top: 24px">
+								<div class="netify-collapsible-header">
+									<div class="section-title" style="margin: 0; border-bottom: none; padding-bottom: 0">COLLECTOR STATUS</div>
+									<button class="netify-toggle-btn" id="netify-collector-toggle-btn" type="button" aria-expanded="false">
+										<span id="netify-collector-toggle-icon">▸</span>
+									</button>
+								</div>
+								<div id="netify-collector-body" style="margin-top: 16px; display: none">
+									<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px">
+										<div>
+											<div class="stat-label">SERVICE</div>
+											<div id="netify-service-status" style="margin-top: 8px">Loading...</div>
+										</div>
+										<div>
+											<div class="stat-label">SQLITE DB</div>
+											<div id="netify-db-status" style="margin-top: 8px">Loading...</div>
+										</div>
+										<div>
+											<div class="stat-label">DB PATH</div>
+											<div id="netify-db-path" style="margin-top: 8px; font-family: monospace; color: var(--steel-light)">
+												/tmp/moci-netify.sqlite
+											</div>
+										</div>
+									</div>
+									<div class="quick-actions">
+										<button class="action-btn" id="netify-start-btn">START COLLECTOR</button>
+										<button class="action-btn" id="netify-stop-btn">STOP COLLECTOR</button>
+										<button class="action-btn" id="netify-restart-btn">RESTART COLLECTOR</button>
+										<button class="action-btn" id="netify-init-db-btn">INIT DB</button>
+										<button class="action-btn" id="netify-full-reset-btn">FULL RESET</button>
+										<button class="action-btn" id="netify-refresh-btn">REFRESH</button>
+									</div>
+									<div style="margin-top: 12px">
+										<div class="stat-label">WEBUI DEBUG LOG</div>
+										<pre
+											id="netify-debug-log"
+											style="margin-top: 8px; max-height: 180px; overflow: auto; white-space: pre-wrap; font-family: var(--font-mono); font-size: 11px; color: var(--steel-light); background: rgba(0, 0, 0, 0.28); border: 1px solid var(--glass-border); border-radius: 4px; padding: 10px"
+										></pre>
+										<div style="display: flex; justify-content: flex-end; margin-top: 8px">
+											<button class="action-btn-sm" id="netify-debug-clear-btn" type="button">CLEAR LOG</button>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div id="system-page" class="page hidden">
+							<h2>SYSTEM</h2>
 						<div class="tabs">
 							<button class="tab-btn active" data-tab="general">GENERAL</button>
 							<button class="tab-btn" data-tab="admin">ADMINISTRATION</button>
@@ -1366,6 +1967,17 @@
 								</div>
 								<div class="quick-actions">
 									<button class="action-btn" id="save-general-btn">SAVE CHANGES</button>
+									<button class="action-btn" id="sync-browser-time-btn">SYNC BROWSER TIME</button>
+								</div>
+							</div>
+
+							<div class="stat-card" style="margin-top: 24px">
+								<div class="section-title">MOCI CONFIG <span style="font-size: 10px; color: var(--steel-muted)">(check/uncheck to hide/disable features)</span></div>
+								<div id="moci-features-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px">
+									<div style="color: var(--steel-muted)">Loading...</div>
+								</div>
+								<div class="quick-actions">
+									<button class="action-btn" id="save-moci-config-btn">SAVE MOCI CONFIG</button>
 								</div>
 							</div>
 						</div>
@@ -1422,7 +2034,28 @@
 
 						<div class="tab-content hidden" id="tab-software">
 							<div class="stat-card">
+								<div class="section-title">ROOT STORAGE (/)</div>
+								<div style="margin-bottom: 20px">
+									<div
+										id="software-root-space-label"
+										style="font-family: var(--font-mono); font-size: 11px; color: var(--steel-muted); margin-bottom: 8px"
+									>
+										Used: N/A
+									</div>
+									<div class="progress-bar" style="height: 10px">
+										<div id="software-root-space-fill" class="progress-fill software-root-space-fill" style="width: 0%"></div>
+									</div>
+								</div>
+
 								<div class="section-title">INSTALLED PACKAGES</div>
+								<div class="form-group" style="margin-bottom: 12px">
+									<input
+										type="text"
+										id="packages-search"
+										class="form-input"
+										placeholder="Search packages (name/version)"
+									/>
+								</div>
 								<table class="data-table" id="packages-table">
 									<thead>
 										<tr>
@@ -1439,6 +2072,13 @@
 										</tr>
 									</tbody>
 								</table>
+								<div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px">
+									<span id="packages-page-info" style="font-family: var(--font-mono); font-size: 11px; color: var(--steel-muted)">
+										0-0 of 0
+									</span>
+									<button class="action-btn-sm" id="packages-prev-btn" type="button" aria-label="Previous packages page">◀</button>
+									<button class="action-btn-sm" id="packages-next-btn" type="button" aria-label="Next packages page">▶</button>
+								</div>
 							</div>
 						</div>
 
@@ -1531,7 +2171,7 @@
 								></div>
 							</div>
 
-							<div class="stat-card">
+							<div class="stat-card" style="margin-top: 24px">
 								<div class="section-title">MOUNT POINTS</div>
 								<table class="data-table" id="mounts-table">
 									<thead>

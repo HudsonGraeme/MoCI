@@ -18,8 +18,11 @@ export class OpenWrtCore {
 	getModuleForRoute(basePath) {
 		const routeModuleMap = {
 			dashboard: 'dashboard',
+			devices: 'devices',
 			network: 'network',
-			system: 'system'
+			monitoring: 'monitoring',
+			system: 'system',
+			netify: 'netify'
 		};
 		return routeModuleMap[basePath];
 	}
@@ -99,28 +102,37 @@ export class OpenWrtCore {
 	}
 
 	async loadFeatures() {
+		const defaults = this.getDefaultFeatures();
 		try {
 			const [status, result] = await this.uciGet('moci', 'features');
 
 			if (status === 0 && result && result.values) {
-				this.features = result.values;
+				// Merge router config over defaults so newly added features remain visible.
+				this.features = { ...defaults, ...result.values };
 			} else {
-				this.features = this.getDefaultFeatures();
+				this.features = defaults;
 			}
 		} catch (err) {
 			console.error('Feature config not found, using defaults:', err);
-			this.features = this.getDefaultFeatures();
+			this.features = defaults;
 		}
 	}
 
 	getDefaultFeatures() {
 		return {
 			dashboard: '1',
+			devices: '1',
 			network: '1',
+			traffic_history: '1',
+			monitoring: '1',
+			netify: '1',
+			show_lan_ip: '0',
+			colorful_graphs: '0',
 			wireless: '1',
 			firewall: '1',
 			dhcp: '1',
 			dns: '1',
+			adblock: '1',
 			wireguard: '1',
 			qos: '1',
 			ddns: '1',
@@ -143,8 +155,13 @@ export class OpenWrtCore {
 	getModuleMap() {
 		return {
 			dashboard: './modules/dashboard.js',
+			devices: './modules/devices.js',
 			network: './modules/network.js',
-			system: './modules/system.js'
+			monitoring: './modules/monitoring.js',
+			system: './modules/system.js',
+			netify: './modules/netify.js',
+			vpn: './modules/vpn.js',
+			services: './modules/services.js'
 		};
 	}
 
@@ -176,8 +193,13 @@ export class OpenWrtCore {
 	shouldLoadModule(moduleName) {
 		const moduleFeatures = {
 			dashboard: ['dashboard'],
-			network: ['network', 'wireless', 'firewall', 'dhcp', 'dns', 'diagnostics', 'wireguard', 'qos', 'ddns'],
-			system: ['system', 'backup', 'packages', 'services', 'ssh_keys', 'storage', 'leds', 'firmware']
+			devices: ['devices'],
+			network: ['network', 'wireless', 'firewall', 'dhcp', 'dns', 'adblock', 'diagnostics'],
+			monitoring: ['monitoring'],
+			system: ['system', 'backup', 'packages', 'services', 'ssh_keys', 'storage', 'leds', 'firmware'],
+			netify: ['netify'],
+			vpn: ['wireguard'],
+			services: ['qos', 'ddns']
 		};
 
 		const features = moduleFeatures[moduleName] || [];
@@ -202,21 +224,6 @@ export class OpenWrtCore {
 
 	attachEventListeners() {
 		document.getElementById('logout-btn')?.addEventListener('click', () => this.logout());
-
-		const menuToggle = document.querySelector('.menu-toggle');
-		const nav = document.querySelector('.nav');
-		if (menuToggle && nav) {
-			menuToggle.addEventListener('click', () => {
-				nav.classList.toggle('open');
-				menuToggle.setAttribute('aria-expanded', nav.classList.contains('open'));
-			});
-			nav.querySelectorAll('a').forEach(link => {
-				link.addEventListener('click', () => nav.classList.remove('open'));
-			});
-			window.addEventListener('resize', () => {
-				if (window.innerWidth > 768) nav.classList.remove('open');
-			});
-		}
 	}
 
 	startPolling() {
@@ -472,7 +479,7 @@ export class OpenWrtCore {
 
 	renderActionButtons(id) {
 		const eid = this.escapeHtml(id);
-		return `<button class="action-btn-sm" data-action="edit" data-id="${eid}">EDIT</button><button class="action-btn-sm danger" data-action="delete" data-id="${eid}">DELETE</button>`;
+		return `<button class="action-btn-sm" data-action="edit" data-id="${eid}" style="font-size:11px;padding:4px 8px;line-height:1.2">EDIT</button><button class="action-btn-sm danger" data-action="delete" data-id="${eid}" style="font-size:11px;padding:4px 8px;line-height:1.2">DELETE</button>`;
 	}
 
 	showToast(message, type = 'info') {
@@ -606,135 +613,6 @@ export class OpenWrtCore {
 		};
 		container.addEventListener('click', handler);
 		return () => container.removeEventListener('click', handler);
-	}
-
-	renderTable(tableSelector, items, colspan, emptyMsg, rowFn) {
-		const tbody = document.querySelector(`${tableSelector} tbody`);
-		if (!tbody) return;
-		if (items.length === 0) {
-			this.renderEmptyTable(tbody, colspan, emptyMsg);
-			return;
-		}
-		tbody.innerHTML = items.map(rowFn).join('');
-	}
-
-	filterUciSections(config, type) {
-		return Object.entries(config)
-			.filter(([, v]) => v['.type'] === type)
-			.map(([k, v]) => ({ section: k, ...v }));
-	}
-
-	getFormValues(fieldMap) {
-		const values = {};
-		for (const [elementId, uciKey] of Object.entries(fieldMap)) {
-			const el = document.getElementById(elementId);
-			if (!el) continue;
-			const formVal = el.type === 'checkbox' ? el.checked : el.value;
-			if (Array.isArray(uciKey)) {
-				for (const key of uciKey) values[key] = formVal;
-			} else {
-				values[uciKey] = formVal;
-			}
-		}
-		return values;
-	}
-
-	setFormValues(fieldMap, data) {
-		for (const [elementId, uciKey] of Object.entries(fieldMap)) {
-			const el = document.getElementById(elementId);
-			if (!el) continue;
-			let val;
-			if (Array.isArray(uciKey)) {
-				for (const key of uciKey) {
-					if (data[key] !== undefined && data[key] !== '') {
-						val = data[key];
-						break;
-					}
-				}
-			} else {
-				val = data[uciKey];
-			}
-			if (el.type === 'checkbox') {
-				el.checked = !!val;
-			} else {
-				el.value = Array.isArray(val) ? val.join(', ') : val || '';
-			}
-		}
-	}
-
-	async uciEdit(config, id, fieldMap, modalId, sectionIdField) {
-		try {
-			const [status, result] = await this.uciGet(config, id);
-			if (status !== 0 || !result?.values) throw new Error('Not found');
-			if (sectionIdField) document.getElementById(sectionIdField).value = id;
-			this.setFormValues(fieldMap, result.values);
-			this.openModal(modalId);
-		} catch {
-			this.showToast('Failed to load config', 'error');
-		}
-	}
-
-	async uciSave({
-		config,
-		uciType,
-		modalId,
-		sectionIdField,
-		fieldMap,
-		defaults,
-		reloadFn,
-		successMsg,
-		sectionNameField
-	}) {
-		const section = sectionIdField ? document.getElementById(sectionIdField)?.value : '';
-		const values = { ...this.getFormValues(fieldMap), ...defaults };
-		try {
-			if (section) {
-				await this.uciSet(config, section, values);
-			} else {
-				const name = sectionNameField ? document.getElementById(sectionNameField)?.value || null : null;
-				const [, res] = await this.uciAdd(config, uciType, name);
-				if (!res?.section) throw new Error('Failed to create section');
-				await this.uciSet(config, res.section, values);
-			}
-			await this.uciCommit(config);
-			this.closeModal(modalId);
-			this.showToast(successMsg || 'Saved', 'success');
-			if (reloadFn) await reloadFn();
-		} catch {
-			this.showToast('Failed to save', 'error');
-		}
-	}
-
-	async uciDeleteEntry(config, id, confirmMsg, reloadFn) {
-		if (!confirm(confirmMsg)) return;
-		try {
-			await this.uciDelete(config, id);
-			await this.uciCommit(config);
-			this.showToast('Deleted', 'success');
-			if (reloadFn) await reloadFn();
-		} catch {
-			this.showToast('Failed to delete', 'error');
-		}
-	}
-
-	spliceFileLines(raw, dataFilter, index, newLine) {
-		const lines = raw.split('\n');
-		const dataIndices = lines.map((l, i) => (dataFilter(l) ? i : -1)).filter(i => i >= 0);
-		if (index !== '' && index !== undefined) {
-			const origIdx = dataIndices[parseInt(index)];
-			if (origIdx !== undefined) {
-				if (newLine === null) {
-					lines.splice(origIdx, 1);
-				} else {
-					lines[origIdx] = newLine;
-				}
-			}
-		} else if (newLine !== null) {
-			if (lines.length && lines[lines.length - 1] === '') lines.pop();
-			lines.push(newLine);
-		}
-		const result = lines.join('\n');
-		return result.endsWith('\n') ? result : result + '\n';
 	}
 
 	resetModal(modalId) {

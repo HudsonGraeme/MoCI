@@ -84,8 +84,79 @@
 					syslog: `Jan 25 12:34:56 OpenWrt daemon.info dnsmasq[1234]: started, version 2.86
 Jan 25 12:35:12 OpenWrt daemon.info dnsmasq-dhcp[1234]: DHCP, IP range 192.168.1.100 -- 192.168.1.200
 Jan 25 12:36:45 OpenWrt kern.info kernel: [12345.678] ath9k: Atheros AR9344 rev 2
-Jan 25 12:37:22 OpenWrt daemon.notice netifd: Interface 'wan' is now up`
+Jan 25 12:37:22 OpenWrt daemon.notice netifd: Interface 'wan' is now up`,
+					vnstat: {
+						interfaces: [
+							{
+								name: 'br-lan',
+								traffic: {
+									hour: [
+										{ date: { year: 2026, month: 3, day: 16, hour: 13 }, rx: 2147483648, tx: 536870912 },
+										{ date: { year: 2026, month: 3, day: 16, hour: 14 }, rx: 1932735283, tx: 515396075 },
+										{ date: { year: 2026, month: 3, day: 16, hour: 15 }, rx: 2415919104, tx: 671088640 },
+										{ date: { year: 2026, month: 3, day: 16, hour: 16 }, rx: 2684354560, tx: 805306368 },
+										{ date: { year: 2026, month: 3, day: 16, hour: 17 }, rx: 2254857830, tx: 644245094 },
+										{ date: { year: 2026, month: 3, day: 16, hour: 18 }, rx: 1825361101, tx: 483183820 },
+										{ date: { year: 2026, month: 3, day: 16, hour: 19 }, rx: 2791728742, tx: 751619276 },
+										{ date: { year: 2026, month: 3, day: 16, hour: 20 }, rx: 3113851289, tx: 858993459 },
+										{ date: { year: 2026, month: 3, day: 16, hour: 21 }, rx: 2576980377, tx: 697932186 },
+										{ date: { year: 2026, month: 3, day: 16, hour: 22 }, rx: 2040109465, tx: 590558003 },
+										{ date: { year: 2026, month: 3, day: 16, hour: 23 }, rx: 1503238553, tx: 429496729 },
+										{ date: { year: 2026, month: 3, day: 17, hour: 0 }, rx: 1181116006, tx: 322122547 }
+									],
+									day: [
+										{ date: { year: 2026, month: 3, day: 6 }, rx: 26575110144, tx: 6442450944 },
+										{ date: { year: 2026, month: 3, day: 7 }, rx: 28991029248, tx: 7516192768 },
+										{ date: { year: 2026, month: 3, day: 8 }, rx: 31138512896, tx: 8589934592 },
+										{ date: { year: 2026, month: 3, day: 9 }, rx: 25769803776, tx: 6979321856 },
+										{ date: { year: 2026, month: 3, day: 10 }, rx: 30064771072, tx: 8053063680 },
+										{ date: { year: 2026, month: 3, day: 11 }, rx: 33285996544, tx: 9126805504 },
+										{ date: { year: 2026, month: 3, day: 12 }, rx: 34359738368, tx: 9663676416 },
+										{ date: { year: 2026, month: 3, day: 13 }, rx: 32212254720, tx: 8589934592 },
+										{ date: { year: 2026, month: 3, day: 14 }, rx: 28991029248, tx: 7516192768 },
+										{ date: { year: 2026, month: 3, day: 15 }, rx: 25769803776, tx: 6979321856 },
+										{ date: { year: 2026, month: 3, day: 16 }, rx: 33285996544, tx: 9126805504 },
+										{ date: { year: 2026, month: 3, day: 17 }, rx: 17179869184, tx: 4294967296 }
+									],
+									month: [
+										{ date: { year: 2025, month: 5 }, rx: 90324529152, tx: 20253343744 },
+										{ date: { year: 2025, month: 6 }, rx: 100235010048, tx: 24395415552 },
+										{ date: { year: 2025, month: 7 }, rx: 118422104064, tx: 28689039360 },
+										{ date: { year: 2025, month: 8 }, rx: 107468005376, tx: 26508009472 },
+										{ date: { year: 2025, month: 9 }, rx: 98045300736, tx: 23173550080 },
+										{ date: { year: 2025, month: 10 }, rx: 111669149696, tx: 29283041280 },
+										{ date: { year: 2025, month: 11 }, rx: 124339822592, tx: 31584817152 },
+										{ date: { year: 2025, month: 12 }, rx: 132409196544, tx: 34626039808 },
+										{ date: { year: 2026, month: 1 }, rx: 127763488768, tx: 32644739072 },
+										{ date: { year: 2026, month: 2 }, rx: 121482149888, tx: 29812948992 },
+										{ date: { year: 2026, month: 3 }, rx: 84506664960, tx: 21479002112 }
+									]
+								}
+							}
+						]
+					},
+					pingHistory: `2026-03-20T09:00:00.000Z|1.1.1.1|OK|12.4|icmp_seq=1 ttl=58
+2026-03-20T09:01:00.000Z|1.1.1.1|OK|11.8|icmp_seq=1 ttl=58
+2026-03-20T09:02:00.000Z|1.1.1.1|OK|19.3|icmp_seq=1 ttl=58
+2026-03-20T09:03:00.000Z|1.1.1.1|OK|88.1|icmp_seq=1 ttl=58
+2026-03-20T09:04:00.000Z|1.1.1.1|OK|140.2|icmp_seq=1 ttl=58
+2026-03-20T09:05:00.000Z|1.1.1.1|ERR|N/A|timeout
+2026-03-20T09:06:00.000Z|1.1.1.1|OK|23.7|icmp_seq=1 ttl=58
+2026-03-20T09:07:00.000Z|1.1.1.1|OK|17.0|icmp_seq=1 ttl=58
+2026-03-20T09:08:00.000Z|1.1.1.1|OK|14.5|icmp_seq=1 ttl=58
+2026-03-20T09:09:00.000Z|1.1.1.1|OK|13.2|icmp_seq=1 ttl=58
+`,
+					netifyFlowLog: `{"type":"flow","interface":"eth1","internal":false,"flow":{"last_seen_at":1774101189000,"local_mac":"00:11:22:33:44:55","detected_application_name":"Cloudflare DNS","detected_protocol_name":"DNS","other_ip":"1.1.1.1","other_port":53}}
+{"type":"flow","interface":"eth1","internal":false,"flow":{"last_seen_at":1774101184000,"local_mac":"00:11:22:33:44:66","detected_application_name":"YouTube","detected_protocol_name":"HTTP/S","other_ip":"142.250.68.14","other_port":443}}
+{"type":"flow","interface":"eth1","internal":false,"flow":{"last_seen_at":1774101180000,"local_mac":"00:11:22:33:44:77","detected_application_name":"Netflix","detected_protocol_name":"HTTP/S","other_ip":"52.4.120.22","other_port":443}}
+{"type":"flow","interface":"eth1","internal":false,"flow":{"last_seen_at":1774101176000,"local_mac":"00:11:22:33:44:55","detected_application_name":"OpenAI","detected_protocol_name":"HTTP/S","other_ip":"104.18.33.45","other_port":443}}
+{"type":"flow","interface":"eth1","internal":false,"flow":{"last_seen_at":1774101171000,"local_mac":"00:11:22:33:44:66","detected_application_name":"Discord","detected_protocol_name":"HTTP/S","other_ip":"162.159.130.234","other_port":443}}
+{"type":"flow","interface":"eth1","internal":false,"flow":{"last_seen_at":1774101166000,"local_mac":"00:11:22:33:44:77","detected_application_name":"NTP","detected_protocol_name":"NTP","other_ip":"129.6.15.28","other_port":123}}
+`
 				};
+				let pingServiceRunning = true;
+				let netifyServiceRunning = true;
+				let netifyFilePresent = true;
 
 				const originalFetch = win.fetch.bind(win);
 				win.fetch = async (url, options) => {
@@ -118,10 +189,77 @@ Jan 25 12:37:22 OpenWrt daemon.notice netifd: Interface 'wan' is now up`
 								result = [0, { data: mockData.arpTable }];
 							} else if (params.path === '/usr/lib/opkg/status') {
 								result = [0, { data: mockData.packages }];
+							} else if (params.path === '/tmp/pingTest.txt') {
+								result = [0, { data: mockData.pingHistory }];
+							} else if (params.path === '/tmp/moci-netify-flow.jsonl') {
+								result = [0, { data: mockData.netifyFlowLog }];
+							}
+						} else if (object === 'file' && method === 'write') {
+							if (params.path === '/tmp/pingTest.txt') {
+								mockData.pingHistory = params.data || '';
+								result = [0, {}];
 							}
 						} else if (object === 'file' && method === 'exec') {
 							if (params.command === '/usr/libexec/syslog-wrapper' && Array.isArray(params.params)) {
 								result = [0, { stdout: mockData.syslog }];
+							} else if (
+								(params.command === '/usr/bin/vnstat' || params.command === '/usr/sbin/vnstat') &&
+								Array.isArray(params.params) &&
+								params.params.includes('--json')
+							) {
+								result = [0, { stdout: JSON.stringify(mockData.vnstat) }];
+							} else if (
+								params.command === '/usr/libexec/nlbwmon-action' &&
+								Array.isArray(params.params) &&
+								params.params[0] === 'download'
+							) {
+								result = [
+									0,
+									{
+										stdout: JSON.stringify({
+											columns: ['family', 'mac', 'ip', 'layer7', 'rx_bytes', 'tx_bytes'],
+											data: [
+												['ipv4', '00:11:22:33:44:55', '192.168.1.100', 'https', 324000000, 90500000],
+												['ipv4', '00:11:22:33:44:66', '192.168.1.101', 'youtube', 760000000, 221000000],
+												['ipv4', '00:11:22:33:44:77', '192.168.1.102', 'dns', 92000000, 42000000]
+											]
+										})
+									}
+								];
+							} else if (params.command === '/bin/sh' && Array.isArray(params.params) && params.params[0] === '-c') {
+								const cmd = params.params[1] || '';
+								if (cmd.includes('pgrep -f moci-ping-monitor')) {
+									result = [0, { stdout: pingServiceRunning ? 'RUNNING\n' : 'STOPPED\n' }];
+								} else if (cmd.includes('pgrep -f moci-netify-collector')) {
+									result = [0, { stdout: netifyServiceRunning ? 'RUNNING\n' : 'STOPPED\n' }];
+								} else if (cmd.includes('[ -f') && cmd.includes('moci-netify-flow.jsonl')) {
+									result = [0, { stdout: netifyFilePresent ? 'PRESENT\n' : 'MISSING\n' }];
+								}
+							} else if (params.command === '/etc/init.d/ping-monitor' && Array.isArray(params.params)) {
+								const action = params.params[0];
+								if (action === 'start') pingServiceRunning = true;
+								if (action === 'stop') pingServiceRunning = false;
+								if (action === 'restart') pingServiceRunning = true;
+								result = [0, { stdout: '' }];
+							} else if (params.command === '/usr/bin/moci-ping-monitor' && Array.isArray(params.params)) {
+								const now = new Date().toISOString();
+								const newLine = `${now}|1.1.1.1|OK|15.6|icmp_seq=1 ttl=58\n`;
+								mockData.pingHistory = (mockData.pingHistory || '') + newLine;
+								result = [0, { stdout: newLine }];
+							} else if (params.command === '/etc/init.d/netify-collector' && Array.isArray(params.params)) {
+								const action = params.params[0];
+								if (action === 'start') netifyServiceRunning = true;
+								if (action === 'stop') netifyServiceRunning = false;
+								if (action === 'restart') netifyServiceRunning = true;
+								result = [0, { stdout: '' }];
+							} else if (params.command === '/usr/bin/moci-netify-collector' && Array.isArray(params.params)) {
+								if (params.params.includes('--init-db') || params.params.includes('--init-file')) {
+									netifyFilePresent = true;
+									if (!mockData.netifyFlowLog) {
+										mockData.netifyFlowLog = '';
+									}
+									result = [0, { stdout: 'initialized\n' }];
+								}
 							}
 						} else if (object === 'uci' && method === 'get') {
 							if (params.config === 'moci' && params.section === 'features') {
@@ -130,7 +268,11 @@ Jan 25 12:37:22 OpenWrt daemon.notice netifd: Interface 'wan' is now up`
 									{
 										values: {
 											dashboard: '1',
+											devices: '1',
 											network: '1',
+											monitoring: '1',
+											netify: '1',
+											show_lan_ip: '0',
 											system: '1',
 											wireless: '1',
 											firewall: '1',
@@ -150,7 +292,33 @@ Jan 25 12:37:22 OpenWrt daemon.notice netifd: Interface 'wan' is now up`
 										}
 									}
 								];
+							} else if (params.config === 'moci' && params.section === 'ping_monitor') {
+								result = [
+									0,
+									{
+										values: {
+											target: '1.1.1.1',
+											interval: '60',
+											output_file: '/tmp/pingTest.txt'
+										}
+									}
+								];
+							} else if (params.config === 'moci' && params.section === 'collector') {
+								result = [
+									0,
+									{
+										values: {
+											output_file: '/tmp/moci-netify-flow.jsonl',
+											max_lines: '5000',
+											enabled: '1',
+											host: '127.0.0.1',
+											port: '7150'
+										}
+									}
+								];
 							}
+						} else if (object === 'uci' && (method === 'set' || method === 'commit' || method === 'add')) {
+							result = [0, {}];
 						}
 
 						return {
