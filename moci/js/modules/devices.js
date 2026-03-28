@@ -14,6 +14,12 @@ export default class DevicesModule {
 		this.deviceMaxRows = 3000;
 		this.nlbwAvailable = false;
 		this.netifyFeatureEnabled = true;
+		this.parentalByMac = new Map();
+		this.parentalRulePrefix = 'moci_parental_';
+		this.quarantineByMac = new Map();
+		this.quarantineRulePrefix = 'moci_quarantine_';
+		this.sortKey = 'online';
+		this.sortDir = 'desc';
 
 		this.core.registerRoute('/devices', async () => {
 			const pageElement = document.getElementById('devices-page');
@@ -40,9 +46,45 @@ export default class DevicesModule {
 			saveHandler: () => this.savePinnedIp()
 		});
 		document.getElementById('devices-pin-static')?.addEventListener('change', () => this.syncStaticIpField());
+		document.getElementById('devices-parental-toggle-btn')?.addEventListener('click', () => this.toggleParentalControl());
+		document.getElementById('devices-release-quarantine-btn')?.addEventListener('click', () => this.releaseQuarantineFromDialog());
+		document.getElementById('delete-devices-pin-btn')?.addEventListener('click', () => this.deleteFromDialog());
 
 		this.core.delegateActions('devices-table', {
 			pin: mac => this.openPinDialog(mac)
+		});
+		this.setupSortHeaders();
+	}
+
+	setupSortHeaders() {
+		const headers = document.querySelectorAll('#devices-table thead th[data-sort]');
+		headers.forEach(th => {
+			th.addEventListener('click', () => {
+				const key = String(th.getAttribute('data-sort') || '').trim();
+				if (!key) return;
+				if (this.sortKey === key) {
+					this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+				} else {
+					this.sortKey = key;
+					this.sortDir = ['upload', 'download', 'online'].includes(key) ? 'desc' : 'asc';
+				}
+				this.updateSortHeaderUi();
+				this.renderRows(this.sortRows(this.deviceRows));
+			});
+		});
+		this.updateSortHeaderUi();
+	}
+
+	updateSortHeaderUi() {
+		const headers = document.querySelectorAll('#devices-table thead th[data-sort]');
+		headers.forEach(th => {
+			const key = String(th.getAttribute('data-sort') || '').trim();
+			const label = String(th.getAttribute('data-label') || th.textContent || '').trim();
+			if (key === this.sortKey) {
+				th.textContent = `${label} ${this.sortDir === 'asc' ? '▲' : '▼'}`;
+			} else {
+				th.textContent = label;
+			}
 		});
 	}
 
@@ -50,31 +92,39 @@ export default class DevicesModule {
 		if (this.refreshTimer) return;
 		this.refreshTimer = setInterval(() => {
 			if (this.core.currentRoute?.startsWith('/devices')) {
-				this.loadDevices();
+				// Keep row order stable while user is inspecting expanded details.
+				if (this.expandedMac) return;
+				this.loadDevices({ fromAuto: true });
 			}
 		}, 15000);
 	}
 
-	async loadDevices() {
+	async loadDevices(options = {}) {
+		const fromAuto = Boolean(options?.fromAuto);
 		const tbody = document.querySelector('#devices-table tbody');
 		if (!tbody) return;
 
 		try {
-			const [leases, arpMacs, usage, staticByMac, netifyEnabled] = await Promise.all([
-				this.fetchLeases(),
-				this.fetchArpMacs(),
+			const leases = await this.fetchLeases();
+			const [pingReachableIps, usage, staticByMac, netifyEnabled, parentalByMac, quarantineByMac] = await Promise.all([
+				this.fetchPingReachableIps(leases),
 				this.fetchNlbwmonUsage(),
 				this.fetchStaticLeasesByMac(),
-				this.fetchNetifyFeatureFlag()
+				this.fetchNetifyFeatureFlag(),
+				this.fetchParentalRulesByMac(),
+				this.fetchQuarantineRulesByMac()
 			]);
 
 			this.staticByMac = staticByMac;
 			this.nlbwAvailable = Boolean(usage.available);
 			this.netifyFeatureEnabled = Boolean(netifyEnabled);
+			this.parentalByMac = parentalByMac;
+			this.quarantineByMac = quarantineByMac;
 			this.renderSourceStatus();
-			const rows = this.mergeRows(leases, arpMacs, usage.totalsByClient, staticByMac);
+			const rows = this.mergeRows(leases, pingReachableIps, usage.totalsByClient, staticByMac, parentalByMac, quarantineByMac);
+			if (fromAuto && this.expandedMac) return;
 			this.deviceRows = rows;
-			this.renderRows(rows);
+			this.renderRows(this.sortRows(rows));
 		} catch (err) {
 			console.error('Failed to load devices page:', err);
 			this.core.renderEmptyTable(tbody, 7, 'Failed to load device data');
@@ -125,6 +175,60 @@ export default class DevicesModule {
 		return this.core.isFeatureEnabled ? this.core.isFeatureEnabled('netify') : true;
 	}
 
+	async fetchParentalRulesByMac() {
+		const map = new Map();
+		try {
+			const [status, result] = await this.core.uciGet('firewall');
+			if (status !== 0 || !result?.values) return map;
+
+			for (const [section, cfg] of Object.entries(result.values)) {
+				if (String(cfg?.['.type'] || '') !== 'rule') continue;
+				const ruleName = String(cfg?.name || '');
+				if (!ruleName.startsWith(this.parentalRulePrefix)) continue;
+				const mac = this.normalizeMac(cfg?.src_mac || cfg?.src_mac_address || '');
+				if (!mac) continue;
+				const enabled = String(cfg?.enabled ?? '1') !== '0';
+				map.set(mac, {
+					section,
+					enabled
+				});
+			}
+		} catch {}
+		return map;
+	}
+
+	async fetchQuarantineRulesByMac() {
+		const map = new Map();
+		let prefix = this.quarantineRulePrefix;
+		try {
+			const [qs, qr] = await this.core.uciGet('moci', 'quarantine');
+			if (qs === 0 && qr?.values?.rule_prefix) {
+				const configured = String(qr.values.rule_prefix || '').trim();
+				if (configured) prefix = configured;
+			}
+		} catch {}
+		this.quarantineRulePrefix = prefix;
+
+		try {
+			const [status, result] = await this.core.uciGet('firewall');
+			if (status !== 0 || !result?.values) return map;
+
+			for (const [, cfg] of Object.entries(result.values)) {
+				if (String(cfg?.['.type'] || '') !== 'rule') continue;
+				const name = String(cfg?.name || '').trim();
+				if (!name.startsWith(prefix)) continue;
+				const mac = this.normalizeMac(cfg?.src_mac || cfg?.src_mac_address || '');
+				if (!mac) continue;
+				const base = name.replace(/_(lan|wan)$/i, '');
+				const current = map.get(mac) || { base, enabled: false };
+				current.base = current.base || base;
+				current.enabled = current.enabled || String(cfg?.enabled ?? '1') !== '0';
+				map.set(mac, current);
+			}
+		} catch {}
+		return map;
+	}
+
 	normalizeMac(value) {
 		if (Array.isArray(value)) {
 			for (const item of value) {
@@ -142,25 +246,90 @@ export default class DevicesModule {
 		return /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(first) ? first : '';
 	}
 
-	async fetchArpMacs() {
+	async fetchNeighborMacs() {
+		const online = new Set();
+
+		// IPv4 ARP table
 		try {
 			const [status, result] = await this.core.ubusCall('file', 'read', { path: '/proc/net/arp' });
-			if (status !== 0 || !result?.data) return new Set();
-			return this.parseArpMacs(result.data);
-		} catch {
-			return new Set();
-		}
+			if (status === 0 && result?.data) {
+				for (const mac of this.parseArpMacs(result.data)) online.add(mac);
+			}
+		} catch {}
+
+		// IPv4/IPv6 neighbor table
+		try {
+			const [status, result] = await this.core.ubusCall('file', 'exec', {
+				command: '/bin/sh',
+				params: ['-c', 'ip neigh 2>/dev/null || true']
+			});
+			if (status === 0 && result?.stdout) {
+				for (const mac of this.parseIpNeighMacs(result.stdout)) online.add(mac);
+			}
+		} catch {}
+
+		return online;
 	}
 
 	parseArpMacs(text) {
-		const online = new Set();
+		const macs = new Set();
 		for (const line of text.split('\n').slice(1)) {
 			const parts = line.trim().split(/\s+/);
 			if (parts.length < 4) continue;
 			const mac = (parts[3] || '').toLowerCase();
-			if (mac && mac !== '00:00:00:00:00:00') online.add(mac);
+			if (mac && mac !== '00:00:00:00:00:00') macs.add(mac);
 		}
-		return online;
+		return macs;
+	}
+
+	parseIpNeighMacs(text) {
+		const macs = new Set();
+		for (const line of String(text || '').split('\n')) {
+			const m = line.match(/\blladdr\s+([0-9a-f]{2}(?::[0-9a-f]{2}){5})\b/i);
+			if (!m) continue;
+			const mac = String(m[1] || '').toLowerCase();
+			if (mac && mac !== '00:00:00:00:00:00') macs.add(mac);
+		}
+		return macs;
+	}
+
+	async fetchPingReachableIps(leases) {
+		const reachable = new Set();
+		const ips = Array.from(
+			new Set(
+				(Array.isArray(leases) ? leases : [])
+					.map(lease => String(lease?.ipaddr || '').trim())
+					.filter(ip => this.isValidIpv4(ip))
+			)
+		).slice(0, 64);
+
+		if (ips.length === 0) return reachable;
+
+		try {
+			const ipArgs = ips.map(ip => this.shellQuote(ip)).join(' ');
+			const cmd = `
+tmp="/tmp/.moci_ping_online.$$"
+: > "$tmp"
+i=0
+for ip in ${ipArgs}; do
+	(ping -c 1 -W 1 "$ip" >/dev/null 2>&1 && echo "$ip" >> "$tmp") &
+	i=$((i+1))
+	if [ $((i % 8)) -eq 0 ]; then
+		wait
+	fi
+done
+wait
+cat "$tmp" 2>/dev/null || true
+rm -f "$tmp"
+`;
+			const result = await this.exec('/bin/sh', ['-c', cmd], { timeout: 20000 });
+			for (const line of String(result?.stdout || '').split('\n')) {
+				const ip = String(line || '').trim();
+				if (this.isValidIpv4(ip)) reachable.add(ip);
+			}
+		} catch {}
+
+		return reachable;
 	}
 
 	async fetchNlbwmonUsage() {
@@ -232,9 +401,9 @@ export default class DevicesModule {
 		return { available: true, totalsByClient };
 	}
 
-	mergeRows(leases, arpMacs, totalsByClient, staticByMac) {
+	mergeRows(leases, pingReachableIps, totalsByClient, staticByMac, parentalByMac, quarantineByMac) {
 		const merged = [];
-		const seen = new Set();
+		const seenMacs = new Set();
 
 		for (const lease of leases) {
 			const mac = String(lease.macaddr || '').toLowerCase();
@@ -242,6 +411,8 @@ export default class DevicesModule {
 			const key = mac || ip;
 			const usage = totalsByClient.get(key) || totalsByClient.get(ip) || null;
 			const pin = mac ? staticByMac.get(mac) : null;
+			const parental = mac ? parentalByMac.get(mac) : null;
+			const quarantine = mac ? quarantineByMac.get(mac) : null;
 			merged.push({
 				hostname: lease.hostname || pin?.name || 'Unknown',
 				ip: pin?.ip || ip || 'N/A',
@@ -250,37 +421,63 @@ export default class DevicesModule {
 				tx: usage ? usage.tx : null,
 				rx: usage ? usage.rx : null,
 				nlbwTopApps: this.extractTopNlbwApps(usage),
-				online: mac ? arpMacs.has(mac) : false,
+				online: ip ? pingReachableIps.has(ip) : false,
 				pinned: Boolean(pin?.ip),
-				staticSection: pin?.section || ''
+				staticSection: pin?.section || '',
+				parentalSection: parental?.section || '',
+				parentalBlocked: Boolean(parental?.enabled),
+				quarantined: Boolean(quarantine?.enabled),
+				quarantineBase: quarantine?.base || ''
 			});
-			if (key) seen.add(key);
-			if (ip) seen.add(ip);
+			if (mac) seenMacs.add(mac);
 		}
 
-		for (const [key, usage] of totalsByClient.entries()) {
-			if (seen.has(key)) continue;
-			const mac = usage.mac || '';
-			const ip = usage.ip || '';
-			const pin = mac ? staticByMac.get(mac) : null;
+		for (const [mac, pin] of staticByMac.entries()) {
+			if (!mac || seenMacs.has(mac)) continue;
+			const usage = totalsByClient.get(mac) || totalsByClient.get(pin?.ip || '') || null;
+			const parental = parentalByMac.get(mac) || null;
+			const quarantine = quarantineByMac.get(mac) || null;
 			merged.push({
 				hostname: pin?.name || 'Unknown',
-				ip: pin?.ip || ip || 'N/A',
-				leaseIp: ip || 'N/A',
-				mac: mac || 'N/A',
-				tx: usage.tx,
-				rx: usage.rx,
+				ip: pin?.ip || usage?.ip || 'N/A',
+				leaseIp: usage?.ip || pin?.ip || 'N/A',
+				mac,
+				tx: usage ? usage.tx : null,
+				rx: usage ? usage.rx : null,
 				nlbwTopApps: this.extractTopNlbwApps(usage),
-				online: mac ? arpMacs.has(mac) : false,
+				online: (usage?.ip ? pingReachableIps.has(usage.ip) : false) || (pin?.ip ? pingReachableIps.has(pin.ip) : false),
 				pinned: Boolean(pin?.ip),
-				staticSection: pin?.section || ''
+				staticSection: pin?.section || '',
+				parentalSection: parental?.section || '',
+				parentalBlocked: Boolean(parental?.enabled),
+				quarantined: Boolean(quarantine?.enabled),
+				quarantineBase: quarantine?.base || ''
 			});
+			seenMacs.add(mac);
 		}
 
-		return merged.sort((a, b) => {
-			const aTotal = (a.rx || 0) + (a.tx || 0);
-			const bTotal = (b.rx || 0) + (b.tx || 0);
-			return bTotal - aTotal;
+		return merged;
+	}
+
+	sortRows(rows) {
+		let key = String(this.sortKey || 'traffic');
+		if (key === 'upload' || key === 'download') key = 'traffic';
+		const dir = this.sortDir === 'asc' ? 1 : -1;
+		const list = Array.isArray(rows) ? [...rows] : [];
+		const rankStatus = row => (row?.quarantined ? 3 : row?.parentalBlocked ? 2 : row?.online ? 1 : 0);
+		const totalTraffic = row => Number(row?.rx || 0) + Number(row?.tx || 0);
+		const numCmp = (a, b) => (a === b ? 0 : a > b ? 1 : -1);
+		const strCmp = (a, b) => String(a || '').localeCompare(String(b || ''));
+
+		return list.sort((a, b) => {
+			let cmp = 0;
+			if (key === 'hostname') cmp = strCmp(a.hostname, b.hostname);
+			else if (key === 'ip') cmp = strCmp(a.ip, b.ip);
+			else if (key === 'mac') cmp = strCmp(a.mac, b.mac);
+			else if (key === 'online') cmp = numCmp(rankStatus(a), rankStatus(b));
+			else cmp = numCmp(totalTraffic(a), totalTraffic(b));
+			if (cmp !== 0) return cmp * dir;
+			return strCmp(a.hostname, b.hostname);
 		});
 	}
 
@@ -318,11 +515,9 @@ export default class DevicesModule {
 				const pinBtn =
 					row.mac === 'N/A'
 						? '-'
-						: `<button class="action-btn-sm devices-action-btn" data-action="pin" data-id="${this.core.escapeHtml(row.mac)}" title="Device settings">ACTION</button>`;
+						: `<button class="action-btn-sm devices-action-btn" data-action="pin" data-id="${this.core.escapeHtml(row.mac)}" title="Edit device settings">EDIT</button>`;
 
-				const ipText = row.pinned
-					? `${this.core.escapeHtml(row.ip)} ${this.core.renderBadge('info', 'Static')}`
-					: this.core.escapeHtml(row.ip);
+				const ipText = this.renderDeviceIp(row.ip, row.pinned);
 
 				const mainRow = `<tr ${isExpandable ? `class="devices-row-expandable" data-device-mac="${this.core.escapeHtml(row.mac)}"` : ''}>
 					<td>${this.core.escapeHtml(`${marker}${row.hostname}`)}</td>
@@ -330,7 +525,7 @@ export default class DevicesModule {
 					<td>${this.core.escapeHtml(row.mac)}</td>
 					<td>${this.core.escapeHtml(upload)}</td>
 					<td>${this.core.escapeHtml(download)}</td>
-					<td>${row.online ? '<span class="badge badge-online-soft">ONLINE</span>' : '<span class="badge badge-offline-soft">OFFLINE</span>'}</td>
+					<td>${this.renderDeviceStatusBadge(row)}</td>
 					<td>${pinBtn}</td>
 				</tr>`;
 
@@ -347,8 +542,37 @@ export default class DevicesModule {
 		});
 	}
 
+	renderDeviceStatusBadge(row) {
+		if (row?.quarantined) {
+			return this.core.renderBadge('error', 'QUARANTINED');
+		}
+		if (row?.parentalBlocked) {
+			return '<span class="badge badge-adblock-disabled-soft">BLOCKED</span>';
+		}
+		return row?.online ? '<span class="badge badge-online-soft">ONLINE</span>' : '<span class="badge badge-offline-soft">OFFLINE</span>';
+	}
+
+	renderDeviceIp(ipValue, pinned) {
+		const fullIp = String(ipValue || 'N/A');
+		const shortIp = this.truncateIpv6(fullIp);
+		const displayIp =
+			shortIp !== fullIp
+				? `<span title="${this.core.escapeHtml(fullIp)}">${this.core.escapeHtml(shortIp)}</span>`
+				: this.core.escapeHtml(fullIp);
+		return pinned ? `${displayIp} ${this.core.renderBadge('info', 'Static')}` : displayIp;
+	}
+
+	truncateIpv6(ipValue) {
+		const ip = String(ipValue || '');
+		if (!ip.includes(':')) return ip;
+		if (ip.length <= 18) return ip;
+		return `${ip.slice(0, 6)}...${ip.slice(-5)}`;
+	}
+
 	handleRowClick(event) {
 		if (event.target?.closest?.('[data-action]')) return;
+		const selection = typeof window !== 'undefined' && window.getSelection ? window.getSelection() : null;
+		if (selection && !selection.isCollapsed && String(selection).trim().length > 0) return;
 		const rowEl = event.target?.closest?.('tr[data-device-mac]');
 		if (!rowEl) return;
 		const mac = this.normalizeMac(rowEl.getAttribute('data-device-mac'));
@@ -362,7 +586,7 @@ export default class DevicesModule {
 
 		if (this.expandedMac === normalizedMac) {
 			this.expandedMac = '';
-			this.renderRows(this.deviceRows);
+			this.renderRows(this.sortRows(this.deviceRows));
 			return;
 		}
 
@@ -370,11 +594,11 @@ export default class DevicesModule {
 		if (this.netifyFeatureEnabled && !this.netifyByMac.has(normalizedMac)) {
 			this.netifyByMac.set(normalizedMac, { loading: true });
 		}
-		this.renderRows(this.deviceRows);
+		this.renderRows(this.sortRows(this.deviceRows));
 
 		if (this.netifyFeatureEnabled) {
 			await this.loadNetifyDetails(normalizedMac);
-			if (this.expandedMac === normalizedMac) this.renderRows(this.deviceRows);
+			if (this.expandedMac === normalizedMac) this.renderRows(this.sortRows(this.deviceRows));
 		}
 	}
 
@@ -646,8 +870,30 @@ export default class DevicesModule {
 		const staticCheckbox = document.getElementById('devices-pin-static');
 		if (staticCheckbox) staticCheckbox.checked = Boolean(row.pinned);
 		document.getElementById('devices-pin-ip').value = row.ip && row.ip !== 'N/A' ? row.ip : '';
+		document.getElementById('devices-parental-rule-section').value = row.parentalSection || '';
+		document.getElementById('devices-quarantine-rule-base').value = row.quarantineBase || '';
 		this.syncStaticIpField();
+		this.syncParentalControlUi(row);
+		this.syncQuarantineActionUi(row);
 		this.core.openModal('devices-pin-modal');
+	}
+
+	syncParentalControlUi(row) {
+		const statusEl = document.getElementById('devices-parental-status');
+		const toggleBtn = document.getElementById('devices-parental-toggle-btn');
+		if (!statusEl || !toggleBtn) return;
+		const blocked = Boolean(row?.parentalBlocked);
+		statusEl.textContent = blocked ? 'Status: INTERNET BLOCKED' : 'Status: INTERNET ALLOWED';
+		toggleBtn.textContent = blocked ? 'UNBLOCK INTERNET' : 'BLOCK INTERNET';
+		toggleBtn.classList.toggle('danger', !blocked);
+		toggleBtn.classList.toggle('success', blocked);
+	}
+
+	syncQuarantineActionUi(row) {
+		const btn = document.getElementById('devices-release-quarantine-btn');
+		if (!btn) return;
+		const quarantined = Boolean(row?.quarantined);
+		btn.classList.toggle('hidden', !quarantined);
 	}
 
 	syncStaticIpField() {
@@ -717,11 +963,245 @@ export default class DevicesModule {
 		}
 	}
 
+	async deleteFromDialog() {
+		const mac = this.normalizeMac(document.getElementById('devices-pin-mac')?.value || '');
+		if (!mac) {
+			this.core.showToast('Device MAC not available', 'error');
+			return;
+		}
+		this.core.closeModal('devices-pin-modal');
+		await this.deleteDevice(mac);
+	}
+
+	async deleteDevice(mac) {
+		const normalizedMac = this.normalizeMac(mac);
+		if (!normalizedMac) {
+			this.core.showToast('Device MAC not available', 'error');
+			return;
+		}
+
+		const row = this.rowsByMac.get(normalizedMac);
+		const label = row?.hostname && row.hostname !== 'Unknown' ? `${row.hostname} (${normalizedMac})` : normalizedMac;
+		if (
+			!confirm(
+				`Delete device settings for ${label}?\n\nThis removes DHCP static hostname/IP entries and firewall rules that match this MAC.`
+			)
+		) {
+			return;
+		}
+
+		let removedDhcp = 0;
+		let removedFirewall = 0;
+		let cleanedTmpLeases = false;
+		let cleanedQuarantineKnown = false;
+		try {
+			const [dhcpStatus, dhcpResult] = await this.core.uciGet('dhcp');
+			if (dhcpStatus === 0 && dhcpResult?.values) {
+				for (const [section, cfg] of Object.entries(dhcpResult.values)) {
+					if (String(cfg?.['.type'] || '') !== 'host') continue;
+					const candidateMac = this.normalizeMac(cfg?.mac || '');
+					if (candidateMac && candidateMac === normalizedMac) {
+						await this.core.uciDelete('dhcp', section);
+						removedDhcp += 1;
+					}
+				}
+				if (removedDhcp > 0) await this.core.uciCommit('dhcp');
+			}
+		} catch (err) {
+			console.error('Failed while deleting DHCP host entries:', err);
+		}
+
+		try {
+			const [fwStatus, fwResult] = await this.core.uciGet('firewall');
+			if (fwStatus === 0 && fwResult?.values) {
+				for (const [section, cfg] of Object.entries(fwResult.values)) {
+					if (String(cfg?.['.type'] || '') !== 'rule') continue;
+					const candidateMac = this.normalizeMac(cfg?.src_mac || cfg?.src_mac_address || '');
+					if (candidateMac && candidateMac === normalizedMac) {
+						await this.core.uciDelete('firewall', section);
+						removedFirewall += 1;
+					}
+				}
+				if (removedFirewall > 0) {
+					await this.core.uciCommit('firewall');
+					await this.exec('/bin/sh', [
+						'-c',
+						'/etc/init.d/firewall reload 2>/dev/null || /etc/init.d/firewall restart 2>/dev/null || true'
+					]);
+				}
+			}
+		} catch (err) {
+			console.error('Failed while deleting firewall rules:', err);
+		}
+
+		try {
+			const macQuoted = this.shellQuote(normalizedMac);
+			await this.exec('/bin/sh', [
+				'-c',
+				`if [ -f /tmp/dhcp.leases ]; then awk -v m=${macQuoted} 'tolower($2)!=m {print}' /tmp/dhcp.leases > /tmp/.moci_dhcp_leases.$$ && mv /tmp/.moci_dhcp_leases.$$ /tmp/dhcp.leases; fi`
+			]);
+			cleanedTmpLeases = true;
+		} catch (err) {
+			console.error('Failed while pruning /tmp/dhcp.leases:', err);
+		}
+
+		try {
+			const macQuoted = this.shellQuote(normalizedMac);
+			await this.exec('/bin/sh', [
+				'-c',
+				`if [ -f /tmp/moci-quarantine-known.txt ]; then grep -vi "^${normalizedMac}$" /tmp/moci-quarantine-known.txt > /tmp/.moci_quarantine_known.$$ || true; mv /tmp/.moci_quarantine_known.$$ /tmp/moci-quarantine-known.txt; fi`
+			]);
+			cleanedQuarantineKnown = true;
+		} catch (err) {
+			console.error('Failed while pruning /tmp/moci-quarantine-known.txt:', err);
+		}
+
+		const removedTotal = removedDhcp + removedFirewall;
+		if (removedTotal === 0) {
+			this.core.showToast('No static lease or firewall rules found for this device', 'warning');
+		} else {
+			const tmpNotes = `${cleanedTmpLeases ? ' leases tmp cleaned' : ''}${cleanedQuarantineKnown ? ' quarantine tmp cleaned' : ''}`;
+			this.core.showToast(`Removed ${removedDhcp} DHCP + ${removedFirewall} firewall entries${tmpNotes}`, 'success');
+		}
+
+		if (this.expandedMac === normalizedMac) this.expandedMac = '';
+		await this.loadDevices();
+	}
+
+	async releaseQuarantineFromDialog() {
+		const mac = this.normalizeMac(document.getElementById('devices-pin-mac')?.value || '');
+		if (!mac) {
+			this.core.showToast('Device MAC not available', 'error');
+			return;
+		}
+		const base = String(document.getElementById('devices-quarantine-rule-base')?.value || '').trim();
+		if (!base) {
+			this.core.showToast('Device is not quarantined', 'warning');
+			return;
+		}
+		if (!confirm('Release this device from quarantine?')) return;
+
+		try {
+			const [status, result] = await this.core.uciGet('firewall');
+			if (status !== 0 || !result?.values) throw new Error('Unable to read firewall config');
+
+			for (const [section, cfg] of Object.entries(result.values)) {
+				if (String(cfg?.['.type'] || '') !== 'rule') continue;
+				const name = String(cfg?.name || '').trim();
+				if (name === `${base}_lan` || name === `${base}_wan` || name === base) {
+					await this.core.uciDelete('firewall', section);
+				}
+			}
+			await this.core.uciCommit('firewall');
+			await this.exec('/bin/sh', [
+				'-c',
+				'/etc/init.d/firewall reload 2>/dev/null || /etc/init.d/firewall restart 2>/dev/null || true'
+			]);
+			this.core.showToast('Device released from quarantine', 'success');
+			await this.loadDevices();
+			const refreshed = this.rowsByMac.get(mac);
+			document.getElementById('devices-quarantine-rule-base').value = refreshed?.quarantineBase || '';
+			this.syncQuarantineActionUi(refreshed);
+			this.core.closeModal('devices-pin-modal');
+		} catch (err) {
+			console.error('Failed to release quarantined device:', err);
+			this.core.showToast('Failed to release quarantined device', 'error');
+		}
+	}
+
+	async toggleParentalControl() {
+		const mac = this.normalizeMac(document.getElementById('devices-pin-mac')?.value || '');
+		if (!mac) {
+			this.core.showToast('Invalid MAC address', 'error');
+			return;
+		}
+
+		const row = this.rowsByMac.get(mac);
+		const sectionInput = document.getElementById('devices-parental-rule-section');
+		const existingSection = String(sectionInput?.value || row?.parentalSection || '').trim();
+		const currentlyBlocked = Boolean(row?.parentalBlocked);
+		const targetEnabled = currentlyBlocked ? '0' : '1';
+		const ruleName = this.buildParentalRuleName(row, mac);
+		const sourceIp = this.resolveParentalSourceIp(row);
+
+		try {
+			if (existingSection) {
+				const updateValues = {
+					name: ruleName,
+					src: 'lan',
+					dest: 'wan',
+					src_mac: mac,
+					proto: 'all',
+					target: 'REJECT',
+					family: 'any',
+					enabled: targetEnabled
+				};
+				if (sourceIp) {
+					updateValues.src_ip = sourceIp;
+				} else {
+					await this.core.uciDelete('firewall', existingSection, 'src_ip').catch(() => {});
+				}
+				await this.core.uciSet('firewall', existingSection, updateValues);
+			} else {
+				const [, addResult] = await this.core.uciAdd('firewall', 'rule');
+				const newSection = addResult?.section;
+				if (!newSection) throw new Error('failed to create firewall rule');
+				const createValues = {
+					name: ruleName,
+					src: 'lan',
+					dest: 'wan',
+					src_mac: mac,
+					proto: 'all',
+					target: 'REJECT',
+					family: 'any',
+					enabled: '1'
+				};
+				if (sourceIp) createValues.src_ip = sourceIp;
+				await this.core.uciSet('firewall', newSection, createValues);
+			}
+
+			await this.core.uciCommit('firewall');
+			await this.exec('/bin/sh', [
+				'-c',
+				'/etc/init.d/firewall reload 2>/dev/null || /etc/init.d/firewall restart 2>/dev/null || true'
+			]);
+
+				this.core.showToast(currentlyBlocked ? 'Internet unblocked for device' : 'Internet blocked for device', 'success');
+				await this.loadDevices();
+				const refreshed = this.rowsByMac.get(mac);
+				if (refreshed) {
+					document.getElementById('devices-parental-rule-section').value = refreshed.parentalSection || '';
+					this.syncParentalControlUi(refreshed);
+				}
+				this.core.closeModal('devices-pin-modal');
+			} catch (err) {
+			console.error('Failed to toggle parental control:', err);
+			this.core.showToast('Failed to update parental control rule', 'error');
+		}
+	}
+
+	buildParentalRuleName(row, mac) {
+		const hostname = String(row?.hostname || '')
+			.trim()
+			.replace(/\s+/g, '_')
+			.replace(/[^A-Za-z0-9_.-]/g, '')
+			.slice(0, 32);
+		if (hostname && hostname.toLowerCase() !== 'unknown') {
+			return `${this.parentalRulePrefix}${hostname}`;
+		}
+		return `${this.parentalRulePrefix}${String(mac || '').replace(/:/g, '')}`;
+	}
+
+	resolveParentalSourceIp(row) {
+		const candidates = [row?.leaseIp, row?.ip];
+		for (const candidate of candidates) {
+			const ip = String(candidate || '').trim();
+			if (this.isValidIpv4(ip)) return ip;
+		}
+		return '';
+	}
+
 	renderSourceStatus() {
-		const el = document.getElementById('devices-source-status');
-		if (!el) return;
-		const nlbwText = this.nlbwAvailable ? 'NLBWMON: READY' : 'NLBWMON: UNAVAILABLE';
-		const netifyText = this.netifyFeatureEnabled ? 'NETIFY DETAILS: ENABLED' : 'NETIFY DETAILS: DISABLED';
-		el.textContent = `${nlbwText} | ${netifyText}`;
+		// Source status banner intentionally hidden per UX preference.
 	}
 }

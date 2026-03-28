@@ -217,15 +217,15 @@ export default class NetifyModule {
 					this.outputPath = configuredDbPath;
 				} else if (configuredOutput && /\.sqlite(?:3)?$/i.test(configuredOutput)) {
 					this.outputPath = configuredOutput;
+					}
+					this.maxLines = Number(c.retention_rows || c.max_lines) || this.maxLines;
 				}
-				this.maxLines = Number(c.retention_rows || c.max_lines) || this.maxLines;
-			}
-		} catch {}
+			} catch {}
 
-		const pathEl = document.getElementById('netify-db-path');
-		if (pathEl) pathEl.textContent = this.outputPath;
-		this.logDebug(`Config loaded; db=${this.outputPath} retention=${this.maxLines}`);
-	}
+			const pathEl = document.getElementById('netify-db-path');
+			if (pathEl) pathEl.textContent = this.outputPath;
+			this.logDebug(`Config loaded; db=${this.outputPath} retention=${this.maxLines}`);
+		}
 
 	async runServiceAction(action) {
 		try {
@@ -812,7 +812,11 @@ pgrep -fa moci-netify-collector || true
 				(row, idx) => `<tr class="netify-flow-row" data-flow-index="${idx}" style="cursor: pointer" title="Click for actions">
 				<td>${this.core.escapeHtml(row.timeLabel)}</td>
 				<td>${this.core.escapeHtml(this.resolveDeviceLabel(row))}</td>
-				<td>${this.core.escapeHtml(row.localIp || '-')}</td>
+				<td>
+					<span class="netify-localip-ellipsis" title="${this.core.escapeHtml(row.localIp || '-')}">
+						${this.core.escapeHtml(row.localIp || '-')}
+					</span>
+				</td>
 				<td>
 					<span class="netify-fqdn-ellipsis" title="${this.core.escapeHtml(row.fqdn || '-')}">
 						${this.core.escapeHtml(row.fqdn || '-')}

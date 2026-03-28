@@ -220,19 +220,15 @@
 									</div>
 									<button class="action-btn" id="devices-refresh-btn">REFRESH</button>
 								</div>
-								<div
-									id="devices-source-status"
-									style="margin-top: 12px; font-size: 11px; color: var(--steel-muted); font-family: var(--font-mono)"
-								></div>
 								<table class="data-table" id="devices-table">
 									<thead>
 										<tr>
-											<th>HOSTNAME</th>
-											<th>IP ADDRESS</th>
-											<th>MAC ADDRESS</th>
+											<th data-sort="hostname" data-label="HOSTNAME" style="cursor: pointer">HOSTNAME</th>
+											<th data-sort="ip" data-label="IP ADDRESS" style="cursor: pointer">IP ADDRESS</th>
+											<th data-sort="mac" data-label="MAC ADDRESS" style="cursor: pointer">MAC ADDRESS</th>
 											<th>UPLOAD</th>
 											<th>DOWNLOAD</th>
-											<th>ONLINE</th>
+											<th data-sort="online" data-label="ONLINE" style="cursor: pointer">ONLINE</th>
 											<th>ACTIONS</th>
 										</tr>
 									</thead>
@@ -284,11 +280,27 @@
 												</label>
 											</div>
 										</div>
+											<div class="form-group" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--glass-border)">
+												<label class="form-label">PARENTAL CONTROL</label>
+												<input type="hidden" id="devices-parental-rule-section" />
+												<input type="hidden" id="devices-quarantine-rule-base" />
+												<div
+													id="devices-parental-status"
+													style="font-family: var(--font-mono); font-size: 11px; color: var(--steel-muted); margin-bottom: 8px"
+											>
+												Status: Unknown
+											</div>
+											<div class="action-buttons">
+												<button class="action-btn-sm danger" id="devices-parental-toggle-btn" type="button">BLOCK INTERNET</button>
+											</div>
+										</div>
 									</div>
-									<div class="modal-footer">
-										<button class="action-btn" id="cancel-devices-pin-btn">CANCEL</button>
-										<button class="action-btn" id="save-devices-pin-btn">SAVE</button>
-									</div>
+										<div class="modal-footer">
+											<button class="action-btn danger hidden" id="devices-release-quarantine-btn">QUARANTINED</button>
+											<button class="action-btn danger" id="delete-devices-pin-btn">DELETE</button>
+											<button class="action-btn" id="cancel-devices-pin-btn">CANCEL</button>
+											<button class="action-btn" id="save-devices-pin-btn">SAVE</button>
+										</div>
 								</div>
 							</div>
 						</div>
@@ -302,11 +314,13 @@
 							<button class="tab-btn" data-tab="dhcp" data-feature="dhcp">DHCP</button>
 							<button class="tab-btn" data-tab="dns">DNS & HOSTS</button>
 							<button class="tab-btn" data-tab="adblock" data-feature="adblock">ADBLOCK</button>
+							<button class="tab-btn" data-tab="pbr" data-feature="pbr">PBR</button>
 							<button class="tab-btn" data-tab="ddns">DDNS</button>
 							<button class="tab-btn" data-tab="qos">QOS</button>
 							<button class="tab-btn" data-tab="vpn">VPN</button>
 							<button class="tab-btn" data-tab="connections">CONNECTIONS</button>
 							<button class="tab-btn" data-tab="diagnostics">DIAGNOSTICS</button>
+							<button class="tab-btn" data-tab="quarantine" data-feature="quarantine">QUARANTINE</button>
 						</div>
 
 						<div class="tab-content" id="tab-interfaces">
@@ -843,8 +857,8 @@
 											<th>SERVICE</th>
 											<th>HOSTNAME</th>
 											<th>PROVIDER</th>
+											<th>IP</th>
 											<th>STATUS</th>
-											<th>ENABLED</th>
 											<th>ACTIONS</th>
 										</tr>
 									</thead>
@@ -1404,7 +1418,20 @@
 
 						<div class="tab-content hidden" id="tab-connections">
 							<div class="stat-card">
-								<div class="section-title">CONNECTIONS</div>
+								<div
+									style="
+										display: flex;
+										align-items: center;
+										justify-content: space-between;
+										gap: 12px;
+										flex-wrap: wrap;
+									"
+								>
+									<div class="section-title" style="margin: 0; border-bottom: none; padding-bottom: 0">
+										CONNECTIONS
+									</div>
+									<button class="action-btn" id="network-connections-refresh-btn">REFRESH</button>
+								</div>
 								<table class="data-table" id="network-active-connections-table">
 									<thead>
 										<tr>
@@ -1427,49 +1454,7 @@
 
 						<div class="tab-content hidden" id="tab-adblock" data-feature="adblock">
 							<div class="stat-card">
-								<div class="section-title">ADBLOCK-FAST CONFIGURATION</div>
-								<div class="form-group">
-									<label class="form-label">ENABLE ADBLOCK-FAST</label>
-									<select id="adblock-enabled" class="form-input">
-										<option value="0">Disabled</option>
-										<option value="1">Enabled</option>
-									</select>
-								</div>
-								<div class="form-group">
-									<label class="form-label">ENABLE CONFIG AUTO-UPDATE</label>
-									<select id="adblock-config-update" class="form-input">
-										<option value="0">Disabled</option>
-										<option value="1">Enabled</option>
-									</select>
-								</div>
-								<div class="quick-actions">
-									<button class="action-btn" id="save-adblock-settings-btn">SAVE CONFIGURATION</button>
-									<button class="action-btn" id="refresh-adblock-btn">REFRESH STATUS</button>
-								</div>
-							</div>
-
-							<div class="stat-card" style="margin-top: 24px">
 								<div class="section-title">TARGET LISTS</div>
-								<div class="form-group">
-									<label class="form-label">LIST NAME</label>
-									<input type="text" id="adblock-new-list-name" class="form-input" placeholder="my_custom_list" />
-								</div>
-								<div class="form-group">
-									<label class="form-label">LIST URL</label>
-									<input
-										type="text"
-										id="adblock-new-list-url"
-										class="form-input"
-										placeholder="https://example.com/blocklist.txt"
-									/>
-								</div>
-								<div class="form-group">
-									<label class="form-label">LIST STATUS</label>
-									<select id="adblock-new-list-enabled" class="form-input">
-										<option value="1">Enabled</option>
-										<option value="0">Disabled</option>
-									</select>
-								</div>
 								<div class="quick-actions" style="margin-bottom: 16px">
 									<button class="action-btn" id="add-adblock-list-btn">ADD TARGET LIST</button>
 								</div>
@@ -1490,6 +1475,194 @@
 										</tr>
 									</tbody>
 								</table>
+							</div>
+
+							<div class="stat-card netify-collapsible-card" style="margin-top: 24px">
+								<div class="netify-collapsible-header">
+									<div class="section-title" style="margin: 0; border-bottom: none; padding-bottom: 0">
+										ADBLOCK-FAST CONFIGURATION
+									</div>
+									<button class="netify-toggle-btn" id="adblock-settings-toggle-btn" type="button" aria-expanded="false">
+										<span id="adblock-settings-toggle-icon">▸</span>
+									</button>
+								</div>
+								<div id="adblock-settings-body" style="margin-top: 16px; display: none">
+									<input type="hidden" id="adblock-enabled" value="0" />
+									<input type="hidden" id="adblock-config-update" value="0" />
+									<div class="form-group">
+										<label class="form-label">ENABLE ADBLOCK-FAST</label>
+										<div class="action-buttons">
+											<button class="action-btn-sm status-indicator-btn" id="adblock-enabled-on-btn" type="button">
+												ENABLED
+											</button>
+											<button class="action-btn-sm status-indicator-btn" id="adblock-enabled-off-btn" type="button">
+												DISABLED
+											</button>
+										</div>
+									</div>
+									<div class="form-group">
+										<label class="form-label">ENABLE CONFIG AUTO-UPDATE</label>
+										<div class="action-buttons">
+											<button class="action-btn-sm status-indicator-btn" id="adblock-config-update-on-btn" type="button">
+												ENABLED
+											</button>
+											<button class="action-btn-sm status-indicator-btn" id="adblock-config-update-off-btn" type="button">
+												DISABLED
+											</button>
+										</div>
+									</div>
+									<div class="quick-actions">
+										<button class="action-btn" id="save-adblock-settings-btn">SAVE CONFIGURATION</button>
+										<button class="action-btn" id="refresh-adblock-btn">REFRESH STATUS</button>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div class="tab-content hidden" id="tab-pbr" data-feature="pbr">
+							<div class="stat-card netify-collapsible-card">
+								<div class="netify-collapsible-header">
+									<div class="section-title" style="margin: 0; border-bottom: none; padding-bottom: 0">POLICIES</div>
+									<button class="netify-toggle-btn" id="pbr-policies-toggle-btn" type="button" aria-expanded="true">
+										<span id="pbr-policies-toggle-icon">▾</span>
+									</button>
+								</div>
+								<div id="pbr-policies-body" style="margin-top: 16px; display: block">
+								<div class="quick-actions" style="margin-bottom: 16px">
+									<button class="action-btn" id="add-pbr-policy-btn">ADD POLICY</button>
+								</div>
+								<table class="data-table" id="pbr-policies-table">
+									<thead>
+										<tr>
+											<th>NAME</th>
+											<th>LOCAL ADDR/DEV</th>
+											<th>LOCAL PORTS</th>
+											<th>REMOTE ADDR/DOMAINS</th>
+											<th>REMOTE PORTS</th>
+											<th>PROTOCOL</th>
+											<th>CHAIN</th>
+											<th>INTERFACE</th>
+											<th>STATUS</th>
+											<th>ACTIONS</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td colspan="10" style="text-align: center; color: var(--steel-muted)">
+												Loading...
+											</td>
+										</tr>
+									</tbody>
+								</table>
+								</div>
+							</div>
+
+							<div class="stat-card netify-collapsible-card" style="margin-top: 24px">
+								<div class="netify-collapsible-header">
+									<div class="section-title" style="margin: 0; border-bottom: none; padding-bottom: 0">DNS POLICIES</div>
+									<button class="netify-toggle-btn" id="pbr-dns-toggle-btn" type="button" aria-expanded="true">
+										<span id="pbr-dns-toggle-icon">▾</span>
+									</button>
+								</div>
+								<div id="pbr-dns-body" style="margin-top: 16px; display: block">
+								<div class="quick-actions" style="margin-bottom: 16px">
+									<button class="action-btn" id="add-pbr-dns-policy-btn">ADD DNS POLICY</button>
+								</div>
+								<table class="data-table" id="pbr-dns-policies-table">
+									<thead>
+										<tr>
+											<th>NAME</th>
+											<th>SOURCE</th>
+											<th>DEST DNS</th>
+											<th>STATUS</th>
+											<th>ACTIONS</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td colspan="5" style="text-align: center; color: var(--steel-muted)">
+												Loading...
+											</td>
+										</tr>
+									</tbody>
+								</table>
+								</div>
+							</div>
+
+							<div class="stat-card netify-collapsible-card" style="margin-top: 24px">
+								<div class="netify-collapsible-header">
+									<div class="section-title" style="margin: 0; border-bottom: none; padding-bottom: 0">LIST</div>
+									<button class="netify-toggle-btn" id="pbr-list-toggle-btn" type="button" aria-expanded="true">
+										<span id="pbr-list-toggle-icon">▾</span>
+									</button>
+								</div>
+								<div id="pbr-list-body" style="margin-top: 16px; display: block">
+								<div class="quick-actions" style="margin-bottom: 16px">
+									<button class="action-btn" id="add-pbr-include-btn">ADD USER FILE</button>
+								</div>
+								<table class="data-table" id="pbr-includes-table">
+									<thead>
+										<tr>
+											<th>PATH</th>
+											<th>ACTIONS</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td colspan="2" style="text-align: center; color: var(--steel-muted)">
+												Loading...
+											</td>
+										</tr>
+									</tbody>
+								</table>
+								
+								</div>
+							</div>
+
+							<div class="stat-card netify-collapsible-card" style="margin-top: 24px">
+								<div class="netify-collapsible-header">
+									<div class="section-title" style="margin: 0; border-bottom: none; padding-bottom: 0">
+										POLICY-BASED ROUTING
+									</div>
+									<button class="netify-toggle-btn" id="pbr-settings-toggle-btn" type="button" aria-expanded="false">
+										<span id="pbr-settings-toggle-icon">▸</span>
+									</button>
+								</div>
+								<div id="pbr-settings-body" style="margin-top: 16px; display: none">
+									<div class="stats-grid" style="grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px">
+										<div>
+											<div class="stat-label">SERVICE</div>
+											<div id="pbr-service-status" style="margin-top: 8px">Loading...</div>
+										</div>
+										<div>
+											<div class="stat-label">BOOT</div>
+											<div id="pbr-boot-status" style="margin-top: 8px">Loading...</div>
+										</div>
+									</div>
+									<div class="form-group">
+										<label class="form-label">ENABLE PBR</label>
+										<select id="pbr-enabled" class="form-input">
+											<option value="0">Disabled</option>
+											<option value="1">Enabled</option>
+										</select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">STRICT ENFORCEMENT</label>
+										<select id="pbr-strict-enforcement" class="form-input">
+											<option value="0">Disabled</option>
+											<option value="1">Enabled</option>
+										</select>
+									</div>
+									<div class="quick-actions">
+										<button class="action-btn" id="save-pbr-settings-btn">SAVE SETTINGS</button>
+										<button class="action-btn" id="refresh-pbr-btn">REFRESH</button>
+										<button class="action-btn success" id="pbr-start-btn">START</button>
+										<button class="action-btn danger" id="pbr-stop-btn">STOP</button>
+										<button class="action-btn warning" id="pbr-restart-btn">RESTART</button>
+										<button class="action-btn" id="pbr-enable-btn">ENABLE ON BOOT</button>
+										<button class="action-btn" id="pbr-disable-btn">DISABLE ON BOOT</button>
+									</div>
+								</div>
 							</div>
 						</div>
 
@@ -1570,11 +1743,339 @@
 									</div>
 								</div>
 							</div>
+						</div>
+
+						<div class="tab-content hidden" id="tab-quarantine" data-feature="quarantine">
+							<div class="stat-card">
+								<div class="section-title">QUARANTINED DEVICES</div>
+								<div class="quick-actions" style="margin-bottom: 16px">
+									<button class="action-btn" id="quarantine-discover-btn">DISCOVER NOW</button>
+									<button class="action-btn" id="quarantine-refresh-btn">REFRESH</button>
+								</div>
+									<table class="data-table" id="quarantine-table">
+										<thead>
+											<tr>
+												<th>RULE</th>
+												<th>HOSTNAME</th>
+												<th>IP ADDRESS</th>
+												<th>MAC ADDRESS</th>
+												<th>STATUS</th>
+												<th>ACTIONS</th>
+											</tr>
+										</thead>
+										<tbody>
+											<tr>
+												<td colspan="6" style="text-align: center; color: var(--steel-muted)">Loading...</td>
+											</tr>
+										</tbody>
+									</table>
+							</div>
+
+							<div class="stat-card netify-collapsible-card" style="margin-top: 24px">
+								<div class="netify-collapsible-header">
+									<div class="section-title" style="margin: 0; border-bottom: none; padding-bottom: 0">
+										DEVICE QUARANTINE SETTINGS
+									</div>
+									<button class="netify-toggle-btn" id="quarantine-settings-toggle-btn" type="button" aria-expanded="false">
+										<span id="quarantine-settings-toggle-icon">▸</span>
+									</button>
+								</div>
+								<div id="quarantine-settings-body" style="margin-top: 16px; display: none">
+									<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px">
+										<div>
+											<div class="stat-label">SERVICE</div>
+											<div id="quarantine-service-status" style="margin-top: 8px">Loading...</div>
+										</div>
+										<div>
+											<div class="stat-label">BOOT</div>
+											<div id="quarantine-boot-status" style="margin-top: 8px">Loading...</div>
+										</div>
+										<div>
+											<div class="stat-label">FEATURE FLAG</div>
+											<div id="quarantine-feature-status" style="margin-top: 8px">Loading...</div>
+										</div>
+									</div>
+									<div class="form-group">
+										<label class="form-label">SCAN INTERVAL (SECONDS)</label>
+										<input type="number" id="quarantine-interval" class="form-input" min="10" max="3600" value="15" />
+									</div>
+									<div class="quick-actions">
+										<button class="action-btn" id="quarantine-save-btn">SAVE SETTINGS</button>
+										<button class="action-btn success" id="quarantine-enable-btn">ENABLE</button>
+										<button class="action-btn danger" id="quarantine-disable-btn">DISABLE</button>
+									</div>
+								</div>
 							</div>
 						</div>
 
-						<div id="monitoring-page" class="page hidden" data-feature="monitoring">
-							<h2>MONITORING</h2>
+						<div class="modal hidden" id="adblock-list-modal">
+							<div class="modal-backdrop"></div>
+							<div class="modal-content">
+								<div class="modal-header">
+									<h3 class="modal-title">ADD TARGET LIST</h3>
+									<button class="modal-close" id="close-adblock-list-modal">&times;</button>
+								</div>
+								<div class="modal-body">
+									<div class="form-group">
+										<label class="form-label">LIST NAME</label>
+										<input type="text" id="adblock-new-list-name" class="form-input" placeholder="my_custom_list" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">LIST URL</label>
+										<input
+											type="text"
+											id="adblock-new-list-url"
+											class="form-input"
+											placeholder="https://example.com/blocklist.txt"
+										/>
+									</div>
+									<div class="form-group">
+										<label class="form-label">LIST STATUS</label>
+										<select id="adblock-new-list-enabled" class="form-input">
+											<option value="1">Enabled</option>
+											<option value="0">Disabled</option>
+										</select>
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button class="action-btn" id="cancel-adblock-list-btn">CANCEL</button>
+									<button class="action-btn" id="save-adblock-list-btn">ADD TARGET LIST</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="modal hidden" id="pbr-policy-add-modal">
+							<div class="modal-backdrop"></div>
+							<div class="modal-content">
+								<div class="modal-header">
+									<h3 class="modal-title">ADD POLICY</h3>
+									<button class="modal-close" id="close-pbr-policy-add-modal">&times;</button>
+								</div>
+								<div class="modal-body">
+									<div class="form-group">
+										<label class="form-label">NAME</label>
+										<input type="text" id="pbr-policy-name" class="form-input" placeholder="Kids Safe Browsing" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">LOCAL ADDRESSES / DEVICES</label>
+										<input type="text" id="pbr-policy-src-addr" class="form-input" placeholder="Leave empty for any" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">LOCAL PORTS</label>
+										<input type="text" id="pbr-policy-src-port" class="form-input" placeholder="Leave empty for any" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">REMOTE ADDRESSES / DOMAINS</label>
+										<input type="text" id="pbr-policy-dest-addr" class="form-input" placeholder="example.com or 0.0.0.0/0" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">REMOTE PORTS</label>
+										<input type="text" id="pbr-policy-dest-port" class="form-input" placeholder="Leave empty for any" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">PROTOCOL</label>
+										<select id="pbr-policy-proto" class="form-input">
+											<option value="all">all</option>
+											<option value="tcp">tcp</option>
+											<option value="udp">udp</option>
+											<option value="icmp">icmp</option>
+										</select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">CHAIN</label>
+										<select id="pbr-policy-chain" class="form-input">
+											<option value="prerouting">prerouting</option>
+											<option value="output">output</option>
+										</select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">INTERFACE</label>
+										<select id="pbr-policy-interface" class="form-input">
+											<option value="wan">wan</option>
+										</select>
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button class="action-btn" id="cancel-pbr-policy-add-btn">CANCEL</button>
+									<button class="action-btn" id="save-pbr-policy-add-btn">ADD POLICY</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="modal hidden" id="pbr-dns-policy-add-modal">
+							<div class="modal-backdrop"></div>
+							<div class="modal-content">
+								<div class="modal-header">
+									<h3 class="modal-title">ADD DNS POLICY</h3>
+									<button class="modal-close" id="close-pbr-dns-policy-add-modal">&times;</button>
+								</div>
+								<div class="modal-body">
+									<div class="form-group">
+										<label class="form-label">POLICY NAME</label>
+										<input type="text" id="pbr-dns-name" class="form-input" placeholder="Kids Safe DNS" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">SOURCE (IP/CIDR/HOST/MAC)</label>
+										<input type="text" id="pbr-dns-src-addr" class="form-input" placeholder="192.168.1.50 or aa:bb:cc:dd:ee:ff" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">DNS TARGET (DEST_DNS)</label>
+										<input type="text" id="pbr-dns-dest-dns" class="form-input" placeholder="1.1.1.3" />
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button class="action-btn" id="cancel-pbr-dns-policy-add-btn">CANCEL</button>
+									<button class="action-btn" id="save-pbr-dns-policy-add-btn">ADD POLICY</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="modal hidden" id="pbr-include-add-modal">
+							<div class="modal-backdrop"></div>
+							<div class="modal-content">
+								<div class="modal-header">
+									<h3 class="modal-title">ADD LIST ENTRY</h3>
+									<button class="modal-close" id="close-pbr-include-add-modal">&times;</button>
+								</div>
+								<div class="modal-body">
+									<div class="form-group">
+										<label class="form-label">FILE PATH</label>
+										<input type="text" id="pbr-include-path" class="form-input" placeholder="/etc/pbr.d/my-custom-rules.user" />
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button class="action-btn" id="cancel-pbr-include-add-btn">CANCEL</button>
+									<button class="action-btn" id="save-pbr-include-add-btn">ADD ENTRY</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="modal hidden" id="pbr-dns-policy-modal">
+							<div class="modal-backdrop"></div>
+							<div class="modal-content">
+								<div class="modal-header">
+									<h3 class="modal-title">EDIT DNS POLICY</h3>
+									<button class="modal-close" id="close-pbr-dns-policy-modal">&times;</button>
+								</div>
+								<div class="modal-body">
+									<input type="hidden" id="edit-pbr-dns-policy-section" />
+									<div class="form-group">
+										<label class="form-label">POLICY NAME</label>
+										<input type="text" id="edit-pbr-dns-name" class="form-input" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">SOURCE (IP/CIDR/HOST/MAC)</label>
+										<input type="text" id="edit-pbr-dns-src-addr" class="form-input" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">DNS TARGET (DEST_DNS)</label>
+										<input type="text" id="edit-pbr-dns-dest-dns" class="form-input" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">STATUS</label>
+										<select id="edit-pbr-dns-enabled" class="form-input">
+											<option value="1">Enabled</option>
+											<option value="0">Disabled</option>
+										</select>
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button class="action-btn" id="cancel-pbr-dns-policy-btn">CANCEL</button>
+									<button class="action-btn" id="save-pbr-dns-policy-btn">SAVE POLICY</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="modal hidden" id="pbr-policy-modal">
+							<div class="modal-backdrop"></div>
+							<div class="modal-content">
+								<div class="modal-header">
+									<h3 class="modal-title">EDIT POLICY</h3>
+									<button class="modal-close" id="close-pbr-policy-modal">&times;</button>
+								</div>
+								<div class="modal-body">
+									<input type="hidden" id="edit-pbr-policy-section" />
+									<div class="form-group">
+										<label class="form-label">STATUS</label>
+										<select id="edit-pbr-policy-enabled" class="form-input">
+											<option value="1">Enabled</option>
+											<option value="0">Disabled</option>
+										</select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">NAME</label>
+										<input type="text" id="edit-pbr-policy-name" class="form-input" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">LOCAL ADDRESSES / DEVICES</label>
+										<input type="text" id="edit-pbr-policy-src-addr" class="form-input" placeholder="Leave empty for any" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">LOCAL PORTS</label>
+										<input type="text" id="edit-pbr-policy-src-port" class="form-input" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">REMOTE ADDRESSES / DOMAINS</label>
+										<input type="text" id="edit-pbr-policy-dest-addr" class="form-input" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">REMOTE PORTS</label>
+										<input type="text" id="edit-pbr-policy-dest-port" class="form-input" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">PROTOCOL</label>
+										<select id="edit-pbr-policy-proto" class="form-input">
+											<option value="all">all</option>
+											<option value="tcp">tcp</option>
+											<option value="udp">udp</option>
+											<option value="icmp">icmp</option>
+										</select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">CHAIN</label>
+										<select id="edit-pbr-policy-chain" class="form-input">
+											<option value="prerouting">prerouting</option>
+											<option value="output">output</option>
+										</select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">INTERFACE</label>
+										<select id="edit-pbr-policy-interface" class="form-input">
+											<option value="wan">wan</option>
+										</select>
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button class="action-btn" id="cancel-pbr-policy-btn">CANCEL</button>
+									<button class="action-btn" id="save-pbr-policy-btn">SAVE POLICY</button>
+								</div>
+							</div>
+						</div>
+
+							<div class="modal hidden" id="pbr-include-modal">
+								<div class="modal-backdrop"></div>
+								<div class="modal-content">
+								<div class="modal-header">
+									<h3 class="modal-title">EDIT LIST ENTRY</h3>
+									<button class="modal-close" id="close-pbr-include-modal">&times;</button>
+								</div>
+								<div class="modal-body">
+									<input type="hidden" id="edit-pbr-include-section" />
+									<div class="form-group">
+										<label class="form-label">FILE PATH</label>
+										<input type="text" id="edit-pbr-include-path" class="form-input" />
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button class="action-btn" id="cancel-pbr-include-btn">CANCEL</button>
+									<button class="action-btn" id="save-pbr-include-btn">SAVE ENTRY</button>
+									</div>
+								</div>
+							</div>
+						</div>
+
+							<div id="monitoring-page" class="page hidden" data-feature="monitoring">
+								<h2>MONITORING</h2>
 							<div class="tab-buttons" style="margin-bottom: 24px">
 								<button class="tab-btn active" data-tab="ping">PING TEST</button>
 								<button class="tab-btn" data-tab="speedtest">SPEEDTEST</button>
@@ -1736,6 +2237,17 @@
 										<div class="quick-actions">
 											<button class="action-btn" id="monitoring-speedtest-run-now-btn">RUN SPEEDTEST NOW</button>
 											<button class="action-btn" id="monitoring-speedtest-clear-btn">CLEAR SPEEDTEST HISTORY</button>
+										</div>
+										<div style="margin-top: 12px">
+											<div class="stat-label">SPEEDTEST DEBUG LOG</div>
+											<pre
+												id="monitoring-speedtest-debug-log"
+												style="margin-top: 8px; max-height: 180px; overflow: auto; white-space: pre-wrap; font-family: var(--font-mono); font-size: 11px; color: var(--steel-light); background: rgba(0, 0, 0, 0.28); border: 1px solid var(--glass-border); border-radius: 4px; padding: 10px"
+											></pre>
+											<div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px">
+												<button class="action-btn-sm" id="monitoring-speedtest-debug-refresh-btn" type="button">REFRESH LOG</button>
+												<button class="action-btn-sm" id="monitoring-speedtest-debug-clear-btn" type="button">CLEAR LOG</button>
+											</div>
 										</div>
 									</div>
 								</div>
@@ -1900,8 +2412,8 @@
 										<span id="netify-collector-toggle-icon">▸</span>
 									</button>
 								</div>
-								<div id="netify-collector-body" style="margin-top: 16px; display: none">
-									<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px">
+									<div id="netify-collector-body" style="margin-top: 16px; display: none">
+										<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px">
 										<div>
 											<div class="stat-label">SERVICE</div>
 											<div id="netify-service-status" style="margin-top: 8px">Loading...</div>
@@ -1915,10 +2427,10 @@
 											<div id="netify-db-path" style="margin-top: 8px; font-family: monospace; color: var(--steel-light)">
 												/tmp/moci-netify.sqlite
 											</div>
+											</div>
 										</div>
-									</div>
-									<div class="quick-actions">
-										<button class="action-btn" id="netify-start-btn">START COLLECTOR</button>
+										<div class="quick-actions">
+											<button class="action-btn" id="netify-start-btn">START COLLECTOR</button>
 										<button class="action-btn" id="netify-stop-btn">STOP COLLECTOR</button>
 										<button class="action-btn" id="netify-restart-btn">RESTART COLLECTOR</button>
 										<button class="action-btn" id="netify-init-db-btn">INIT DB</button>
@@ -2028,6 +2540,28 @@
 								<div class="quick-actions">
 									<button class="action-btn" id="backup-btn">GENERATE BACKUP</button>
 									<button class="action-btn danger" id="reset-btn">RESET TO DEFAULTS</button>
+								</div>
+							</div>
+							<div class="stat-card" style="margin-top: 24px">
+								<div class="section-title">MOCI STATE BACKUP</div>
+								<div class="form-group">
+									<label class="form-label">BACKUP INTERVAL (MINUTES)</label>
+									<input type="number" id="moci-state-backup-time" class="form-input" min="5" max="10080" value="60" />
+								</div>
+								<div class="form-group">
+									<label class="form-label">STATE DIRECTORY</label>
+									<input type="text" id="moci-state-backup-dir" class="form-input" value="/overlay/moci-state" />
+								</div>
+								<div class="form-group">
+									<label class="form-label">STATUS</label>
+									<div id="moci-state-backup-status" style="font-family: var(--font-mono); font-size: 11px; color: var(--steel-muted)">
+										Loading...
+									</div>
+								</div>
+								<div class="quick-actions">
+									<button class="action-btn" id="moci-state-backup-apply-btn">SAVE INTERVAL</button>
+									<button class="action-btn" id="moci-state-backup-save-btn">BACKUP NOW</button>
+									<button class="action-btn warning" id="moci-state-backup-restore-btn">RESTORE NOW</button>
 								</div>
 							</div>
 						</div>

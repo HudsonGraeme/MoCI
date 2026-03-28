@@ -46,6 +46,9 @@ export default class SystemModule {
 		document.getElementById('backup-btn')?.addEventListener('click', () => this.createBackup());
 		document.getElementById('reset-btn')?.addEventListener('click', () => this.factoryReset());
 		document.getElementById('reboot-btn')?.addEventListener('click', () => this.rebootSystem());
+		document.getElementById('moci-state-backup-apply-btn')?.addEventListener('click', () => this.saveMociStateBackupSettings());
+		document.getElementById('moci-state-backup-save-btn')?.addEventListener('click', () => this.runMociStateBackupAction('save'));
+		document.getElementById('moci-state-backup-restore-btn')?.addEventListener('click', () => this.runMociStateBackupAction('restore'));
 		document.getElementById('packages-search')?.addEventListener('input', event => {
 			this.packagesQuery = String(event?.target?.value || '')
 				.trim()
@@ -110,7 +113,9 @@ export default class SystemModule {
 		if (sshCleanup) this.cleanups.push(sshCleanup);
 
 		const servicesCleanup = this.core.delegateActions('services-table', {
-			toggle: id => this.toggleService(id)
+			start: id => this.startService(id),
+			stop: id => this.stopService(id),
+			restart: id => this.restartService(id)
 		});
 		if (servicesCleanup) this.cleanups.push(servicesCleanup);
 
@@ -319,7 +324,87 @@ export default class SystemModule {
 		}
 	}
 
-	async loadBackup() {}
+	async loadBackup() {
+		const timeEl = document.getElementById('moci-state-backup-time');
+		const dirEl = document.getElementById('moci-state-backup-dir');
+		const statusEl = document.getElementById('moci-state-backup-status');
+		if (!timeEl || !dirEl || !statusEl) return;
+
+		try {
+			const [status, result] = await this.core.uciGet('moci', 'state_backup');
+			const values = status === 0 && result?.values ? result.values : {};
+			const backupTime = Number(values.backup_time || 60);
+			timeEl.value = String(Number.isFinite(backupTime) ? Math.max(5, Math.min(10080, backupTime)) : 60);
+			dirEl.value = String(values.state_dir || '/overlay/moci-state');
+
+			const [cronStatus, cronResult] = await this.core.ubusCall('file', 'read', { path: '/etc/crontabs/root' });
+			const cronLine =
+				cronStatus === 0 && cronResult?.data
+					? String(cronResult.data)
+							.split('\n')
+							.map(line => line.trim())
+							.find(line => line.includes('# MOCI_STATE_SYNC')) || 'not scheduled'
+					: 'not scheduled';
+			statusEl.textContent = `Cron: ${cronLine}`;
+		} catch {
+			statusEl.textContent = 'Failed to load state backup settings';
+		}
+	}
+
+	async saveMociStateBackupSettings() {
+		const timeEl = document.getElementById('moci-state-backup-time');
+		const dirEl = document.getElementById('moci-state-backup-dir');
+		if (!timeEl || !dirEl) return;
+
+		const backupTime = Number(timeEl.value || 60);
+		const stateDir = String(dirEl.value || '').trim() || '/overlay/moci-state';
+		if (!Number.isFinite(backupTime) || backupTime < 5 || backupTime > 10080) {
+			this.core.showToast('Backup interval must be between 5 and 10080 minutes', 'error');
+			return;
+		}
+		if (!stateDir.startsWith('/')) {
+			this.core.showToast('State directory must be an absolute path', 'error');
+			return;
+		}
+
+		try {
+			await this.core.uciSet('moci', 'state_backup', {
+				backup_time: String(Math.round(backupTime)),
+				state_dir: stateDir
+			});
+			await this.core.uciCommit('moci');
+			await this.core.ubusCall('file', 'exec', {
+				command: '/bin/sh',
+				params: ['-c', '/usr/bin/moci-state-sync sync-cron']
+			});
+			this.core.showToast('MoCI state backup settings saved', 'success');
+			await this.loadBackup();
+		} catch (err) {
+			this.core.showToast(`Failed to save state backup settings: ${err?.message || 'unknown error'}`, 'error');
+		}
+	}
+
+	async runMociStateBackupAction(action) {
+		if (!['save', 'restore'].includes(action)) return;
+		try {
+			const [status, result] = await this.core.ubusCall(
+				'file',
+				'exec',
+				{
+					command: '/bin/sh',
+					params: ['-c', `/usr/bin/moci-state-sync ${action}`]
+				},
+				{ timeout: 90000 }
+			);
+			if (status !== 0 || Number(result?.code ?? 1) !== 0) {
+				throw new Error((result?.stderr || '').trim() || `moci-state-sync ${action} failed`);
+			}
+			this.core.showToast(action === 'save' ? 'MoCI state backup completed' : 'MoCI state restore completed', 'success');
+			await this.loadBackup();
+		} catch (err) {
+			this.core.showToast(`Failed to ${action} MoCI state: ${err?.message || 'unknown error'}`, 'error');
+		}
+	}
 
 	async createBackup() {
 		try {
@@ -579,10 +664,15 @@ export default class SystemModule {
 			const [status, result] = await this.core.ubusCall('service', 'list', {});
 			if (status !== 0 || !result) throw new Error('No data');
 
-			const services = Object.entries(result).map(([name, info]) => {
-				const running = info.instances && Object.keys(info.instances).length > 0;
-				return { name, running };
-			});
+			const initNames = await this.fetchInitScriptNames();
+			const nameSet = new Set([...Object.keys(result), ...initNames]);
+			const services = Array.from(nameSet)
+				.map(name => {
+					const info = result?.[name];
+					const running = Boolean(info?.instances && Object.keys(info.instances).length > 0);
+					return { name, running };
+				})
+				.sort((a, b) => a.name.localeCompare(b.name));
 
 			const tbody = document.querySelector('#services-table tbody');
 			if (!tbody) return;
@@ -598,8 +688,14 @@ export default class SystemModule {
 				<td>${this.core.renderBadge('info', 'N/A')}</td>
 				<td>
 					<div class="action-buttons">
-						<button class="action-btn" data-action="toggle" data-id="${this.core.escapeHtml(s.name)}" style="font-size:11px;padding:4px 8px">
-							${s.running ? 'STOP' : 'START'}
+						<button class="action-btn success" data-action="start" data-id="${this.core.escapeHtml(s.name)}" style="font-size:11px;padding:4px 8px">
+							START
+						</button>
+						<button class="action-btn danger" data-action="stop" data-id="${this.core.escapeHtml(s.name)}" style="font-size:11px;padding:4px 8px">
+							STOP
+						</button>
+						<button class="action-btn warning" data-action="restart" data-id="${this.core.escapeHtml(s.name)}" style="font-size:11px;padding:4px 8px">
+							RESTART
 						</button>
 					</div>
 				</td>
@@ -609,27 +705,126 @@ export default class SystemModule {
 		});
 	}
 
-	async toggleService(name) {
+	async fetchInitScriptNames() {
+		try {
+			const [status, result] = await this.core.ubusCall('file', 'exec', {
+				command: '/bin/sh',
+				params: ['-c', 'ls -1 /etc/init.d 2>/dev/null || true']
+			});
+			if (status !== 0) return [];
+			return String(result?.stdout || '')
+				.split('\n')
+				.map(v => v.trim())
+				.filter(Boolean)
+				.filter(v => /^[A-Za-z0-9._-]+$/.test(v));
+		} catch {
+			return [];
+		}
+	}
+
+	async startService(name) {
 		if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
 			this.core.showToast('Invalid service name', 'error');
 			return;
 		}
 		try {
-			const [status, result] = await this.core.ubusCall('service', 'list', {});
-			const info = result?.[name];
-			const running = info?.instances && Object.keys(info.instances).length > 0;
-			const action = running ? 'stop' : 'start';
-
-			await this.core.ubusCall('file', 'exec', {
-				command: `/etc/init.d/${name}`,
-				params: [action]
-			});
-			const pastTense = action === 'stop' ? 'stopped' : `${action}ed`;
-			this.core.showToast(`Service ${name} ${pastTense}`, 'success');
+			const before = await this.getServiceRunningState(name);
+			if (before === true) {
+				this.core.showToast(`Service ${name} is already running`, 'info');
+				return;
+			}
+			let started = false;
+			try {
+				await this.runInitServiceAction(name, 'start');
+				started = true;
+			} catch {
+				// Some services (e.g. procd wrappers) return non-zero on start even when usable via restart.
+				await this.runInitServiceAction(name, 'restart');
+				started = true;
+			}
+			if (!started) throw new Error('start failed');
+			this.core.showToast(`Service ${name} started`, 'success');
 			this.loadStartup();
 		} catch {
-			this.core.showToast(`Failed to toggle service ${name}`, 'error');
+			this.core.showToast(`Failed to start service ${name}`, 'error');
 		}
+	}
+
+	async stopService(name) {
+		if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+			this.core.showToast('Invalid service name', 'error');
+			return;
+		}
+		try {
+			const before = await this.getServiceRunningState(name);
+			if (before === false) {
+				this.core.showToast(`Service ${name} is already stopped`, 'info');
+				return;
+			}
+			await this.runInitServiceAction(name, 'stop');
+			this.core.showToast(`Service ${name} stopped`, 'success');
+			this.loadStartup();
+		} catch {
+			this.core.showToast(`Failed to stop service ${name}`, 'error');
+		}
+	}
+
+	async restartService(name) {
+		if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+			this.core.showToast('Invalid service name', 'error');
+			return;
+		}
+		try {
+			await this.runInitServiceAction(name, 'restart');
+			this.core.showToast(`Service ${name} restarted`, 'success');
+			this.loadStartup();
+		} catch {
+			this.core.showToast(`Failed to restart service ${name}`, 'error');
+		}
+	}
+
+	async runInitServiceAction(name, action) {
+		const safeName = String(name || '').trim();
+		const safeAction = String(action || '').trim();
+		if (!/^[a-zA-Z0-9_-]+$/.test(safeName) || !/^(start|stop|restart|reload|enable|disable)$/.test(safeAction)) {
+			throw new Error('invalid init service action');
+		}
+		const [status, result] = await this.core.ubusCall('file', 'exec', {
+			command: '/bin/sh',
+			params: ['-c', `/etc/init.d/${this.shellQuote(safeName)} ${this.shellQuote(safeAction)}`]
+		});
+		if (status !== 0 || Number(result?.code ?? 1) !== 0) {
+			throw new Error(`${safeName} ${safeAction} failed`);
+		}
+	}
+
+	async getServiceRunningState(name) {
+		try {
+			const [status, result] = await this.core.ubusCall('service', 'list', {});
+			if (status === 0 && result && Object.prototype.hasOwnProperty.call(result, name)) {
+				const info = result[name];
+				const running = info?.instances && Object.keys(info.instances).length > 0;
+				return Boolean(running);
+			}
+		} catch {}
+
+		try {
+			const [status, result] = await this.core.ubusCall('file', 'exec', {
+				command: '/bin/sh',
+				params: ['-c', `/etc/init.d/${this.shellQuote(name)} status >/dev/null 2>&1 && echo RUNNING || echo STOPPED`]
+			});
+			if (status === 0) {
+				const value = String(result?.stdout || '').trim();
+				if (value === 'RUNNING') return true;
+				if (value === 'STOPPED') return false;
+			}
+		} catch {}
+
+		return null;
+	}
+
+	shellQuote(value) {
+		return `'${String(value || '').replace(/'/g, `'\\''`)}'`;
 	}
 
 	async loadCron() {
@@ -996,6 +1191,7 @@ export default class SystemModule {
 			const configured = await this.readConfiguredMounts();
 			const runtime = await this.readRuntimeMounts();
 			const usageByMountPoint = await this.readMountUsageByMountPoint();
+			const colorful = this.core.isFeatureEnabled('colorful_graphs');
 
 			const mounts = this.buildMountRows(configured, runtime, usageByMountPoint);
 
@@ -1007,15 +1203,24 @@ export default class SystemModule {
 						'<div style="padding:12px;background:var(--slate-bg);border-radius:6px;color:var(--steel-muted);font-size:12px">No mounted storage devices detected.</div>';
 				} else {
 					charts.innerHTML = chartRows
-						.map(
-							m => `<div style="padding:12px;background:var(--slate-bg);border-radius:6px">
-						<div style="font-weight:600;font-size:12px;margin-bottom:8px">${this.core.escapeHtml(m.mountPoint)}</div>
-						<div class="progress-bar" style="margin-bottom:8px">
-							<div class="progress-fill" style="width:${this.core.escapeHtml(m.usePercent)}"></div>
+						.map(m => {
+							const pct = Number(String(m.usePercent || '').replace('%', ''));
+							const usagePct = Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) : 0;
+							let usageClass = 'neutral';
+							if (colorful && usagePct >= 90) usageClass = 'critical';
+							else if (colorful && usagePct >= 75) usageClass = 'warning';
+							return `<div class="storage-chart-item">
+						<div class="storage-chart-header">MOUNT POINT</div>
+						<div class="storage-chart-mount">${this.core.escapeHtml(m.mountPoint)}</div>
+						<div class="storage-chart-bar">
+							<div class="storage-chart-fill ${this.core.escapeHtml(usageClass)}" style="width:${usagePct.toFixed(1)}%"></div>
 						</div>
-						<div style="font-size:11px;color:var(--steel-muted)">${this.core.escapeHtml(m.used)} / ${this.core.escapeHtml(m.size)} (${this.core.escapeHtml(m.usePercent)})</div>
-					</div>`
-						)
+						<div class="storage-chart-stats">
+							<span>${this.core.escapeHtml(m.used)} / ${this.core.escapeHtml(m.size)}</span>
+							<span>${this.core.escapeHtml(usagePct.toFixed(1))}%</span>
+						</div>
+					</div>`;
+						})
 						.join('');
 				}
 			}

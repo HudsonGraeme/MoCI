@@ -86,19 +86,46 @@ export default class DashboardModule {
 		});
 	}
 
-	getUsageColor(percent) {
-		if (!this.isColorfulGraphsEnabled()) return '';
+	getUsageStyles(percent) {
+		if (!this.isColorfulGraphsEnabled()) {
+			return {
+				valueColor: '',
+				barBackground: ''
+			};
+		}
+
 		const value = Number(percent);
-		if (!Number.isFinite(value)) return '';
-		if (value > 92) return 'rgba(255, 170, 170, 0.98)';
-		if (value > 80) return 'rgba(255, 193, 122, 0.98)';
-		return '';
+		if (!Number.isFinite(value)) {
+			return {
+				valueColor: '',
+				barBackground: ''
+			};
+		}
+
+		if (value > 92) {
+			return {
+				valueColor: 'rgba(255, 170, 170, 0.98)',
+				barBackground: 'rgba(255, 170, 170, 0.98)'
+			};
+		}
+
+		if (value > 80) {
+			return {
+				valueColor: 'rgba(255, 193, 122, 0.98)',
+				barBackground: 'rgba(255, 193, 122, 0.98)'
+			};
+		}
+
+		return {
+			valueColor: 'rgba(132, 210, 255, 0.98)',
+			barBackground: 'linear-gradient(90deg, rgba(124, 198, 255, 0.9), rgba(124, 228, 255, 0.75))'
+		};
 	}
 
 	applyUsageStyling(valueEl, barEl, percent) {
-		const color = this.getUsageColor(percent);
-		if (valueEl) valueEl.style.color = color || '';
-		if (barEl) barEl.style.background = color || '';
+		const styles = this.getUsageStyles(percent);
+		if (valueEl) valueEl.style.color = styles.valueColor || '';
+		if (barEl) barEl.style.background = styles.barBackground || '';
 	}
 
 	renderSystemInfo(boardInfo, systemInfo) {
@@ -195,10 +222,12 @@ export default class DashboardModule {
 		if (usage !== null) {
 			if (cpuEl) cpuEl.textContent = usage + '%';
 			if (cpuBarEl) cpuBarEl.style.width = usage + '%';
-			this.applyUsageStyling(cpuEl, cpuBarEl, usage);
+			if (cpuEl) cpuEl.style.color = '';
+			this.applyUsageStyling(null, cpuBarEl, usage);
 		} else {
 			if (cpuEl) cpuEl.textContent = 'N/A';
-			this.applyUsageStyling(cpuEl, cpuBarEl, null);
+			if (cpuEl) cpuEl.style.color = '';
+			this.applyUsageStyling(null, cpuBarEl, null);
 		}
 	}
 

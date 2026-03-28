@@ -363,9 +363,73 @@ body {
 	border: 1px solid rgba(180, 155, 72, 0.32);
 }
 
+.badge-interface-up {
+	background: rgba(255, 255, 255, 0.02);
+	color: var(--starship-steel);
+	border: 1px solid rgba(144, 238, 144, 0.35);
+}
+
+.badge-interface-down {
+	background: rgba(255, 255, 255, 0.02);
+	color: var(--starship-steel);
+	border: 1px solid rgba(255, 125, 125, 0.45);
+}
+
+.badge-conntrack-good {
+	background: rgba(255, 255, 255, 0.02);
+	color: var(--starship-steel);
+	border: 1px solid rgba(144, 238, 144, 0.35);
+}
+
+.badge-conntrack-warn {
+	background: rgba(255, 255, 255, 0.02);
+	color: var(--starship-steel);
+	border: 1px solid rgba(255, 200, 120, 0.45);
+}
+
+.badge-conntrack-bad {
+	background: rgba(255, 255, 255, 0.02);
+	color: var(--starship-steel);
+	border: 1px solid rgba(255, 125, 125, 0.45);
+}
+
+.badge-conntrack-info {
+	background: rgba(255, 255, 255, 0.02);
+	color: var(--starship-steel);
+	border: 1px solid rgba(132, 210, 255, 0.45);
+}
+
+.badge-adblock-disabled-soft {
+	background: transparent;
+	color: #ffffff;
+	border: 1px solid rgba(255, 125, 125, 0.18);
+	font-size: 9px;
+	font-weight: 500;
+	letter-spacing: 0.08em;
+	padding: 3px 7px;
+}
+
+.badge-fw-target-accept {
+	background: rgba(255, 255, 255, 0.02);
+	color: #ffffff;
+	border: 1px solid rgba(144, 238, 144, 0.35);
+}
+
+.badge-fw-target-block {
+	background: rgba(255, 255, 255, 0.02);
+	color: #ffffff;
+	border: 1px solid rgba(255, 125, 125, 0.38);
+}
+
+.badge-fw-target-other {
+	background: rgba(255, 255, 255, 0.02);
+	color: #ffffff;
+	border: 1px solid rgba(132, 210, 255, 0.4);
+}
+
 .monitoring-excellent-soft {
 	background: rgba(255, 255, 255, 0.02);
-	color: #bfecc0;
+	color: #ffffff;
 	border: 1px solid rgba(144, 238, 144, 0.25);
 }
 
@@ -431,6 +495,18 @@ body {
 	background: rgba(255, 255, 255, 0.02);
 }
 
+#netify-flows-table tbody tr:nth-child(odd) {
+	background: rgba(255, 255, 255, 0.012);
+}
+
+#netify-flows-table tbody tr:nth-child(even) {
+	background: rgba(255, 255, 255, 0.03);
+}
+
+#netify-flows-table tbody tr:hover {
+	background: rgba(132, 210, 255, 0.08);
+}
+
 .quick-actions {
 	display: flex;
 	gap: 12px;
@@ -466,6 +542,28 @@ body {
 	border-color: var(--alert-red);
 	color: var(--alert-red);
 	box-shadow: 0 0 12px rgba(255, 51, 51, 0.2);
+}
+
+.action-btn.success {
+	border-color: rgba(144, 238, 144, 0.35);
+}
+
+.action-btn.success:hover {
+	border-color: rgba(144, 238, 144, 0.65);
+	color: #c9f2ca;
+	box-shadow: 0 0 12px rgba(144, 238, 144, 0.2);
+	background: rgba(144, 238, 144, 0.08);
+}
+
+.action-btn.warning {
+	border-color: rgba(255, 184, 0, 0.35);
+}
+
+.action-btn.warning:hover {
+	border-color: rgba(255, 184, 0, 0.75);
+	color: #ffcc7a;
+	box-shadow: 0 0 12px rgba(255, 184, 0, 0.2);
+	background: rgba(255, 184, 0, 0.08);
 }
 
 .action-btn-sm {
@@ -504,6 +602,18 @@ body {
 	border-color: rgba(255, 68, 68, 0.35);
 }
 
+.action-btn-sm.warning {
+	border-color: rgba(255, 184, 0, 0.35);
+	color: var(--starship-steel);
+}
+
+.action-btn-sm.warning:hover {
+	border-color: rgba(255, 184, 0, 0.75);
+	color: #ffcc7a;
+	box-shadow: 0 0 8px rgba(255, 184, 0, 0.2);
+	background: rgba(255, 184, 0, 0.08);
+}
+
 .action-btn-sm.success {
 	border-color: rgba(144, 238, 144, 0.35);
 	color: #bfecc0;
@@ -513,6 +623,16 @@ body {
 	border-color: rgba(144, 238, 144, 0.65);
 	color: #c9f2ca;
 	box-shadow: 0 0 8px rgba(144, 238, 144, 0.15);
+}
+
+.status-indicator-btn[disabled] {
+	pointer-events: none;
+	cursor: default;
+}
+
+.status-indicator-btn[disabled]:hover {
+	box-shadow: none;
+	background: rgba(255, 255, 255, 0.05);
 }
 
 .devices-action-btn {
@@ -1046,9 +1166,9 @@ select.form-input {
 }
 
 .storage-chart-bar {
-	height: 24px;
+	height: 8px;
 	background: rgba(255, 255, 255, 0.05);
-	border-radius: 12px;
+	border-radius: 4px;
 	overflow: hidden;
 	margin-bottom: 8px;
 	position: relative;
@@ -1057,7 +1177,7 @@ select.form-input {
 .storage-chart-fill {
 	height: 100%;
 	background: linear-gradient(90deg, var(--success-green), var(--warning-amber));
-	border-radius: 12px;
+	border-radius: 4px;
 	transition: width 0.3s ease;
 	position: relative;
 	overflow: hidden;
@@ -1081,6 +1201,10 @@ select.form-input {
 	100% {
 		transform: translateX(100%);
 	}
+}
+
+.storage-chart-fill.neutral {
+	background: linear-gradient(90deg, rgba(230, 230, 234, 0.9), rgba(186, 186, 194, 0.85));
 }
 
 .storage-chart-fill.warning {
@@ -1140,7 +1264,7 @@ select.form-input {
 }
 
 .hero-card.online .hero-indicator {
-	color: var(--success-green);
+	color: #62b86a;
 }
 
 .hero-card.offline .hero-indicator {
@@ -1244,6 +1368,14 @@ select.form-input {
 
 .dashboard-status-slim .hero-detail-value {
 	font-size: 13px;
+}
+
+.dashboard-status-slim #bandwidth-down,
+.dashboard-status-slim #bandwidth-up {
+	display: inline-block;
+	width: 84px;
+	text-align: left;
+	white-space: nowrap;
 }
 
 .metric-card {
@@ -1531,6 +1663,7 @@ select.form-input {
 
 .monitoring-speedtest-chart-wrap {
 	margin-top: 14px;
+	position: relative;
 }
 
 .monitoring-speedtest-chart {
@@ -1540,6 +1673,10 @@ select.form-input {
 	border-radius: 10px;
 	background: rgba(255, 255, 255, 0.03);
 	border: 1px solid var(--glass-border);
+}
+
+.monitoring-speedtest-chart [data-tip-time] {
+	cursor: crosshair;
 }
 
 .monitoring-speedtest-grid {
@@ -1583,9 +1720,40 @@ select.form-input {
 	color: var(--steel-muted);
 }
 
+.monitoring-speedtest-tooltip {
+	position: absolute;
+	z-index: 5;
+	background: rgba(10, 10, 12, 0.95);
+	border: 1px solid var(--glass-border);
+	border-radius: 6px;
+	padding: 8px 10px;
+	font-family: var(--font-mono);
+	font-size: 11px;
+	color: var(--starship-steel);
+	pointer-events: none;
+	white-space: normal;
+	line-height: 1.35;
+	min-width: 170px;
+}
+
+.monitoring-speedtest-tooltip-title {
+	font-weight: 700;
+	color: var(--starship-steel);
+	margin-bottom: 4px;
+}
+
 .netify-fqdn-ellipsis {
 	display: inline-block;
 	max-width: 250px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	vertical-align: bottom;
+}
+
+.netify-localip-ellipsis {
+	display: inline-block;
+	max-width: 190px;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;

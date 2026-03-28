@@ -19,6 +19,10 @@ export default class MonitoringModule {
 		this.speedtestOutputFile = '/tmp/moci-speedtest-monitor.txt';
 		this.speedtestMaxLines = 365;
 		this.speedtestSamples = [];
+		this.speedtestLastLogFile = '/tmp/moci-speedtest-monitor.last.log';
+		this.speedtestLastLogText = '';
+		this.speedtestDebugLog = [];
+		this.speedtestDebugLimit = 120;
 
 		this.core.registerRoute('/monitoring', async (path, subPaths) => {
 			const pageElement = document.getElementById('monitoring-page');
@@ -66,6 +70,8 @@ export default class MonitoringModule {
 		document.getElementById('monitoring-speedtest-disable-btn')?.addEventListener('click', () => this.applySpeedtestSettings(false));
 		document.getElementById('monitoring-speedtest-run-now-btn')?.addEventListener('click', () => this.runSpeedtestNow());
 		document.getElementById('monitoring-speedtest-clear-btn')?.addEventListener('click', () => this.clearSpeedtestHistory());
+		document.getElementById('monitoring-speedtest-debug-refresh-btn')?.addEventListener('click', () => this.refreshSpeedtestLogPanel(true));
+		document.getElementById('monitoring-speedtest-debug-clear-btn')?.addEventListener('click', () => this.clearSpeedtestDebugLog());
 		document
 			.getElementById('monitoring-settings-toggle-btn')
 			?.addEventListener('click', () => this.toggleSettingsPanel());
@@ -399,7 +405,9 @@ export default class MonitoringModule {
 			await this.updateServiceStatus();
 			await this.readPingFile();
 			await this.readSpeedtestFile();
+			await this.readSpeedtestExecutionLog();
 			this.renderAll();
+			this.renderSpeedtestDebugLog();
 		} catch (err) {
 			console.error('Monitoring refresh failed:', err);
 		}
@@ -546,25 +554,144 @@ export default class MonitoringModule {
 	}
 
 	async runSpeedtestNow() {
+		this.setSpeedtestRunNowBusy(true);
+		this.appendSpeedtestDebug(`Run now requested; launching ${this.speedtestLastLogFile}`);
 		try {
-			await this.exec('/usr/bin/moci-speedtest-monitor', ['--once'], { timeout: 240000 });
-			await this.refresh();
-			this.core.showToast('Speedtest captured', 'success');
+			await this.readSpeedtestFile();
+			const beforeTs = this.getLatestSpeedtestSampleTs();
+			this.appendSpeedtestDebug(`Latest sample before run: ${beforeTs || 'none'}`);
+
+			// Run in background to avoid ubus/rpcd request timeout on long speedtests.
+			let launchStatus = 0;
+			let launchError = '';
+			try {
+				const [status] = await this.core.ubusCall('file', 'exec', {
+					command: '/bin/sh',
+					params: ['-c', '/usr/bin/moci-speedtest-monitor --once >/tmp/moci-speedtest-monitor.last.log 2>&1 &']
+				});
+				launchStatus = Number(status || 0);
+			} catch (err) {
+				launchStatus = -1;
+				launchError = err?.message || 'unknown launch error';
+			}
+			if (launchStatus === 0) {
+				this.appendSpeedtestDebug('Background speedtest process started');
+			} else {
+				this.appendSpeedtestDebug(
+					`Background launch returned status=${launchStatus}${launchError ? ` (${launchError})` : ''}; waiting for new sample anyway`
+				);
+			}
+
+			const completed = await this.waitForNewSpeedtestSample(beforeTs, 24, 2500);
+			if (completed) {
+				await this.refresh();
+				this.appendSpeedtestDebug('Speedtest completed and new sample loaded');
+				this.core.showToast('Speedtest captured', 'success');
+			} else {
+				this.appendSpeedtestDebug('No new sample detected yet; check execution log below');
+				this.core.showToast(
+					launchStatus === 0 ? 'Speedtest started; result will appear shortly' : 'Speedtest launch reported an error; check debug log',
+					'warning'
+				);
+				await this.refresh();
+			}
 		} catch (err) {
 			console.error('Failed to run speedtest now:', err);
+			this.appendSpeedtestDebug(`Run failed: ${err?.message || 'unknown error'}`);
+			await this.readSpeedtestExecutionLog();
+			this.renderSpeedtestDebugLog();
 			this.core.showToast('Failed to run speedtest', 'error');
+		} finally {
+			this.setSpeedtestRunNowBusy(false);
 		}
+	}
+
+	getLatestSpeedtestSampleTs() {
+		const samples = Array.isArray(this.speedtestSamples) ? this.speedtestSamples : [];
+		if (samples.length === 0) return 0;
+		return Math.max(...samples.map(s => Number(s?.ts) || 0));
+	}
+
+	async waitForNewSpeedtestSample(previousTs, attempts = 24, delayMs = 2500) {
+		for (let i = 0; i < attempts; i += 1) {
+			await new Promise(resolve => setTimeout(resolve, delayMs));
+			await this.readSpeedtestFile();
+			if (this.getLatestSpeedtestSampleTs() > Number(previousTs || 0)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	setSpeedtestRunNowBusy(busy) {
+		const btn = document.getElementById('monitoring-speedtest-run-now-btn');
+		if (!btn) return;
+		btn.disabled = Boolean(busy);
+		btn.style.opacity = busy ? '0.55' : '1';
+		btn.style.cursor = busy ? 'not-allowed' : '';
+		btn.textContent = busy ? 'RUNNING...' : 'RUN SPEEDTEST NOW';
 	}
 
 	async clearSpeedtestHistory() {
 		try {
 			await this.core.ubusCall('file', 'write', { path: this.speedtestOutputFile, data: '' });
 			await this.refresh();
+			this.appendSpeedtestDebug('Speedtest history file cleared');
 			this.core.showToast('Speedtest history cleared', 'success');
 		} catch (err) {
 			console.error('Failed to clear speedtest history:', err);
+			this.appendSpeedtestDebug(`Clear history failed: ${err?.message || 'unknown error'}`);
 			this.core.showToast('Failed to clear speedtest history', 'error');
 		}
+	}
+
+	async refreshSpeedtestLogPanel(showToast = false) {
+		await this.readSpeedtestExecutionLog();
+		this.renderSpeedtestDebugLog();
+		if (showToast) this.core.showToast('Speedtest debug log refreshed', 'success');
+	}
+
+	appendSpeedtestDebug(message) {
+		const ts = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+		this.speedtestDebugLog.push(`[${ts}] ${message}`);
+		if (this.speedtestDebugLog.length > this.speedtestDebugLimit) {
+			this.speedtestDebugLog = this.speedtestDebugLog.slice(-this.speedtestDebugLimit);
+		}
+		this.renderSpeedtestDebugLog();
+	}
+
+	async readSpeedtestExecutionLog() {
+		try {
+			const [status, result] = await this.core.ubusCall('file', 'read', { path: this.speedtestLastLogFile });
+			if (status !== 0 || typeof result?.data !== 'string') {
+				this.speedtestLastLogText = '';
+				return;
+			}
+			const lines = String(result.data || '')
+				.split('\n')
+				.map(line => line.trimEnd())
+				.filter(Boolean);
+			this.speedtestLastLogText = lines.slice(-80).join('\n');
+		} catch {
+			this.speedtestLastLogText = '';
+		}
+	}
+
+	clearSpeedtestDebugLog() {
+		this.speedtestDebugLog = [];
+		this.speedtestLastLogText = '';
+		this.renderSpeedtestDebugLog();
+		this.core.showToast('Speedtest debug log cleared', 'success');
+	}
+
+	renderSpeedtestDebugLog() {
+		const el = document.getElementById('monitoring-speedtest-debug-log');
+		if (!el) return;
+
+		const uiLog = this.speedtestDebugLog.length > 0 ? this.speedtestDebugLog.join('\n') : '[no ui events yet]';
+		const runLog = this.speedtestLastLogText ? this.speedtestLastLogText : '[no execution log found yet]';
+		el.textContent = `${uiLog}\n\n--- /tmp/moci-speedtest-monitor.last.log ---\n${runLog}`;
+		el.scrollTop = el.scrollHeight;
 	}
 
 	renderAll() {
@@ -766,12 +893,7 @@ export default class MonitoringModule {
 			return;
 		}
 
-		const dailyMap = new Map();
-		for (const row of validRows) {
-			const key = this.dayKey(row.ts);
-			dailyMap.set(key, row);
-		}
-		const points = Array.from(dailyMap.values()).slice(-14);
+		const points = [...validRows].slice(-24);
 		const width = 860;
 		const height = 240;
 		const padLeft = 42;
@@ -781,31 +903,33 @@ export default class MonitoringModule {
 		const innerW = width - padLeft - padRight;
 		const innerH = height - padTop - padBottom;
 		const maxVal = Math.max(10, ...points.map(p => Math.max(p.download || 0, p.upload || 0)));
-
-		const makeX = index => {
-			if (points.length === 1) return padLeft + innerW / 2;
-			return padLeft + (innerW * index) / (points.length - 1);
-		};
+		const groups = points.length;
+		const groupWidth = innerW / Math.max(groups, 1);
+		const barWidth = Math.max(6, Math.min(18, groupWidth * 0.32));
 		const makeY = value => padTop + innerH - (Math.max(0, value) / maxVal) * innerH;
-
-		const downloadPath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${makeX(i)} ${makeY(p.download || 0)}`).join(' ');
-		const uploadPath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${makeX(i)} ${makeY(p.upload || 0)}`).join(' ');
 
 		const grid = [0.25, 0.5, 0.75].map(step => {
 			const y = padTop + innerH * step;
 			return `<line x1="${padLeft}" y1="${y}" x2="${padLeft + innerW}" y2="${y}" class="monitoring-speedtest-grid" />`;
 		});
-
-		const circles = points
+		const bars = points
 			.map((p, i) => {
-				const x = makeX(i);
-				const yd = makeY(p.download || 0);
-				const yu = makeY(p.upload || 0);
-				const tipD = `${this.formatDate(p.ts)} download ${p.download.toFixed(1)} Mbps`;
-				const tipU = `${this.formatDate(p.ts)} upload ${p.upload.toFixed(1)} Mbps`;
+				const groupX = padLeft + i * groupWidth;
+				const centerX = groupX + groupWidth / 2;
+				const dl = Number(p.download || 0);
+				const ul = Number(p.upload || 0);
+				const dlHeight = (dl / maxVal) * innerH;
+				const ulHeight = (ul / maxVal) * innerH;
+				const dlY = makeY(dl);
+				const ulY = makeY(ul);
+				const dlX = centerX - barWidth - 2;
+				const ulX = centerX + 2;
+				const tipTime = this.formatDateTime(p.ts);
+				const tipDl = `${dl.toFixed(1)} Mbps`;
+				const tipUl = `${ul.toFixed(1)} Mbps`;
 				return `
-					<circle cx="${x}" cy="${yd}" r="3" class="monitoring-speedtest-point-download" style="fill: ${palette.download}"><title>${this.core.escapeHtml(tipD)}</title></circle>
-					<circle cx="${x}" cy="${yu}" r="3" class="monitoring-speedtest-point-upload" style="fill: ${palette.upload}"><title>${this.core.escapeHtml(tipU)}</title></circle>
+					<rect x="${dlX}" y="${dlY}" width="${barWidth}" height="${dlHeight}" rx="1.5" style="fill: ${palette.download}" data-tip-time="${this.core.escapeHtml(tipTime)}" data-tip-dl="${this.core.escapeHtml(tipDl)}" data-tip-ul="${this.core.escapeHtml(tipUl)}"></rect>
+					<rect x="${ulX}" y="${ulY}" width="${barWidth}" height="${ulHeight}" rx="1.5" style="fill: ${palette.upload}" data-tip-time="${this.core.escapeHtml(tipTime)}" data-tip-dl="${this.core.escapeHtml(tipDl)}" data-tip-ul="${this.core.escapeHtml(tipUl)}"></rect>
 				`;
 			})
 			.join('');
@@ -813,13 +937,65 @@ export default class MonitoringModule {
 		svg.innerHTML = `
 			<rect x="0" y="0" width="${width}" height="${height}" fill="transparent" />
 			${grid.join('')}
-			<path d="${downloadPath}" class="monitoring-speedtest-line-download" style="stroke: ${palette.download}" />
-			<path d="${uploadPath}" class="monitoring-speedtest-line-upload" style="stroke: ${palette.upload}" />
-			${circles}
+			${bars}
 			<text x="${padLeft}" y="${height - 10}" class="monitoring-speedtest-legend">${legendText}</text>
 		`;
 
-		labels.innerHTML = points.map(p => `<span>${this.core.escapeHtml(this.formatDate(p.ts, true))}</span>`).join('');
+		labels.innerHTML = points
+			.map(p => `<span>${this.core.escapeHtml(this.formatDate(p.ts, true))}</span>`)
+			.join('');
+		this.bindSpeedtestBarTooltips();
+	}
+
+	bindSpeedtestBarTooltips() {
+		const svg = document.getElementById('monitoring-speedtest-chart');
+		const wrap = svg?.closest('.monitoring-speedtest-chart-wrap');
+		if (!svg || !wrap) return;
+
+		let tooltip = wrap.querySelector('.monitoring-speedtest-tooltip');
+		if (!tooltip) {
+			tooltip = document.createElement('div');
+			tooltip.className = 'monitoring-speedtest-tooltip hidden';
+			wrap.appendChild(tooltip);
+		}
+
+		const show = (time, download, upload, event) => {
+			tooltip.innerHTML = `
+				<div class="monitoring-speedtest-tooltip-title">${this.core.escapeHtml(time || 'Unknown time')}</div>
+				<div>Download: ${this.core.escapeHtml(download || 'N/A')}</div>
+				<div>Upload: ${this.core.escapeHtml(upload || 'N/A')}</div>
+			`;
+			tooltip.classList.remove('hidden');
+			const rect = wrap.getBoundingClientRect();
+			const left = Math.max(8, Math.min(event.clientX - rect.left + 12, rect.width - (tooltip.offsetWidth || 180) - 8));
+			const top = Math.max(8, event.clientY - rect.top - 36);
+			tooltip.style.left = `${left}px`;
+			tooltip.style.top = `${top}px`;
+		};
+		const hide = () => {
+			tooltip.classList.add('hidden');
+		};
+
+		if (this._speedtestTooltipMoveHandler) {
+			svg.removeEventListener('pointermove', this._speedtestTooltipMoveHandler);
+			svg.removeEventListener('pointerleave', this._speedtestTooltipLeaveHandler);
+		}
+
+		this._speedtestTooltipMoveHandler = event => {
+			const tipTarget = event.target?.closest?.('[data-tip-time]');
+			const time = tipTarget?.getAttribute?.('data-tip-time');
+			const download = tipTarget?.getAttribute?.('data-tip-dl');
+			const upload = tipTarget?.getAttribute?.('data-tip-ul');
+			if (!time) {
+				hide();
+				return;
+			}
+			show(time, download, upload, event);
+		};
+		this._speedtestTooltipLeaveHandler = () => hide();
+
+		svg.addEventListener('pointermove', this._speedtestTooltipMoveHandler);
+		svg.addEventListener('pointerleave', this._speedtestTooltipLeaveHandler);
 	}
 
 	renderSpeedtestTable(rows = []) {

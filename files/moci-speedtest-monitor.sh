@@ -7,7 +7,7 @@ set -u
 
 DEFAULT_OUTPUT="/tmp/moci-speedtest-monitor.txt"
 DEFAULT_MAX_LINES="365"
-DEFAULT_BIN="speedtestcpp"
+DEFAULT_BIN="/usr/bin/speedtest"
 
 SPEEDTEST_OUTPUT="$DEFAULT_OUTPUT"
 SPEEDTEST_MAX_LINES="$DEFAULT_MAX_LINES"
@@ -100,13 +100,23 @@ run_speedtest_once() {
 	local now output dl ul dl_norm ul_norm server status message
 	now="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
-	if ! command -v "$SPEEDTEST_BIN" >/dev/null 2>&1; then
-		append_sample "$now" "ERROR" "N/A" "N/A" "" "speedtestcpp not found"
+	local speedtest_cmd="$SPEEDTEST_BIN"
+	if ! command -v "$speedtest_cmd" >/dev/null 2>&1; then
+		for candidate in speedtestcpp speedtest /usr/bin/speedtestcpp /usr/bin/speedtest; do
+			if command -v "$candidate" >/dev/null 2>&1; then
+				speedtest_cmd="$candidate"
+				break
+			fi
+		done
+	fi
+
+	if ! command -v "$speedtest_cmd" >/dev/null 2>&1; then
+		append_sample "$now" "ERROR" "N/A" "N/A" "" "speedtest binary not found"
 		prune_file
 		return 1
 	fi
 
-	output="$({ "$SPEEDTEST_BIN" --json 2>/dev/null || "$SPEEDTEST_BIN" 2>&1; } || true)"
+	output="$({ "$speedtest_cmd" --json 2>/dev/null || "$speedtest_cmd" 2>&1; } || true)"
 	dl="$(extract_json_number "download" "$output")"
 	ul="$(extract_json_number "upload" "$output")"
 	[ -n "$dl" ] || dl="$(extract_text_number "[Dd]ownload" "$output")"

@@ -1,0 +1,27 @@
+#!/bin/sh /etc/rc.common
+
+START=15
+STOP=89
+USE_PROCD=0
+
+PROG="/usr/bin/moci-state-sync"
+
+start() {
+	[ -x "$PROG" ] || return 0
+	"$PROG" restore >/dev/null 2>&1 || true
+	"$PROG" sync-cron >/dev/null 2>&1 || true
+}
+
+stop() {
+	[ -x "$PROG" ] || return 0
+	"$PROG" save >/dev/null 2>&1 || true
+}
+
+reload_service() {
+	[ -x "$PROG" ] || return 0
+	"$PROG" sync-cron >/dev/null 2>&1 || true
+}
+
+service_triggers() {
+	procd_add_reload_trigger "moci"
+}
