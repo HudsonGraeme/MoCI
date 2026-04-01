@@ -15,12 +15,13 @@ define Package/moci
   CATEGORY:=Administration
   TITLE:=MoCI - Modern Configuration Interface for OpenWrt
   PKGARCH:=all
-  DEPENDS:=+uhttpd +rpcd
+  DEPENDS:=+rpcd +jsonfilter
 endef
 
 define Package/moci/description
   Modern web interface for OpenWrt routers.
   Pure vanilla JavaScript SPA using OpenWrt's native ubus API.
+  Works with uhttpd (standard OpenWrt) or lighttpd (TurrisOS).
 endef
 
 define Build/Compile
@@ -30,6 +31,11 @@ define Package/moci/install
 	$(INSTALL_DIR) $(1)/www/moci
 	$(INSTALL_DATA) ./dist/moci/index.html $(1)/www/moci/
 	$(INSTALL_DATA) ./dist/moci/app.css $(1)/www/moci/
+	$(INSTALL_DATA) ./dist/moci/manifest.json $(1)/www/moci/
+
+	$(INSTALL_DIR) $(1)/www/moci/icons
+	$(INSTALL_DATA) ./dist/moci/icons/icon-192.png $(1)/www/moci/icons/
+	$(INSTALL_DATA) ./dist/moci/icons/icon-512.png $(1)/www/moci/icons/
 
 	$(INSTALL_DIR) $(1)/www/moci/js
 	$(INSTALL_DATA) ./dist/moci/js/core.js $(1)/www/moci/js/
@@ -44,13 +50,24 @@ define Package/moci/install
 
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/moci.config $(1)/etc/config/moci
+
+	$(INSTALL_DIR) $(1)/www/moci
+	$(INSTALL_BIN) ./files/ubus.cgi $(1)/www/moci/ubus.cgi
+
+	$(INSTALL_DIR) $(1)/etc/lighttpd/conf.d
+	$(INSTALL_DATA) ./files/lighttpd-moci.conf $(1)/etc/lighttpd/conf.d/50-moci.conf
 endef
 
 define Package/moci/postinst
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || {
 	/etc/init.d/rpcd restart
-	echo "MoCI installed. Access at http://[router-ip]/moci/"
+	if [ -f /etc/init.d/lighttpd ]; then
+		/etc/init.d/lighttpd restart
+		echo "MoCI installed (lighttpd). Access at http://[router-ip]/moci/"
+	else
+		echo "MoCI installed. Access at http://[router-ip]/moci/"
+	fi
 }
 endef
 
