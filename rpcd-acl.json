@@ -13,8 +13,10 @@
 				"/etc/hosts": ["read"],
 				"/tmp/firmware.bin": ["read"],
 				"/tmp/backup.tar.gz": ["read"],
-				"/www/moci/js/addons/*": ["read", "list"],
-				"/usr/share/rpcd/acl.d/moci-addon-*.json": ["read"]
+				"/usr/libexec/moci-pkg-call list-present": ["exec"],
+				"/usr/libexec/moci-pkg-call list-installed": ["exec"],
+				"/usr/libexec/moci-pkg-call list-available": ["exec"],
+				"/usr/libexec/moci-pkg-call inspect *": ["exec"]
 			},
 			"ubus": {
 				"network.interface": ["dump"],
@@ -29,12 +31,10 @@
 		},
 		"write": {
 			"file": {
-				"/www/moci/js/addons/*": ["write"],
-				"/usr/share/rpcd/acl.d/moci-addon-*.json": ["write"],
-				"/bin/mkdir -p /www/moci/js/addons/*": ["exec"],
-				"/bin/rm -rf /www/moci/js/addons/*": ["exec"],
-				"/bin/rm -f /usr/share/rpcd/acl.d/moci-addon-*.json": ["exec"],
-				"/etc/init.d/rpcd reload": ["exec"]
+				"/usr/libexec/moci-pkg-call install *": ["exec"],
+				"/usr/libexec/moci-pkg-call remove *": ["exec"],
+				"/usr/libexec/moci-pkg-call update": ["exec"],
+				"/etc/opkg/moci-addons.conf": ["write"]
 			},
 			"ubus": {
 				"uci": ["set", "add", "delete", "commit"],

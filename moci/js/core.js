@@ -638,33 +638,64 @@ export class OpenWrtCore {
 		return this.extensionPoints.get(pointName) || [];
 	}
 
+	async pkgCall(action, arg) {
+		const params = arg !== undefined ? [action, String(arg)] : [action];
+		const [status, out] = await this.ubusCall(
+			'file',
+			'exec',
+			{
+				command: '/usr/libexec/moci-pkg-call',
+				params
+			},
+			{ timeout: 120000 }
+		);
+		if (status !== 0) throw new Error(`moci-pkg-call ${action} denied`);
+		if (out?.code && out.code !== 0) throw new Error(out.stderr?.trim() || `moci-pkg-call ${action} failed`);
+		return out?.stdout || '';
+	}
+
+	async listPresentAddons() {
+		const out = await this.pkgCall('list-present');
+		return out
+			.split('\n')
+			.map(l => l.trim())
+			.filter(id => /^[a-zA-Z0-9_-]+$/.test(id));
+	}
+
+	async listInstalledPackages() {
+		try {
+			const out = await this.pkgCall('list-installed');
+			return new Set(
+				out
+					.split('\n')
+					.map(l => l.trim().split(/\s+/)[0])
+					.filter(Boolean)
+			);
+		} catch {
+			return new Set();
+		}
+	}
+
 	async loadAddonManifests() {
 		if (!this.isFeatureEnabled('addons')) return;
+		let ids;
 		try {
-			const [status, result] = await this.uciGet('moci');
-			if (status !== 0 || !result?.values) return;
-			const sections = result.values;
-			for (const [key, val] of Object.entries(sections)) {
-				if (typeof val !== 'object' || val['.type'] !== 'addon') continue;
-				if (val.enabled !== '1') continue;
-				const addonId = val.addon_id;
-				if (!/^[a-zA-Z0-9_-]+$/.test(addonId)) continue;
-				try {
-					const [ms, mr] = await this.ubusCall('file', 'read', {
-						path: `/www/moci/js/addons/${addonId}/manifest.json`
-					});
-					if (ms === 0 && mr?.data) {
-						const manifest = JSON.parse(mr.data);
-						this.addonManifests.set(addonId, manifest);
-						const addonBase = manifest.nav?.route?.split('/').filter(Boolean)[0];
-						if (addonBase) this.addonRouteMap.set(addonBase, addonId);
-					}
-				} catch (err) {
-					console.warn('Failed to load addon manifest:', addonId, err);
-				}
-			}
+			ids = await this.listPresentAddons();
 		} catch (err) {
-			console.warn('Failed to load addon manifests:', err);
+			console.warn('Failed to enumerate addons:', err);
+			return;
+		}
+		for (const id of ids) {
+			try {
+				const resp = await fetch(`/moci/js/addons/${id}/manifest.json`);
+				if (!resp.ok) continue;
+				const manifest = await resp.json();
+				this.addonManifests.set(id, manifest);
+				const addonBase = manifest.nav?.route?.split('/').filter(Boolean)[0];
+				if (addonBase) this.addonRouteMap.set(addonBase, id);
+			} catch (err) {
+				console.warn('Failed to load addon manifest:', id, err);
+			}
 		}
 	}
 

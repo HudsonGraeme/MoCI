@@ -1,0 +1,17 @@
+{
+	"id": "pinglog",
+	"entry": "addon.js",
+	"name": "Ping Log",
+	"version": "1.0.0",
+	"description": "Background ping monitor with latency history.",
+	"author": {
+		"name": "MoCI"
+	},
+	"license": "MIT",
+	"files": ["addon.js"],
+	"nav": {
+		"route": "/pinglog",
+		"label": "PING LOG",
+		"placement": "addons"
+	}
+}

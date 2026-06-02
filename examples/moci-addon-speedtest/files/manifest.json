@@ -1,0 +1,24 @@
+{
+  "id": "speedtest",
+  "entry": "addon.js",
+  "name": "Speedtest",
+  "version": "1.0.0",
+  "description": "Network speed test measuring download, upload, and latency using Cloudflare endpoints.",
+  "author": {
+    "name": "Hudson Graeme"
+  },
+  "license": "MIT",
+  "files": ["addon.js", "style.css"],
+  "css": "style.css",
+  "nav": {
+    "route": "/speedtest",
+    "label": "SPEEDTEST",
+    "placement": "top"
+  },
+  "extends": [
+    {
+      "target": "dashboard:widget",
+      "type": "widget"
+    }
+  ]
+}
