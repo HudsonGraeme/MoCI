@@ -9,11 +9,16 @@
 			type="image/svg+xml"
 			href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='480 400 250 280'%3E%3Cpath d='M608 668L497.149 604L497.149 476L608 412L718.851 476L718.851 604L608 668Z' fill='%23E2E2E5'/%3E%3C/svg%3E"
 		/>
+		<link rel="manifest" href="manifest.json" />
+		<meta name="theme-color" content="#000000" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+		<link rel="apple-touch-icon" href="icons/icon-192.png" />
 		<link rel="stylesheet" href="app.css" />
 	</head>
 	<body>
 		<div id="app">
-			<div id="login-view" class="view">
+			<div id="login-view" class="view hidden">
 				<div class="login-card">
 					<h1>OPENWRT</h1>
 					<form id="login-form">
@@ -65,6 +70,9 @@
 						</svg>
 						<span>OPENWRT</span>
 					</div>
+					<button class="menu-toggle" aria-label="Toggle menu" aria-expanded="false">
+						<span></span><span></span><span></span>
+					</button>
 					<nav class="nav">
 						<a href="#/dashboard" class="active">DASHBOARD</a>
 						<a href="#/network">NETWORK</a>
@@ -96,7 +104,7 @@
 							</div>
 						</div>
 
-						<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-top: 24px">
+						<div class="stats-grid metrics-3col" style="margin-top: 24px">
 							<div class="stat-card metric-card">
 								<div class="metric-icon">↓</div>
 								<div class="metric-content">

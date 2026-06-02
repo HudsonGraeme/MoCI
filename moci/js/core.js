@@ -165,8 +165,6 @@ export class OpenWrtCore {
 			dashboard: './modules/dashboard.js',
 			network: './modules/network.js',
 			system: './modules/system.js',
-			vpn: './modules/vpn.js',
-			services: './modules/services.js',
 			addons: './modules/addons.js'
 		};
 	}
@@ -203,10 +201,8 @@ export class OpenWrtCore {
 	shouldLoadModule(moduleName) {
 		const moduleFeatures = {
 			dashboard: ['dashboard'],
-			network: ['network', 'wireless', 'firewall', 'dhcp', 'dns', 'diagnostics'],
+			network: ['network', 'wireless', 'firewall', 'dhcp', 'dns', 'diagnostics', 'wireguard', 'qos', 'ddns'],
 			system: ['system', 'backup', 'packages', 'services', 'ssh_keys', 'storage', 'leds', 'firmware'],
-			vpn: ['wireguard'],
-			services: ['qos', 'ddns'],
 			addons: ['addons']
 		};
 
@@ -232,6 +228,21 @@ export class OpenWrtCore {
 
 	attachEventListeners() {
 		document.getElementById('logout-btn')?.addEventListener('click', () => this.logout());
+
+		const menuToggle = document.querySelector('.menu-toggle');
+		const nav = document.querySelector('.nav');
+		if (menuToggle && nav) {
+			menuToggle.addEventListener('click', () => {
+				nav.classList.toggle('open');
+				menuToggle.setAttribute('aria-expanded', nav.classList.contains('open'));
+			});
+			nav.querySelectorAll('a').forEach(link => {
+				link.addEventListener('click', () => nav.classList.remove('open'));
+			});
+			window.addEventListener('resize', () => {
+				if (window.innerWidth > 768) nav.classList.remove('open');
+			});
+		}
 	}
 
 	startPolling() {
@@ -482,16 +493,8 @@ export class OpenWrtCore {
 	}
 
 	renderActionButtons(id) {
-		return `
-			<div class="action-buttons">
-				<button class="btn-icon btn-edit" data-action="edit" data-id="${this.escapeHtml(id)}">
-					<svg viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
-				</button>
-				<button class="btn-icon btn-delete" data-action="delete" data-id="${this.escapeHtml(id)}">
-					<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-				</button>
-			</div>
-		`;
+		const eid = this.escapeHtml(id);
+		return `<button class="action-btn-sm" data-action="edit" data-id="${eid}">EDIT</button><button class="action-btn-sm danger" data-action="delete" data-id="${eid}">DELETE</button>`;
 	}
 
 	showToast(message, type = 'info') {
@@ -810,6 +813,135 @@ export class OpenWrtCore {
 				contribs.filter(c => c._addonId !== id)
 			);
 		}
+	}
+
+	renderTable(tableSelector, items, colspan, emptyMsg, rowFn) {
+		const tbody = document.querySelector(`${tableSelector} tbody`);
+		if (!tbody) return;
+		if (items.length === 0) {
+			this.renderEmptyTable(tbody, colspan, emptyMsg);
+			return;
+		}
+		tbody.innerHTML = items.map(rowFn).join('');
+	}
+
+	filterUciSections(config, type) {
+		return Object.entries(config)
+			.filter(([, v]) => v['.type'] === type)
+			.map(([k, v]) => ({ section: k, ...v }));
+	}
+
+	getFormValues(fieldMap) {
+		const values = {};
+		for (const [elementId, uciKey] of Object.entries(fieldMap)) {
+			const el = document.getElementById(elementId);
+			if (!el) continue;
+			const formVal = el.type === 'checkbox' ? el.checked : el.value;
+			if (Array.isArray(uciKey)) {
+				for (const key of uciKey) values[key] = formVal;
+			} else {
+				values[uciKey] = formVal;
+			}
+		}
+		return values;
+	}
+
+	setFormValues(fieldMap, data) {
+		for (const [elementId, uciKey] of Object.entries(fieldMap)) {
+			const el = document.getElementById(elementId);
+			if (!el) continue;
+			let val;
+			if (Array.isArray(uciKey)) {
+				for (const key of uciKey) {
+					if (data[key] !== undefined && data[key] !== '') {
+						val = data[key];
+						break;
+					}
+				}
+			} else {
+				val = data[uciKey];
+			}
+			if (el.type === 'checkbox') {
+				el.checked = !!val;
+			} else {
+				el.value = Array.isArray(val) ? val.join(', ') : val || '';
+			}
+		}
+	}
+
+	async uciEdit(config, id, fieldMap, modalId, sectionIdField) {
+		try {
+			const [status, result] = await this.uciGet(config, id);
+			if (status !== 0 || !result?.values) throw new Error('Not found');
+			if (sectionIdField) document.getElementById(sectionIdField).value = id;
+			this.setFormValues(fieldMap, result.values);
+			this.openModal(modalId);
+		} catch {
+			this.showToast('Failed to load config', 'error');
+		}
+	}
+
+	async uciSave({
+		config,
+		uciType,
+		modalId,
+		sectionIdField,
+		fieldMap,
+		defaults,
+		reloadFn,
+		successMsg,
+		sectionNameField
+	}) {
+		const section = sectionIdField ? document.getElementById(sectionIdField)?.value : '';
+		const values = { ...this.getFormValues(fieldMap), ...defaults };
+		try {
+			if (section) {
+				await this.uciSet(config, section, values);
+			} else {
+				const name = sectionNameField ? document.getElementById(sectionNameField)?.value || null : null;
+				const [, res] = await this.uciAdd(config, uciType, name);
+				if (!res?.section) throw new Error('Failed to create section');
+				await this.uciSet(config, res.section, values);
+			}
+			await this.uciCommit(config);
+			this.closeModal(modalId);
+			this.showToast(successMsg || 'Saved', 'success');
+			if (reloadFn) await reloadFn();
+		} catch {
+			this.showToast('Failed to save', 'error');
+		}
+	}
+
+	async uciDeleteEntry(config, id, confirmMsg, reloadFn) {
+		if (!confirm(confirmMsg)) return;
+		try {
+			await this.uciDelete(config, id);
+			await this.uciCommit(config);
+			this.showToast('Deleted', 'success');
+			if (reloadFn) await reloadFn();
+		} catch {
+			this.showToast('Failed to delete', 'error');
+		}
+	}
+
+	spliceFileLines(raw, dataFilter, index, newLine) {
+		const lines = raw.split('\n');
+		const dataIndices = lines.map((l, i) => (dataFilter(l) ? i : -1)).filter(i => i >= 0);
+		if (index !== '' && index !== undefined) {
+			const origIdx = dataIndices[parseInt(index)];
+			if (origIdx !== undefined) {
+				if (newLine === null) {
+					lines.splice(origIdx, 1);
+				} else {
+					lines[origIdx] = newLine;
+				}
+			}
+		} else if (newLine !== null) {
+			if (lines.length && lines[lines.length - 1] === '') lines.pop();
+			lines.push(newLine);
+		}
+		const result = lines.join('\n');
+		return result.endsWith('\n') ? result : result + '\n';
 	}
 
 	resetModal(modalId) {

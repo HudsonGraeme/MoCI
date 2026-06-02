@@ -85,10 +85,6 @@ function deploy() {
 		execSync(`cat moci/js/modules/system.js | ${SSH} "cat > /www/moci/js/modules/system.js"`, {
 			stdio: 'pipe'
 		});
-		execSync(`cat moci/js/modules/vpn.js | ${SSH} "cat > /www/moci/js/modules/vpn.js"`, { stdio: 'pipe' });
-		execSync(`cat moci/js/modules/services.js | ${SSH} "cat > /www/moci/js/modules/services.js"`, {
-			stdio: 'pipe'
-		});
 
 		console.log('Deployed successfully\n');
 	} catch (err) {

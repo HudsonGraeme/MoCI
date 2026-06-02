@@ -442,6 +442,12 @@ body {
 	transform: scale(0.98);
 }
 
+.action-btn-sm.danger:hover {
+	border-color: var(--alert-red);
+	color: var(--alert-red);
+	box-shadow: 0 0 8px rgba(255, 51, 51, 0.15);
+}
+
 .section-title {
 	font-family: var(--font-mono);
 	font-size: 12px;
@@ -1342,4 +1348,229 @@ select.form-input {
 	font-size: 11px;
 	color: var(--alert-red);
 	line-height: 1.5;
+}
+
+.metrics-3col {
+	grid-template-columns: repeat(3, 1fr);
+}
+
+.menu-toggle {
+	display: none;
+	flex-direction: column;
+	justify-content: center;
+	gap: 5px;
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 8px;
+	margin-right: 8px;
+}
+
+.menu-toggle span {
+	display: block;
+	width: 20px;
+	height: 2px;
+	background: var(--starship-steel);
+	transition: all 0.2s;
+}
+
+@media (max-width: 1024px) {
+	.content {
+		padding: 24px;
+	}
+
+	.hero-details {
+		gap: 24px;
+	}
+
+	.stats-grid {
+		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	}
+}
+
+@media (max-width: 768px) {
+	.menu-toggle {
+		display: flex;
+	}
+
+	.nav {
+		position: fixed;
+		top: 64px;
+		left: 0;
+		right: 0;
+		flex-direction: column;
+		gap: 0;
+		margin-left: 0;
+		background: var(--glass-bg);
+		backdrop-filter: blur(16px);
+		border-bottom: 1px solid var(--glass-border);
+		box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+		display: none;
+		z-index: 200;
+	}
+
+	.nav.open {
+		display: flex;
+	}
+
+	.nav a {
+		padding: 16px 32px;
+		border-bottom: none;
+		border-left: 2px solid transparent;
+	}
+
+	.nav a:hover,
+	.nav a.active {
+		border-bottom: none;
+		border-left-color: var(--starship-steel);
+		background: rgba(255, 255, 255, 0.03);
+	}
+
+	.content {
+		padding: 16px;
+	}
+
+	.content h2 {
+		margin-bottom: 20px;
+	}
+
+	.tabs {
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: none;
+	}
+
+	.tabs::-webkit-scrollbar {
+		display: none;
+	}
+
+	.tab-btn {
+		flex-shrink: 0;
+		padding: 10px 14px;
+		font-size: 10px;
+	}
+
+	.hero-details {
+		flex-wrap: wrap;
+		gap: 16px;
+	}
+
+	.hero-value {
+		font-size: 22px;
+	}
+
+	.metric-value {
+		font-size: 20px;
+	}
+
+	.stat-value {
+		font-size: 18px;
+	}
+
+	.stats-grid,
+	.metrics-3col {
+		grid-template-columns: 1fr;
+	}
+
+	.stat-card {
+		overflow-x: auto;
+	}
+
+	.data-table {
+		min-width: 500px;
+	}
+
+	.quick-actions {
+		flex-wrap: wrap;
+	}
+
+	.toast {
+		right: 16px;
+		left: 16px;
+		min-width: unset;
+	}
+
+	.login-card {
+		min-width: unset;
+		width: 90%;
+		padding: 32px;
+	}
+
+	.modal-content {
+		width: 95%;
+		max-height: 95vh;
+	}
+
+	.diagnostic-form {
+		flex-direction: column;
+	}
+}
+
+@media (max-width: 480px) {
+	.content {
+		padding: 12px;
+	}
+
+	.header {
+		padding: 0 16px;
+	}
+
+	.logo span {
+		display: none;
+	}
+
+	.hero-card {
+		padding: 20px;
+	}
+
+	.hero-value {
+		font-size: 18px;
+	}
+
+	.hero-detail-value {
+		font-size: 13px;
+	}
+
+	.stat-card {
+		padding: 16px;
+	}
+
+	.metric-icon {
+		font-size: 32px;
+	}
+
+	.metric-card {
+		gap: 12px;
+		padding: 16px;
+	}
+
+	.login-card {
+		padding: 24px;
+	}
+
+	.content h2 {
+		font-size: 12px;
+	}
+
+	.section-title {
+		font-size: 11px;
+	}
+
+	.logout-btn {
+		padding: 6px 10px;
+		font-size: 9px;
+	}
+
+	.modal-header {
+		padding: 16px;
+	}
+
+	.modal-body {
+		padding: 16px;
+	}
+
+	.modal-footer {
+		padding: 16px;
+		flex-wrap: wrap;
+	}
 }

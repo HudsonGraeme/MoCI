@@ -34,17 +34,30 @@ export default class SystemModule {
 	}
 
 	setupHandlers() {
-		document.getElementById('save-general-btn')?.addEventListener('click', () => this.saveGeneral());
-		document.getElementById('change-password-btn')?.addEventListener('click', () => this.changePassword());
-		document.getElementById('backup-btn')?.addEventListener('click', () => this.createBackup());
-		document.getElementById('reset-btn')?.addEventListener('click', () => this.factoryReset());
-		document.getElementById('reboot-btn')?.addEventListener('click', () => this.rebootSystem());
-		document
-			.getElementById('restart-network-btn')
-			?.addEventListener('click', () => this.core.serviceReload('network'));
-		document
-			.getElementById('restart-firewall-btn')
-			?.addEventListener('click', () => this.core.serviceReload('firewall'));
+		const buttons = {
+			'save-general-btn': () => this.saveGeneral(),
+			'change-password-btn': () => this.changePassword(),
+			'backup-btn': () => this.createBackup(),
+			'reset-btn': () => this.factoryReset(),
+			'reboot-btn': () => this.rebootSystem(),
+			'restart-network-btn': () => this.core.serviceReload('network'),
+			'restart-firewall-btn': () => this.core.serviceReload('firewall'),
+			'add-cron-btn': () => {
+				this.core.resetModal('cron-modal');
+				this.core.openModal('cron-modal');
+			},
+			'add-ssh-key-btn': () => {
+				this.core.resetModal('ssh-key-modal');
+				document.getElementById('parsed-keys-preview').style.display = 'none';
+				document.getElementById('save-ssh-keys-btn').style.display = 'none';
+				this.core.openModal('ssh-key-modal');
+			},
+			'parse-keys-btn': () => this.parseSSHKeyInput()
+		};
+
+		for (const [id, handler] of Object.entries(buttons)) {
+			document.getElementById(id)?.addEventListener('click', handler);
+		}
 
 		this.core.setupModal({
 			modalId: 'cron-modal',
@@ -62,35 +75,16 @@ export default class SystemModule {
 			saveHandler: () => this.saveSSHKeys()
 		});
 
-		document.getElementById('add-cron-btn')?.addEventListener('click', () => {
-			this.core.resetModal('cron-modal');
-			this.core.openModal('cron-modal');
-		});
+		const delegations = {
+			'cron-table': { edit: id => this.editCronEntry(id), delete: id => this.deleteCronEntry(id) },
+			'ssh-keys-table': { delete: id => this.deleteSSHKey(id) },
+			'services-table': { toggle: id => this.toggleService(id) }
+		};
 
-		document.getElementById('add-ssh-key-btn')?.addEventListener('click', () => {
-			this.core.resetModal('ssh-key-modal');
-			document.getElementById('parsed-keys-preview').style.display = 'none';
-			document.getElementById('save-ssh-keys-btn').style.display = 'none';
-			this.core.openModal('ssh-key-modal');
-		});
-
-		document.getElementById('parse-keys-btn')?.addEventListener('click', () => this.parseSSHKeyInput());
-
-		const cronCleanup = this.core.delegateActions('cron-table', {
-			edit: id => this.editCronEntry(id),
-			delete: id => this.deleteCronEntry(id)
-		});
-		if (cronCleanup) this.cleanups.push(cronCleanup);
-
-		const sshCleanup = this.core.delegateActions('ssh-keys-table', {
-			delete: id => this.deleteSSHKey(id)
-		});
-		if (sshCleanup) this.cleanups.push(sshCleanup);
-
-		const servicesCleanup = this.core.delegateActions('services-table', {
-			toggle: id => this.toggleService(id)
-		});
-		if (servicesCleanup) this.cleanups.push(servicesCleanup);
+		for (const [tableId, handlers] of Object.entries(delegations)) {
+			const cleanup = this.core.delegateActions(tableId, handlers);
+			if (cleanup) this.cleanups.push(cleanup);
+		}
 
 		this.setupFirmwareUpload();
 	}
@@ -179,7 +173,7 @@ export default class SystemModule {
 
 	async createBackup() {
 		try {
-			const [s, r] = await this.core.ubusCall(
+			const [s] = await this.core.ubusCall(
 				'file',
 				'exec',
 				{ command: '/sbin/sysupgrade', params: ['--create-backup', '/tmp/backup.tar.gz'] },
@@ -218,10 +212,7 @@ export default class SystemModule {
 		if (!confirm('This will erase all settings and restore factory defaults. Continue?')) return;
 		if (!confirm('This action cannot be undone. Are you absolutely sure?')) return;
 		try {
-			await this.core.ubusCall('file', 'exec', {
-				command: '/sbin/firstboot',
-				params: ['-y']
-			});
+			await this.core.ubusCall('file', 'exec', { command: '/sbin/firstboot', params: ['-y'] });
 			this.core.showToast('Factory reset initiated, rebooting...', 'success');
 			setTimeout(async () => {
 				try {
@@ -247,9 +238,7 @@ export default class SystemModule {
 
 	async loadPackages() {
 		await this.core.loadResource('packages-table', 3, 'packages', async () => {
-			const [status, result] = await this.core.ubusCall('file', 'read', {
-				path: '/usr/lib/opkg/status'
-			});
+			const [status, result] = await this.core.ubusCall('file', 'read', { path: '/usr/lib/opkg/status' });
 			if (status !== 0 || !result?.data) throw new Error('No data');
 
 			const packages = [];
@@ -262,12 +251,6 @@ export default class SystemModule {
 				if (pkg.name) packages.push(pkg);
 			}
 
-			const tbody = document.querySelector('#packages-table tbody');
-			if (!tbody) return;
-			if (packages.length === 0) {
-				this.core.renderEmptyTable(tbody, 3, 'No packages found');
-				return;
-			}
 			const display = packages.slice(0, 100);
 			let html = display
 				.map(
@@ -281,7 +264,14 @@ export default class SystemModule {
 			if (packages.length > 100) {
 				html += `<tr><td colspan="3" style="text-align:center;color:var(--steel-muted)">Showing 100 of ${packages.length} packages</td></tr>`;
 			}
-			tbody.innerHTML = html;
+			const tbody = document.querySelector('#packages-table tbody');
+			if (tbody) {
+				if (packages.length === 0) {
+					this.core.renderEmptyTable(tbody, 3, 'No packages found');
+				} else {
+					tbody.innerHTML = html;
+				}
+			}
 		});
 	}
 
@@ -290,20 +280,17 @@ export default class SystemModule {
 			const [status, result] = await this.core.ubusCall('service', 'list', {});
 			if (status !== 0 || !result) throw new Error('No data');
 
-			const services = Object.entries(result).map(([name, info]) => {
-				const running = info.instances && Object.keys(info.instances).length > 0;
-				return { name, running };
-			});
+			const services = Object.entries(result).map(([name, info]) => ({
+				name,
+				running: info.instances && Object.keys(info.instances).length > 0
+			}));
 
-			const tbody = document.querySelector('#services-table tbody');
-			if (!tbody) return;
-			if (services.length === 0) {
-				this.core.renderEmptyTable(tbody, 4, 'No services found');
-				return;
-			}
-			tbody.innerHTML = services
-				.map(
-					s => `<tr>
+			this.core.renderTable(
+				'#services-table',
+				services,
+				4,
+				'No services found',
+				s => `<tr>
 				<td>${this.core.escapeHtml(s.name)}</td>
 				<td>${s.running ? this.core.renderBadge('success', 'RUNNING') : this.core.renderBadge('error', 'STOPPED')}</td>
 				<td>${this.core.renderBadge('info', 'N/A')}</td>
@@ -315,8 +302,7 @@ export default class SystemModule {
 					</div>
 				</td>
 			</tr>`
-				)
-				.join('');
+			);
 		});
 	}
 
@@ -346,39 +332,31 @@ export default class SystemModule {
 	async loadCron() {
 		await this.core.loadResource('cron-table', 4, null, async () => {
 			try {
-				const [s, r] = await this.core.ubusCall('file', 'read', {
-					path: '/etc/crontabs/root'
-				});
-				if (s === 0 && r?.data) this.cronRaw = r.data;
-				else this.cronRaw = '';
+				const [s, r] = await this.core.ubusCall('file', 'read', { path: '/etc/crontabs/root' });
+				this.cronRaw = s === 0 && r?.data ? r.data : '';
 			} catch {
 				this.cronRaw = '';
 			}
 
 			const entries = this.parseCron(this.cronRaw);
-			const tbody = document.querySelector('#cron-table tbody');
-			if (!tbody) return;
-			if (entries.length === 0) {
-				this.core.renderEmptyTable(tbody, 4, 'No scheduled tasks');
-				return;
-			}
-			tbody.innerHTML = entries
-				.map(
-					(e, i) => `<tr>
+			this.core.renderTable(
+				'#cron-table',
+				entries,
+				4,
+				'No scheduled tasks',
+				(e, i) => `<tr>
 				<td>${this.core.escapeHtml(e.schedule)}</td>
 				<td>${this.core.escapeHtml(e.command)}</td>
 				<td>${e.enabled ? this.core.renderBadge('success', 'ENABLED') : this.core.renderBadge('error', 'DISABLED')}</td>
 				<td>${this.core.renderActionButtons(String(i))}</td>
 			</tr>`
-				)
-				.join('');
+			);
 		});
 	}
 
 	parseCron(data) {
 		const result = [];
-		const lines = data.split('\n');
-		lines.forEach((line, rawIndex) => {
+		data.split('\n').forEach((line, rawIndex) => {
 			if (!line.trim()) return;
 			const enabled = !line.trim().startsWith('#');
 			const clean = line.replace(/^#\s*/, '').trim();
@@ -431,9 +409,9 @@ export default class SystemModule {
 
 		const newLine = `${enabled ? '' : '# '}${minute} ${hour} ${day} ${month} ${weekday} ${command}`;
 		const lines = this.cronRaw.split('\n');
+		const entries = this.parseCron(this.cronRaw);
 
 		if (index !== '') {
-			const entries = this.parseCron(this.cronRaw);
 			const entry = entries[parseInt(index)];
 			if (entry) lines[entry.rawIndex] = newLine;
 		} else {
@@ -476,25 +454,19 @@ export default class SystemModule {
 	async loadSSHKeys() {
 		await this.core.loadResource('ssh-keys-table', 4, 'ssh_keys', async () => {
 			try {
-				const [s, r] = await this.core.ubusCall('file', 'read', {
-					path: '/etc/dropbear/authorized_keys'
-				});
-				if (s === 0 && r?.data) this.sshKeysRaw = r.data;
-				else this.sshKeysRaw = '';
+				const [s, r] = await this.core.ubusCall('file', 'read', { path: '/etc/dropbear/authorized_keys' });
+				this.sshKeysRaw = s === 0 && r?.data ? r.data : '';
 			} catch {
 				this.sshKeysRaw = '';
 			}
 
 			const keys = this.parseSSHKeys(this.sshKeysRaw);
-			const tbody = document.querySelector('#ssh-keys-table tbody');
-			if (!tbody) return;
-			if (keys.length === 0) {
-				this.core.renderEmptyTable(tbody, 4, 'No SSH keys');
-				return;
-			}
-			tbody.innerHTML = keys
-				.map(
-					(k, i) => `<tr>
+			this.core.renderTable(
+				'#ssh-keys-table',
+				keys,
+				4,
+				'No SSH keys',
+				(k, i) => `<tr>
 				<td>${this.core.escapeHtml(k.type)}</td>
 				<td>${this.core.escapeHtml(k.key.substring(0, 30))}...</td>
 				<td>${this.core.escapeHtml(k.comment || 'N/A')}</td>
@@ -506,15 +478,13 @@ export default class SystemModule {
 					</div>
 				</td>
 			</tr>`
-				)
-				.join('');
+			);
 		});
 	}
 
 	parseSSHKeys(data) {
 		const result = [];
-		const lines = data.split('\n');
-		lines.forEach((line, rawIndex) => {
+		data.split('\n').forEach((line, rawIndex) => {
 			if (!line.trim() || line.startsWith('#')) return;
 			const parts = line.trim().split(/\s+/);
 			if (!parts[1]) return;
@@ -544,10 +514,8 @@ export default class SystemModule {
 
 		list.innerHTML = keys
 			.map(
-				(
-					k,
-					i
-				) => `<div style="padding:8px;border-bottom:1px solid var(--slate-border);display:flex;align-items:center;gap:8px">
+				(k, i) =>
+					`<div style="padding:8px;border-bottom:1px solid var(--slate-border);display:flex;align-items:center;gap:8px">
 			<input type="checkbox" id="key-select-${i}" checked />
 			<div>
 				<div style="font-weight:600;font-size:12px">${this.core.escapeHtml(k.type)} ${this.core.escapeHtml(k.comment || 'No comment')}</div>
@@ -610,27 +578,24 @@ export default class SystemModule {
 
 	async loadMounts() {
 		await this.core.loadResource('mounts-table', 6, 'storage', async () => {
-			const [s, r] = await this.core.ubusCall('file', 'exec', {
-				command: '/bin/df',
-				params: ['-h']
-			});
+			const [s, r] = await this.core.ubusCall('file', 'exec', { command: '/bin/df', params: ['-h'] });
 			if (s !== 0 || !r?.stdout) throw new Error('No data');
 
-			const lines = r.stdout
+			const mounts = r.stdout
 				.split('\n')
 				.slice(1)
-				.filter(l => l.trim());
-			const mounts = lines.map(line => {
-				const parts = line.trim().split(/\s+/);
-				return {
-					device: parts[0],
-					size: parts[1],
-					used: parts[2],
-					available: parts[3],
-					usePercent: parts[4],
-					mountPoint: parts[5]
-				};
-			});
+				.filter(l => l.trim())
+				.map(line => {
+					const parts = line.trim().split(/\s+/);
+					return {
+						device: parts[0],
+						size: parts[1],
+						used: parts[2],
+						available: parts[3],
+						usePercent: parts[4],
+						mountPoint: parts[5]
+					};
+				});
 
 			const charts = document.getElementById('storage-charts');
 			if (charts) {
@@ -648,15 +613,12 @@ export default class SystemModule {
 					.join('');
 			}
 
-			const tbody = document.querySelector('#mounts-table tbody');
-			if (!tbody) return;
-			if (mounts.length === 0) {
-				this.core.renderEmptyTable(tbody, 6, 'No mount points');
-				return;
-			}
-			tbody.innerHTML = mounts
-				.map(
-					m => `<tr>
+			this.core.renderTable(
+				'#mounts-table',
+				mounts,
+				6,
+				'No mount points',
+				m => `<tr>
 				<td>${this.core.escapeHtml(m.device)}</td>
 				<td>${this.core.escapeHtml(m.mountPoint)}</td>
 				<td>N/A</td>
@@ -664,8 +626,7 @@ export default class SystemModule {
 				<td>${this.core.escapeHtml(m.used)}</td>
 				<td>${this.core.escapeHtml(m.available)}</td>
 			</tr>`
-				)
-				.join('');
+			);
 		});
 	}
 
@@ -674,32 +635,24 @@ export default class SystemModule {
 			const [status, result] = await this.core.uciGet('system');
 			if (status !== 0 || !result?.values) throw new Error('No data');
 
-			const leds = Object.entries(result.values)
-				.filter(([, v]) => v['.type'] === 'led')
-				.map(([k, v]) => ({ section: k, ...v }));
-
-			const tbody = document.querySelector('#led-table tbody');
-			if (!tbody) return;
-			if (leds.length === 0) {
-				this.core.renderEmptyTable(tbody, 3, 'No LEDs configured');
-				return;
-			}
-			tbody.innerHTML = leds
-				.map(
-					l => `<tr>
+			const leds = this.core.filterUciSections(result.values, 'led');
+			this.core.renderTable(
+				'#led-table',
+				leds,
+				3,
+				'No LEDs configured',
+				l => `<tr>
 				<td>${this.core.escapeHtml(l.sysfs || l.section)}</td>
 				<td>${this.core.escapeHtml(l.trigger || 'default-on')}</td>
 				<td>${this.core.renderBadge('info', 'CONFIGURED')}</td>
 			</tr>`
-				)
-				.join('');
+			);
 		});
 	}
 
 	setupFirmwareUpload() {
 		const fileInput = document.getElementById('firmware-file');
 		const uploadArea = document.getElementById('file-upload-area');
-		const uploadText = document.getElementById('file-upload-text');
 		const validateBtn = document.getElementById('validate-firmware-btn');
 		const flashBtn = document.getElementById('flash-firmware-btn');
 
@@ -719,15 +672,11 @@ export default class SystemModule {
 		uploadArea.addEventListener('drop', e => {
 			e.preventDefault();
 			uploadArea.style.borderColor = 'var(--slate-border)';
-			if (e.dataTransfer.files.length) {
-				this.handleFirmwareFile(e.dataTransfer.files[0]);
-			}
+			if (e.dataTransfer.files.length) this.handleFirmwareFile(e.dataTransfer.files[0]);
 		});
 
 		fileInput.addEventListener('change', () => {
-			if (fileInput.files.length) {
-				this.handleFirmwareFile(fileInput.files[0]);
-			}
+			if (fileInput.files.length) this.handleFirmwareFile(fileInput.files[0]);
 		});
 
 		validateBtn?.addEventListener('click', () => this.validateFirmware());
