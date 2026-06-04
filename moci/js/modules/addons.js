@@ -389,7 +389,7 @@ export default class AddonsModule {
 		const esc = t => this.core.escapeHtml(t);
 
 		infoEl.innerHTML = `<div class="addon-install-section addon-section-unverified">
-				<div class="addon-permission-warning">Developer sideload — untrusted. This code is fetched directly from GitHub and runs in your browser with no signature check. It receives no router permissions.</div>
+				<div class="addon-permission-warning">Developer sideload (untrusted). This code is fetched directly from GitHub and runs in your browser with no signature check. It receives no router permissions.</div>
 			</div>
 			<div class="addon-install-section addon-section-details">
 				<div class="addon-install-section-label">Provided by add-on</div>
