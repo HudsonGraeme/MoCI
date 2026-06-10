@@ -58,6 +58,7 @@ export default class NetworkModule {
 			if (!this.subTabs) {
 				const loadHandlers = {
 					interfaces: () => this.loadInterfaces(),
+					devices: () => this.loadDevices(),
 					wireless: () => this.loadWireless(),
 					firewall: () => this.loadFirewall(),
 					dhcp: () => this.loadDHCP(),
@@ -82,6 +83,8 @@ export default class NetworkModule {
 	setupModals() {
 		const modals = [
 			{ prefix: 'interface', save: () => this.saveInterface() },
+			{ prefix: 'device', save: () => this.saveDevice() },
+			{ prefix: 'bridge-vlan', save: () => this.saveBridgeVlan() },
 			{ prefix: 'wireless', save: () => this.saveWireless() },
 			{ prefix: 'forward', save: () => this.saveForward() },
 			{ prefix: 'fw-rule', save: () => this.saveFirewallRule() },
@@ -104,6 +107,7 @@ export default class NetworkModule {
 		});
 
 		const addButtons = [
+			['add-device-btn', 'device-modal'],
 			['add-forward-btn', 'forward-modal'],
 			['add-fw-rule-btn', 'fw-rule-modal'],
 			['add-static-lease-btn', 'static-lease-modal'],
@@ -121,8 +125,19 @@ export default class NetworkModule {
 			});
 		});
 
+		document.getElementById('add-bridge-vlan-btn')?.addEventListener('click', () => {
+			this.core.resetModal('bridge-vlan-modal');
+			document.getElementById('edit-bridge-vlan-section').value = '';
+			const first = this.bridgeDevices()[0]?.name;
+			this.populateVlanDeviceSelect(first);
+			this.renderVlanPortGrid(first);
+			this.core.openModal('bridge-vlan-modal');
+		});
+
 		const tables = {
 			'interfaces-table': { edit: id => this.editInterface(id), delete: id => this.deleteInterface(id) },
+			'devices-table': { edit: id => this.editDevice(id), delete: id => this.deleteDevice(id) },
+			'bridge-vlans-table': { edit: id => this.editBridgeVlan(id), delete: id => this.deleteBridgeVlan(id) },
 			'wireless-table': { edit: id => this.editWireless(id), delete: id => this.deleteWireless(id) },
 			'firewall-table': { edit: id => this.editForward(id), delete: id => this.deleteForward(id) },
 			'fw-rules-table': { edit: id => this.editFirewallRule(id), delete: id => this.deleteFirewallRule(id) },
@@ -225,6 +240,200 @@ export default class NetworkModule {
 
 	async deleteInterface(id) {
 		await this.core.uciDeleteEntry('network', id, `Delete interface "${id}"?`, () => this.loadInterfaces());
+	}
+
+	parsePortSpec(spec) {
+		const [port, flags = ''] = spec.split(':');
+		return { port, tagged: flags.includes('t'), pvid: flags.includes('*') };
+	}
+
+	buildPortSpec(port, state, pvid) {
+		if (state === 'off') return null;
+		const flag = state === 'tagged' ? 't' : 'u';
+		return pvid ? `${port}:${flag}*` : state === 'tagged' ? `${port}:t` : port;
+	}
+
+	bridgeDevices() {
+		if (!this._netCfg) return [];
+		return this.core
+			.filterUciSections(this._netCfg, 'device')
+			.filter(d => d.type === 'bridge');
+	}
+
+	async loadDevices() {
+		await this.core.loadResource('devices-table', 5, 'network', async () => {
+			const [status, result] = await this.core.uciGet('network');
+			if (status !== 0 || !result?.values) throw new Error('No data');
+			this._netCfg = result.values;
+
+			const devices = this.core.filterUciSections(this._netCfg, 'device');
+			this.core.renderTable('#devices-table', devices, 5, 'No devices configured', d => {
+				const ports = Array.isArray(d.ports) ? d.ports.join(', ') : d.ports || '---';
+				return `<tr>
+					<td>${this.core.escapeHtml(d.name || d.section)}</td>
+					<td>${this.core.escapeHtml((d.type || 'device').toUpperCase())}</td>
+					<td>${this.core.escapeHtml(ports)}</td>
+					<td>${this.core.escapeHtml(d.mtu || 'auto')}</td>
+					<td>${this.core.renderActionButtons(d.section)}</td>
+				</tr>`;
+			});
+
+			const vlans = this.core.filterUciSections(this._netCfg, 'bridge-vlan');
+			this.core.renderTable('#bridge-vlans-table', vlans, 4, 'No bridge VLANs configured', v => {
+				const ports = Array.isArray(v.ports) ? v.ports : v.ports ? [v.ports] : [];
+				const summary =
+					ports
+						.map(spec => {
+							const p = this.parsePortSpec(spec);
+							return `${p.port}${p.tagged ? ' (T)' : ''}${p.pvid ? '*' : ''}`;
+						})
+						.join(', ') || '---';
+				return `<tr>
+					<td>${this.core.escapeHtml(v.device || '---')}</td>
+					<td>${this.core.escapeHtml(v.vlan || '---')}</td>
+					<td>${this.core.escapeHtml(summary)}</td>
+					<td>${this.core.renderActionButtons(v.section)}</td>
+				</tr>`;
+			});
+		});
+	}
+
+	editDevice(id) {
+		const d = this._netCfg?.[id];
+		if (!d) {
+			this.core.showToast('Failed to load device config', 'error');
+			return;
+		}
+		document.getElementById('edit-device-section').value = id;
+		document.getElementById('edit-device-name').value = d.name || '';
+		document.getElementById('edit-device-ports').value = Array.isArray(d.ports)
+			? d.ports.join(' ')
+			: d.ports || '';
+		document.getElementById('edit-device-mtu').value = d.mtu || '';
+		this.core.openModal('device-modal');
+	}
+
+	async saveDevice() {
+		const section = document.getElementById('edit-device-section').value;
+		const name = document.getElementById('edit-device-name').value.trim();
+		const portsRaw = document.getElementById('edit-device-ports').value.trim();
+		const mtu = document.getElementById('edit-device-mtu').value.trim();
+		if (!name) {
+			this.core.showToast('Device name is required', 'error');
+			return;
+		}
+		const values = { name, type: 'bridge' };
+		values.ports = portsRaw ? portsRaw.split(/\s+/) : [];
+		if (mtu) values.mtu = mtu;
+		try {
+			let target = section;
+			if (!target) {
+				const [, res] = await this.core.uciAdd('network', 'device');
+				target = res.section;
+			}
+			await this.core.uciSet('network', target, values);
+			await this.core.uciCommit('network');
+			this.core.closeModal('device-modal');
+			this.core.showToast('Device saved', 'success');
+			this.loadDevices();
+		} catch {
+			this.core.showToast('Failed to save device', 'error');
+		}
+	}
+
+	deleteDevice(id) {
+		this.core.uciDeleteEntry('network', id, 'Delete this device?', () => this.loadDevices());
+	}
+
+	renderVlanPortGrid(deviceName, existing = []) {
+		const grid = document.getElementById('bridge-vlan-ports');
+		if (!grid) return;
+		const device = this.bridgeDevices().find(d => d.name === deviceName);
+		const ports = device ? (Array.isArray(device.ports) ? device.ports : [device.ports]) : [];
+		const existingByPort = {};
+		existing.forEach(spec => {
+			const p = this.parsePortSpec(spec);
+			existingByPort[p.port] = p;
+		});
+		grid.innerHTML = ports
+			.filter(Boolean)
+			.map(port => {
+				const cur = existingByPort[port];
+				const state = !cur ? 'off' : cur.tagged ? 'tagged' : 'untagged';
+				const pvid = cur?.pvid ? 'checked' : '';
+				const opt = (val, label) =>
+					`<option value="${val}"${state === val ? ' selected' : ''}>${label}</option>`;
+				return `<div class="form-group" style="display:flex;align-items:center;gap:12px">
+					<span style="flex:1">${this.core.escapeHtml(port)}</span>
+					<select class="form-input vlan-port-state" data-port="${this.core.escapeHtml(port)}" style="flex:1">
+						${opt('off', 'Excluded')}${opt('untagged', 'Untagged')}${opt('tagged', 'Tagged')}
+					</select>
+					<label style="display:flex;align-items:center;gap:4px">
+						<input type="checkbox" class="vlan-port-pvid" data-port="${this.core.escapeHtml(port)}" ${pvid} /> PVID
+					</label>
+				</div>`;
+			})
+			.join('') || '<p style="color:var(--steel-muted)">Selected device has no ports.</p>';
+	}
+
+	populateVlanDeviceSelect(selected) {
+		const sel = document.getElementById('edit-bridge-vlan-device');
+		if (!sel) return;
+		const devices = this.bridgeDevices();
+		sel.innerHTML = devices
+			.map(d => `<option value="${this.core.escapeHtml(d.name)}"${d.name === selected ? ' selected' : ''}>${this.core.escapeHtml(d.name)}</option>`)
+			.join('');
+		sel.onchange = () => this.renderVlanPortGrid(sel.value);
+	}
+
+	editBridgeVlan(id) {
+		const v = this._netCfg?.[id];
+		if (!v) {
+			this.core.showToast('Failed to load VLAN config', 'error');
+			return;
+		}
+		const ports = Array.isArray(v.ports) ? v.ports : v.ports ? [v.ports] : [];
+		document.getElementById('edit-bridge-vlan-section').value = id;
+		document.getElementById('edit-bridge-vlan-vlan').value = v.vlan || '';
+		this.populateVlanDeviceSelect(v.device);
+		this.renderVlanPortGrid(v.device, ports);
+		this.core.openModal('bridge-vlan-modal');
+	}
+
+	async saveBridgeVlan() {
+		const section = document.getElementById('edit-bridge-vlan-section').value;
+		const device = document.getElementById('edit-bridge-vlan-device').value;
+		const vlan = document.getElementById('edit-bridge-vlan-vlan').value.trim();
+		if (!device || !/^\d+$/.test(vlan)) {
+			this.core.showToast('A device and numeric VLAN ID are required', 'error');
+			return;
+		}
+		const ports = [];
+		document.querySelectorAll('.vlan-port-state').forEach(sel => {
+			const port = sel.dataset.port;
+			const pvid = document.querySelector(`.vlan-port-pvid[data-port="${port}"]`)?.checked;
+			const spec = this.buildPortSpec(port, sel.value, pvid);
+			if (spec) ports.push(spec);
+		});
+		const values = { device, vlan, ports };
+		try {
+			let target = section;
+			if (!target) {
+				const [, res] = await this.core.uciAdd('network', 'bridge-vlan');
+				target = res.section;
+			}
+			await this.core.uciSet('network', target, values);
+			await this.core.uciCommit('network');
+			this.core.closeModal('bridge-vlan-modal');
+			this.core.showToast('Bridge VLAN saved', 'success');
+			this.loadDevices();
+		} catch {
+			this.core.showToast('Failed to save bridge VLAN', 'error');
+		}
+	}
+
+	deleteBridgeVlan(id) {
+		this.core.uciDeleteEntry('network', id, 'Delete this bridge VLAN?', () => this.loadDevices());
 	}
 
 	async loadWireless() {

@@ -189,6 +189,7 @@
 						<h2>NETWORK</h2>
 						<div class="tabs">
 							<button class="tab-btn active" data-tab="interfaces">INTERFACES</button>
+							<button class="tab-btn" data-tab="devices">DEVICES</button>
 							<button class="tab-btn" data-tab="wireless">WIRELESS</button>
 							<button class="tab-btn" data-tab="firewall">FIREWALL</button>
 							<button class="tab-btn" data-tab="dhcp" data-feature="dhcp">DHCP</button>
@@ -220,6 +221,113 @@
 										</tr>
 									</tbody>
 								</table>
+							</div>
+						</div>
+
+						<div class="tab-content" id="tab-devices">
+							<div class="stat-card">
+								<div style="display:flex;justify-content:space-between;align-items:center">
+									<h3>DEVICES</h3>
+									<button class="action-btn" id="add-device-btn">+ ADD BRIDGE</button>
+								</div>
+								<table class="data-table" id="devices-table">
+									<thead>
+										<tr>
+											<th>NAME</th>
+											<th>TYPE</th>
+											<th>PORTS</th>
+											<th>MTU</th>
+											<th>ACTIONS</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td colspan="5" style="text-align: center; color: var(--steel-muted)">
+												Loading...
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+
+							<div class="stat-card">
+								<div style="display:flex;justify-content:space-between;align-items:center">
+									<h3>BRIDGE VLANS</h3>
+									<button class="action-btn" id="add-bridge-vlan-btn">+ ADD VLAN</button>
+								</div>
+								<table class="data-table" id="bridge-vlans-table">
+									<thead>
+										<tr>
+											<th>DEVICE</th>
+											<th>VLAN ID</th>
+											<th>PORTS</th>
+											<th>ACTIONS</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td colspan="4" style="text-align: center; color: var(--steel-muted)">
+												Loading...
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+
+						<div class="modal hidden" id="device-modal">
+							<div class="modal-backdrop"></div>
+							<div class="modal-content">
+								<div class="modal-header">
+									<h3 class="modal-title">CONFIGURE BRIDGE</h3>
+									<button class="modal-close" id="close-device-modal">&times;</button>
+								</div>
+								<div class="modal-body">
+									<input type="hidden" id="edit-device-section" />
+									<div class="form-group">
+										<label class="form-label">NAME</label>
+										<input type="text" id="edit-device-name" class="form-input" placeholder="br-lan" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">PORTS (space-separated)</label>
+										<input type="text" id="edit-device-ports" class="form-input" placeholder="eth0 eth1" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">MTU (optional)</label>
+										<input type="text" id="edit-device-mtu" class="form-input" placeholder="1500" />
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button class="action-btn" id="cancel-device-btn">CANCEL</button>
+									<button class="action-btn" id="save-device-btn">SAVE CHANGES</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="modal hidden" id="bridge-vlan-modal">
+							<div class="modal-backdrop"></div>
+							<div class="modal-content">
+								<div class="modal-header">
+									<h3 class="modal-title">CONFIGURE BRIDGE VLAN</h3>
+									<button class="modal-close" id="close-bridge-vlan-modal">&times;</button>
+								</div>
+								<div class="modal-body">
+									<input type="hidden" id="edit-bridge-vlan-section" />
+									<div class="form-group">
+										<label class="form-label">DEVICE</label>
+										<select id="edit-bridge-vlan-device" class="form-input"></select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">VLAN ID</label>
+										<input type="text" id="edit-bridge-vlan-vlan" class="form-input" placeholder="10" />
+									</div>
+									<label class="form-label">PORT MEMBERSHIP</label>
+									<div id="bridge-vlan-ports"></div>
+								</div>
+								<div class="modal-footer">
+									<button class="action-btn" id="cancel-bridge-vlan-btn">CANCEL</button>
+									<button class="action-btn" id="save-bridge-vlan-btn">SAVE CHANGES</button>
+								</div>
 							</div>
 						</div>
 
