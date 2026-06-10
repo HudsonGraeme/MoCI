@@ -41,7 +41,7 @@
 				"file": ["write", "exec"],
 				"system": ["reboot"],
 				"network.interface": ["up", "down"],
-				"luci": ["setPassword"]
+				"moci": ["setPassword"]
 			},
 			"uci": [
 				"network",

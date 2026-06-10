@@ -9,7 +9,7 @@
 		"uci": { "methods": [ "get", "set", "add", "delete", "commit" ] },
 		"file": { "methods": [ "read", "write", "exec" ] },
 		"luci-rpc": { "methods": [ "getDHCPLeases" ] },
-		"luci": { "methods": [ "setPassword" ] },
+		"moci": { "methods": [ "setPassword" ] },
 		"service": { "methods": [ "list" ] }
 	}
 }

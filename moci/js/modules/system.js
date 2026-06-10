@@ -144,7 +144,7 @@ export default class SystemModule {
 			return;
 		}
 		try {
-			const [status, result] = await this.core.ubusCall('luci', 'setPassword', {
+			const [status, result] = await this.core.ubusCall('moci', 'setPassword', {
 				username: 'root',
 				password: newPw
 			});
