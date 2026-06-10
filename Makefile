@@ -51,7 +51,6 @@ define Package/moci/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/moci.config $(1)/etc/config/moci
 
-	$(INSTALL_DIR) $(1)/www/moci
 	$(INSTALL_BIN) ./files/ubus.cgi $(1)/www/moci/ubus.cgi
 
 	$(INSTALL_DIR) $(1)/etc/lighttpd/conf.d

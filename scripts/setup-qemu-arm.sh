@@ -19,7 +19,7 @@ mkdir -p "${IMAGE_DIR}"
 
 if [ ! -f "${IMAGE_FILE}" ]; then
     echo "Downloading OpenWrt ${OPENWRT_VERSION} ARM combined image..."
-    curl -L "${BASE_URL}/openwrt-${OPENWRT_VERSION}-armsr-armv7-generic-ext4-combined-efi.img.gz" -o "${IMAGE_DIR}/combined.img.gz"
+    curl -fL "${BASE_URL}/openwrt-${OPENWRT_VERSION}-armsr-armv7-generic-ext4-combined-efi.img.gz" -o "${IMAGE_DIR}/combined.img.gz"
 
     echo "Extracting image..."
     gunzip "${IMAGE_DIR}/combined.img.gz"

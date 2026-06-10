@@ -54,7 +54,8 @@ process() {
       if [ -z "$UBUS_PAYLOAD" ] || [ "$UBUS_PAYLOAD" = "{ }" ]; then
         UBUS_PAYLOAD=$(printf '{ "ubus_rpc_session": "%s" }' "$UBUS_SID")
       else
-        UBUS_PAYLOAD=$(printf '{ "ubus_rpc_session": "%s", %s' "$UBUS_SID" "${UBUS_PAYLOAD#\{ }")
+        payload_inner=$(printf '%s' "$UBUS_PAYLOAD" | sed 's/^{[[:space:]]*//')
+        UBUS_PAYLOAD=$(printf '{ "ubus_rpc_session": "%s", %s' "$UBUS_SID" "$payload_inner")
       fi
 
       if [ -n "$RPC_SESSION_ARG" ]; then
@@ -95,6 +96,11 @@ process() {
 
         for i in $indexes; do
           service=$(jsonfilter -s "$RPC_PARAMS" -e "@[$i]")
+
+          case "$service" in
+            *[^a-zA-Z0-9_.-]*) error -32602 "Invalid parameters" ;;
+          esac
+
           signature=''
 
           IFS=$'\n\t'
