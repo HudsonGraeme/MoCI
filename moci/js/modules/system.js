@@ -143,29 +143,17 @@ export default class SystemModule {
 			this.core.showToast('Passwords do not match', 'error');
 			return;
 		}
-		const forbidden = /[`$"'\\;&|<>(){}[\]\n\r]/;
-		if (forbidden.test(newPw)) {
-			this.core.showToast('Password contains invalid characters', 'error');
-			return;
-		}
 		try {
-			await this.core.ubusCall('file', 'write', {
-				path: '/tmp/.passwd_input',
-				data: `${newPw}\n${newPw}\n`
+			const [status, result] = await this.core.ubusCall('luci', 'setPassword', {
+				username: 'root',
+				password: newPw
 			});
-			await this.core.ubusCall('file', 'exec', {
-				command: '/bin/sh',
-				params: ['-c', 'cat /tmp/.passwd_input | passwd root']
-			});
+			if (status !== 0 || !result?.result) throw new Error('setPassword failed');
 			document.getElementById('new-password').value = '';
 			document.getElementById('confirm-password').value = '';
 			this.core.showToast('Password changed', 'success');
 		} catch {
 			this.core.showToast('Failed to change password', 'error');
-		} finally {
-			try {
-				await this.core.ubusCall('file', 'exec', { command: '/bin/rm', params: ['-f', '/tmp/.passwd_input'] });
-			} catch {}
 		}
 	}
 

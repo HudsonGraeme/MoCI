@@ -15,7 +15,7 @@ define Package/moci
   CATEGORY:=Administration
   TITLE:=MoCI - Modern Configuration Interface for OpenWrt
   PKGARCH:=all
-  DEPENDS:=+rpcd +jsonfilter
+  DEPENDS:=+rpcd +rpcd-mod-luci +jsonfilter
 endef
 
 define Package/moci/description
