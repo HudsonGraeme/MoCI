@@ -825,6 +825,143 @@ export class OpenWrtCore {
 		tbody.innerHTML = items.map(rowFn).join('');
 	}
 
+	createCombobox(container, { placeholder = '', onChange } = {}) {
+		const el = typeof container === 'string' ? document.getElementById(container) : container;
+		if (!el) return null;
+		el.classList.add('combobox');
+		el.innerHTML = `
+			<div class="combobox-control">
+				<input type="text" class="combobox-input" placeholder="${this.escapeHtml(placeholder)}" autocomplete="off" />
+			</div>
+			<ul class="combobox-menu hidden"></ul>`;
+		const control = el.querySelector('.combobox-control');
+		const input = el.querySelector('.combobox-input');
+		const menu = el.querySelector('.combobox-menu');
+
+		let options = [];
+		let selected = [];
+		let active = 0;
+		let open = false;
+
+		const filtered = () => {
+			const q = input.value.trim().toLowerCase();
+			return options.filter(o => !selected.includes(o) && o.toLowerCase().includes(q));
+		};
+
+		const renderChips = () => {
+			control.querySelectorAll('.combobox-chip').forEach(c => c.remove());
+			selected.forEach(val => {
+				const chip = document.createElement('span');
+				chip.className = 'combobox-chip';
+				chip.innerHTML = `${this.escapeHtml(val)} <button type="button" tabindex="-1">&times;</button>`;
+				chip.querySelector('button').addEventListener('click', e => {
+					e.stopPropagation();
+					remove(val);
+				});
+				control.insertBefore(chip, input);
+			});
+			input.placeholder = selected.length ? '' : placeholder;
+		};
+
+		const renderMenu = () => {
+			const opts = filtered();
+			if (active >= opts.length) active = opts.length - 1;
+			if (active < 0) active = 0;
+			menu.innerHTML = opts.length
+				? opts
+						.map(
+							(o, i) =>
+								`<li class="combobox-option${i === active ? ' is-active' : ''}" data-value="${this.escapeHtml(o)}">${this.escapeHtml(o)}</li>`
+						)
+						.join('')
+				: '<li class="combobox-empty">No matches</li>';
+		};
+
+		const openMenu = () => {
+			open = true;
+			control.classList.add('is-open');
+			menu.classList.remove('hidden');
+			renderMenu();
+		};
+		const closeMenu = () => {
+			open = false;
+			control.classList.remove('is-open');
+			menu.classList.add('hidden');
+		};
+
+		const add = val => {
+			if (!options.includes(val) || selected.includes(val)) return;
+			selected.push(val);
+			input.value = '';
+			active = 0;
+			renderChips();
+			renderMenu();
+			input.focus();
+			if (onChange) onChange([...selected]);
+		};
+		const remove = val => {
+			selected = selected.filter(s => s !== val);
+			renderChips();
+			renderMenu();
+			if (onChange) onChange([...selected]);
+		};
+
+		control.addEventListener('mousedown', e => {
+			if (e.target === input) return;
+			e.preventDefault();
+			input.focus();
+			openMenu();
+		});
+		input.addEventListener('focus', openMenu);
+		input.addEventListener('input', () => {
+			active = 0;
+			if (!open) openMenu();
+			else renderMenu();
+		});
+		input.addEventListener('keydown', e => {
+			const opts = filtered();
+			if (e.key === 'ArrowDown') {
+				e.preventDefault();
+				active = Math.min(active + 1, opts.length - 1);
+				renderMenu();
+			} else if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				active = Math.max(active - 1, 0);
+				renderMenu();
+			} else if (e.key === 'Enter') {
+				e.preventDefault();
+				if (opts[active]) add(opts[active]);
+			} else if (e.key === 'Escape') {
+				closeMenu();
+			} else if (e.key === 'Backspace' && !input.value && selected.length) {
+				remove(selected[selected.length - 1]);
+			}
+		});
+		menu.addEventListener('mousedown', e => {
+			const li = e.target.closest('.combobox-option');
+			if (!li) return;
+			e.preventDefault();
+			add(li.dataset.value);
+		});
+		document.addEventListener('mousedown', e => {
+			if (open && !el.contains(e.target)) closeMenu();
+		});
+
+		return {
+			setOptions(arr) {
+				options = Array.isArray(arr) ? [...arr] : [];
+				if (open) renderMenu();
+			},
+			setSelected(arr) {
+				selected = Array.isArray(arr) ? [...arr] : [];
+				input.value = '';
+				renderChips();
+				if (open) renderMenu();
+			},
+			getSelected: () => [...selected]
+		};
+	}
+
 	filterUciSections(config, type) {
 		return Object.entries(config)
 			.filter(([, v]) => v['.type'] === type)
