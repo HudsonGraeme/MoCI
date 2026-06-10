@@ -9,10 +9,24 @@ clean_token() {
 
 case "$1" in
 	list)
-		printf '{ "setPassword": { "username": "str", "password": "str" }, "getDHCPLeases": { } }\n'
+		printf '{ "setPassword": { "username": "str", "password": "str" }, "getDHCPLeases": { }, "getPorts": { } }\n'
 		;;
 	call)
 		case "$2" in
+			getPorts)
+				ports=''
+				for d in /sys/class/net/*; do
+					n=${d##*/}
+					[ "$n" = "lo" ] && continue
+					[ -d "$d/bridge" ] && continue
+					[ -e "$d/phy80211" ] && continue
+					[ -e "$d/device" ] || continue
+					n=$(clean_token "$n")
+					[ -n "$n" ] || continue
+					ports="${ports:+$ports, }\"$n\""
+				done
+				printf '{ "ports": [ %s ] }\n' "$ports"
+				;;
 			getDHCPLeases)
 				now=$(date +%s)
 				leases=''

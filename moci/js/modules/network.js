@@ -107,7 +107,6 @@ export default class NetworkModule {
 		});
 
 		const addButtons = [
-			['add-device-btn', 'device-modal'],
 			['add-forward-btn', 'forward-modal'],
 			['add-fw-rule-btn', 'fw-rule-modal'],
 			['add-static-lease-btn', 'static-lease-modal'],
@@ -132,6 +131,34 @@ export default class NetworkModule {
 			this.populateVlanDeviceSelect(first);
 			this.renderVlanPortGrid(first);
 			this.core.openModal('bridge-vlan-modal');
+		});
+
+		document.getElementById('add-device-btn')?.addEventListener('click', async () => {
+			this.core.resetModal('device-modal');
+			document.getElementById('edit-device-section').value = '';
+			document.getElementById('edit-device-name').value = '';
+			document.getElementById('edit-device-mtu').value = '';
+			this._devicePorts = [];
+			await this.loadAvailablePorts();
+			this.renderDevicePorts();
+			this.core.openModal('device-modal');
+		});
+
+		const portAdd = document.getElementById('device-ports-add');
+		portAdd?.addEventListener('change', () => {
+			const v = portAdd.value;
+			if (v && !this._devicePorts.includes(v)) {
+				this._devicePorts.push(v);
+				this.renderDevicePorts();
+			}
+			portAdd.value = '';
+		});
+
+		document.getElementById('device-ports-chips')?.addEventListener('click', e => {
+			const btn = e.target.closest('[data-remove-port]');
+			if (!btn) return;
+			this._devicePorts = this._devicePorts.filter(p => p !== btn.dataset.removePort);
+			this.renderDevicePorts();
 		});
 
 		const tables = {
@@ -298,7 +325,35 @@ export default class NetworkModule {
 		});
 	}
 
-	editDevice(id) {
+	async loadAvailablePorts() {
+		this._availablePorts = [];
+		try {
+			const [s, r] = await this.core.ubusCall('moci', 'getPorts', {});
+			if (s === 0 && Array.isArray(r?.ports)) this._availablePorts = r.ports;
+		} catch {}
+	}
+
+	renderDevicePorts() {
+		const chips = document.getElementById('device-ports-chips');
+		const sel = document.getElementById('device-ports-add');
+		if (!chips || !sel) return;
+		chips.innerHTML = this._devicePorts.length
+			? this._devicePorts
+					.map(
+						p => `<span style="display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border:1px solid var(--steel-border);border-radius:12px">
+						${this.core.escapeHtml(p)}
+						<button type="button" data-remove-port="${this.core.escapeHtml(p)}" style="background:none;border:none;color:var(--steel-muted);cursor:pointer;padding:0;font-size:14px">&times;</button>
+					</span>`
+					)
+					.join('')
+			: '<span style="color:var(--steel-muted)">No ports selected</span>';
+		const avail = this._availablePorts.filter(p => !this._devicePorts.includes(p));
+		sel.innerHTML =
+			'<option value="">+ Add port…</option>' +
+			avail.map(p => `<option value="${this.core.escapeHtml(p)}">${this.core.escapeHtml(p)}</option>`).join('');
+	}
+
+	async editDevice(id) {
 		const d = this._netCfg?.[id];
 		if (!d) {
 			this.core.showToast('Failed to load device config', 'error');
@@ -306,24 +361,22 @@ export default class NetworkModule {
 		}
 		document.getElementById('edit-device-section').value = id;
 		document.getElementById('edit-device-name').value = d.name || '';
-		document.getElementById('edit-device-ports').value = Array.isArray(d.ports)
-			? d.ports.join(' ')
-			: d.ports || '';
 		document.getElementById('edit-device-mtu').value = d.mtu || '';
+		this._devicePorts = Array.isArray(d.ports) ? [...d.ports] : d.ports ? [d.ports] : [];
+		await this.loadAvailablePorts();
+		this.renderDevicePorts();
 		this.core.openModal('device-modal');
 	}
 
 	async saveDevice() {
 		const section = document.getElementById('edit-device-section').value;
 		const name = document.getElementById('edit-device-name').value.trim();
-		const portsRaw = document.getElementById('edit-device-ports').value.trim();
 		const mtu = document.getElementById('edit-device-mtu').value.trim();
 		if (!name) {
 			this.core.showToast('Device name is required', 'error');
 			return;
 		}
-		const values = { name, type: 'bridge' };
-		values.ports = portsRaw ? portsRaw.split(/\s+/) : [];
+		const values = { name, type: 'bridge', ports: [...this._devicePorts] };
 		if (mtu) values.mtu = mtu;
 		try {
 			let target = section;

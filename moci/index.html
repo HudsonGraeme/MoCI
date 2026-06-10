@@ -289,8 +289,9 @@
 										<input type="text" id="edit-device-name" class="form-input" placeholder="br-lan" />
 									</div>
 									<div class="form-group">
-										<label class="form-label">PORTS (space-separated)</label>
-										<input type="text" id="edit-device-ports" class="form-input" placeholder="eth0 eth1" />
+										<label class="form-label">PORTS</label>
+										<div id="device-ports-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+										<select id="device-ports-add" class="form-input"></select>
 									</div>
 									<div class="form-group">
 										<label class="form-label">MTU (optional)</label>
