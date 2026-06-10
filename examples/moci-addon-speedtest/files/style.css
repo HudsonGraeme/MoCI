@@ -1,0 +1,256 @@
+.speedtest-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.speedtest-gauge-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.speedtest-gauge {
+  position: relative;
+  width: 280px;
+  height: 160px;
+}
+
+.speedtest-gauge svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.speedtest-gauge-track {
+  fill: none;
+  stroke: var(--glass-border, rgba(255,255,255,0.08));
+  stroke-width: 14;
+  stroke-linecap: round;
+}
+
+.speedtest-gauge-fill {
+  fill: none;
+  stroke-width: 14;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.3s ease, stroke 0.3s ease;
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+.speedtest-gauge-value {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.speedtest-gauge-number {
+  font-family: var(--font-mono, monospace);
+  font-size: 2.8rem;
+  font-weight: 700;
+  color: var(--text-primary, #fff);
+  line-height: 1;
+}
+
+.speedtest-gauge-unit {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85rem;
+  color: var(--steel-muted, #6b7b8d);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.speedtest-phase {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9rem;
+  color: var(--steel-muted, #6b7b8d);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  min-height: 1.2em;
+}
+
+.speedtest-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 2.5rem;
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.1));
+  border-radius: 8px;
+  background: var(--glass-bg, rgba(255,255,255,0.04));
+  color: var(--text-primary, #fff);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+}
+
+.speedtest-btn:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.2);
+}
+
+.speedtest-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.speedtest-btn:disabled:hover {
+  background: var(--glass-bg, rgba(255,255,255,0.04));
+  border-color: var(--glass-border, rgba(255,255,255,0.1));
+}
+
+.speedtest-results {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.speedtest-result-card {
+  background: var(--glass-bg, rgba(255,255,255,0.04));
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.08));
+  border-radius: 12px;
+  padding: 1.25rem;
+  text-align: center;
+  backdrop-filter: blur(12px);
+}
+
+.speedtest-result-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.7rem;
+  color: var(--steel-muted, #6b7b8d);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: 0.5rem;
+}
+
+.speedtest-result-value {
+  font-family: var(--font-mono, monospace);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-primary, #fff);
+  line-height: 1;
+}
+
+.speedtest-result-unit {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.7rem;
+  color: var(--steel-muted, #6b7b8d);
+  margin-top: 0.25rem;
+}
+
+.speedtest-history {
+  margin-top: 2rem;
+}
+
+.speedtest-history-title {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+  color: var(--steel-muted, #6b7b8d);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: 1rem;
+}
+
+.speedtest-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.speedtest-history-item {
+  display: grid;
+  grid-template-columns: 1fr repeat(3, auto);
+  gap: 1.5rem;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--glass-bg, rgba(255,255,255,0.02));
+  border: 1px solid var(--glass-border, rgba(255,255,255,0.05));
+  border-radius: 8px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+  color: var(--steel-muted, #6b7b8d);
+}
+
+.speedtest-history-item span:not(:first-child) {
+  color: var(--text-primary, #fff);
+  font-weight: 600;
+}
+
+.speedtest-widget {
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.speedtest-widget:hover {
+  border-color: rgba(255,255,255,0.15);
+}
+
+.speedtest-widget-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.speedtest-widget-metric {
+  text-align: center;
+  flex: 1;
+}
+
+.speedtest-widget-value {
+  font-family: var(--font-mono, monospace);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary, #fff);
+}
+
+.speedtest-widget-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  color: var(--steel-muted, #6b7b8d);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.speedtest-widget-time {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  color: var(--steel-muted, #6b7b8d);
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+.speedtest-widget-empty {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+  color: var(--steel-muted, #6b7b8d);
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+@media (max-width: 600px) {
+  .speedtest-results {
+    grid-template-columns: 1fr;
+  }
+
+  .speedtest-gauge {
+    width: 220px;
+    height: 130px;
+  }
+
+  .speedtest-gauge-number {
+    font-size: 2.2rem;
+  }
+
+  .speedtest-history-item {
+    grid-template-columns: 1fr repeat(3, auto);
+    gap: 0.75rem;
+    font-size: 0.7rem;
+  }
+}

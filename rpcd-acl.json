@@ -12,7 +12,11 @@
 				"/etc/dropbear/authorized_keys": ["read"],
 				"/etc/hosts": ["read"],
 				"/tmp/firmware.bin": ["read"],
-				"/tmp/backup.tar.gz": ["read"]
+				"/tmp/backup.tar.gz": ["read"],
+				"/usr/libexec/moci-pkg-call list-present": ["exec"],
+				"/usr/libexec/moci-pkg-call list-installed": ["exec"],
+				"/usr/libexec/moci-pkg-call list-available": ["exec"],
+				"/usr/libexec/moci-pkg-call inspect *": ["exec"]
 			},
 			"ubus": {
 				"network.interface": ["dump"],
@@ -26,6 +30,12 @@
 			"uci": ["moci"]
 		},
 		"write": {
+			"file": {
+				"/usr/libexec/moci-pkg-call install *": ["exec"],
+				"/usr/libexec/moci-pkg-call remove *": ["exec"],
+				"/usr/libexec/moci-pkg-call update": ["exec"],
+				"/etc/opkg/moci-addons.conf": ["write"]
+			},
 			"ubus": {
 				"uci": ["set", "add", "delete", "commit"],
 				"file": ["write", "exec"],
@@ -39,7 +49,8 @@
 				"dhcp",
 				"system",
 				"qos",
-				"ddns"
+				"ddns",
+				"moci"
 			]
 		}
 	}

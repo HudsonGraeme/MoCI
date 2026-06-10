@@ -52,9 +52,37 @@ export default class DashboardModule {
 			await this.updateSystemLog();
 			await this.updateConnections();
 			this.initBandwidthGraph();
+			this.renderAddonWidgets();
 		} catch (err) {
 			console.error('Failed to load dashboard:', err);
 			this.core.showToast('Failed to load system information', 'error');
+		}
+	}
+
+	renderAddonWidgets() {
+		const extensions = this.core.getExtensions('dashboard:widget');
+		if (!extensions.length) return;
+		const page = document.getElementById('dashboard-page');
+		if (!page) return;
+		let container = document.getElementById('addon-widgets');
+		if (!container) {
+			container = document.createElement('div');
+			container.id = 'addon-widgets';
+			page.appendChild(container);
+		}
+		container.innerHTML = '';
+		for (const ext of extensions) {
+			const wrapper = document.createElement('div');
+			wrapper.id = ext.id;
+			wrapper.style.marginTop = '24px';
+			container.appendChild(wrapper);
+			if (typeof ext.render === 'function') {
+				try {
+					ext.render(wrapper);
+				} catch (err) {
+					console.warn('Addon widget render failed:', ext.id, err);
+				}
+			}
 		}
 	}
 

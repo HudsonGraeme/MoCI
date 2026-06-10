@@ -1,0 +1,10 @@
+{
+	"moci-addon-pinglog": {
+		"description": "MoCI add-on Ping Log: read latency history",
+		"read": {
+			"file": {
+				"/tmp/moci-pinglog.log": ["read"]
+			}
+		}
+	}
+}

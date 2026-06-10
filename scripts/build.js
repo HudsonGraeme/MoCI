@@ -12,7 +12,8 @@ async function buildJS() {
 		'moci/js/core.js',
 		'moci/js/modules/dashboard.js',
 		'moci/js/modules/network.js',
-		'moci/js/modules/system.js'
+		'moci/js/modules/system.js',
+		'moci/js/modules/addons.js'
 	];
 
 	await mkdir(join(distDir, 'js/modules'), { recursive: true });

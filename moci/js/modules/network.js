@@ -56,7 +56,7 @@ export default class NetworkModule {
 			if (pageElement) pageElement.classList.remove('hidden');
 
 			if (!this.subTabs) {
-				this.subTabs = this.core.setupSubTabs('network-page', {
+				const loadHandlers = {
 					interfaces: () => this.loadInterfaces(),
 					wireless: () => this.loadWireless(),
 					firewall: () => this.loadFirewall(),
@@ -66,7 +66,9 @@ export default class NetworkModule {
 					qos: () => this.loadQoS(),
 					vpn: () => this.loadVPN(),
 					diagnostics: () => this.loadDiagnostics()
-				});
+				};
+				this.injectTabExtensions(loadHandlers);
+				this.subTabs = this.core.setupSubTabs('network-page', loadHandlers);
 				this.subTabs.attachListeners();
 				this.setupModals();
 				this.setupDiagnostics();
@@ -953,6 +955,42 @@ export default class NetworkModule {
 			this.core.showToast('WoL packet sent', 'success');
 		} catch {
 			output.innerHTML = '<div class="log-line error">Failed to send WoL packet</div>';
+		}
+	}
+
+	injectTabExtensions(loadHandlers) {
+		const extensions = this.core.getExtensions('network:tab');
+		if (!extensions.length) return;
+		const tabBar = document.querySelector('#network-page .tabs');
+		const page = document.getElementById('network-page');
+		if (!tabBar || !page) return;
+
+		const safeId = /^[a-z0-9-]+$/;
+		for (const ext of extensions) {
+			if (!safeId.test(ext.id)) continue;
+			const btn = document.createElement('button');
+			btn.className = 'tab-btn';
+			btn.setAttribute('data-tab', ext.id);
+			btn.textContent = ext.label;
+			if (ext.after && safeId.test(ext.after)) {
+				const afterBtn = tabBar.querySelector(`[data-tab="${ext.after}"]`);
+				if (afterBtn?.nextSibling) {
+					tabBar.insertBefore(btn, afterBtn.nextSibling);
+				} else {
+					tabBar.appendChild(btn);
+				}
+			} else {
+				tabBar.appendChild(btn);
+			}
+
+			const contentDiv = document.createElement('div');
+			contentDiv.className = 'tab-content hidden';
+			contentDiv.id = `tab-${ext.id}`;
+			page.appendChild(contentDiv);
+
+			loadHandlers[ext.id] = () => {
+				if (typeof ext.render === 'function') ext.render(contentDiv);
+			};
 		}
 	}
 }
