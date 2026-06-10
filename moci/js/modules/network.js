@@ -405,7 +405,7 @@ export default class NetworkModule {
 		await this.core.loadResource('dhcp-leases-table', 4, 'dhcp', async () => {
 			let leases = [];
 			try {
-				const [s, r] = await this.core.ubusCall('luci-rpc', 'getDHCPLeases', {});
+				const [s, r] = await this.core.ubusCall('moci', 'getDHCPLeases', {});
 				if (s === 0 && r?.dhcp_leases) leases = r.dhcp_leases;
 			} catch {}
 
@@ -875,7 +875,7 @@ export default class NetworkModule {
 		await this.core.loadResource('dhcp-clients-table', 4, null, async () => {
 			let leases = [];
 			try {
-				const [s, r] = await this.core.ubusCall('luci-rpc', 'getDHCPLeases', {});
+				const [s, r] = await this.core.ubusCall('moci', 'getDHCPLeases', {});
 				if (s === 0 && r?.dhcp_leases) leases = r.dhcp_leases;
 			} catch {}
 
