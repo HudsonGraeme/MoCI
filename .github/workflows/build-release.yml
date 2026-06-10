@@ -1,8 +1,8 @@
 name: Build Release Packages
 
 on:
-  release:
-    types: [published]
+  push:
+    tags: ['[0-9]*']
   pull_request:
     types: [labeled, synchronize]
 
@@ -12,7 +12,7 @@ permissions:
 jobs:
   prepare:
     name: Build assets
-    if: github.event_name == 'release' || github.event.label.name == 'run-build' || (github.event_name == 'pull_request' && github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'run-build'))
+    if: startsWith(github.ref, 'refs/tags/') || github.event.label.name == 'run-build' || (github.event_name == 'pull_request' && github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'run-build'))
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -39,7 +39,7 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
+          if [ "${{ github.event_name }}" = "push" ]; then
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           else
             echo "version=0.0.0.${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
@@ -57,7 +57,7 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -149,14 +149,7 @@ jobs:
           mv "$IPK_FILE" "/tmp/$NEW_NAME"
           echo "package_name=$NEW_NAME" >> $GITHUB_OUTPUT
 
-      - name: Upload to release
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
-        with:
-          files: /tmp/${{ steps.find_ipk.outputs.package_name }}
-
       - name: Upload artifact
-        if: github.event_name != 'release'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: moci-ipk-${{ matrix.arch }}
@@ -167,7 +160,7 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -259,15 +252,43 @@ jobs:
           mv "$APK_FILE" "/tmp/$NEW_NAME"
           echo "package_name=$NEW_NAME" >> $GITHUB_OUTPUT
 
-      - name: Upload to release
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
-        with:
-          files: /tmp/${{ steps.find_apk.outputs.package_name }}
-
       - name: Upload artifact
-        if: github.event_name != 'release'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: moci-apk-${{ matrix.arch }}
           path: /tmp/${{ steps.find_apk.outputs.package_name }}
+
+  publish:
+    name: Publish release
+    needs: [build-ipk, build-apk]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: moci-*
+          merge-multiple: true
+          path: packages/
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: packages/*
+
+      - name: Create draft release with assets
+        id: release
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
+        with:
+          draft: true
+          generate_release_notes: true
+          files: packages/*
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X PATCH "repos/${{ github.repository }}/releases/${{ steps.release.outputs.id }}" -F draft=false
