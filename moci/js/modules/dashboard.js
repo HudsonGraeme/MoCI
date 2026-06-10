@@ -287,7 +287,7 @@ export default class DashboardModule {
 
 			let leases = [];
 			try {
-				const [s, r] = await this.core.ubusCall('luci-rpc', 'getDHCPLeases', {});
+				const [s, r] = await this.core.ubusCall('moci', 'getDHCPLeases', {});
 				if (s === 0 && r?.dhcp_leases) leases = r.dhcp_leases;
 			} catch {}
 

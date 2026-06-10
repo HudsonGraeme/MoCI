@@ -24,7 +24,7 @@
 				"uci": ["get"],
 				"file": ["read"],
 				"system": ["info", "board"],
-				"luci-rpc": ["getDHCPLeases"],
+				"moci": ["getDHCPLeases"],
 				"service": ["list"]
 			},
 			"uci": ["moci"]

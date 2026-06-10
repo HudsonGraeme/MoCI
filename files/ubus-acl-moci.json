@@ -8,8 +8,7 @@
 		"network.wireless": { "methods": [ "status" ] },
 		"uci": { "methods": [ "get", "set", "add", "delete", "commit" ] },
 		"file": { "methods": [ "read", "write", "exec" ] },
-		"luci-rpc": { "methods": [ "getDHCPLeases" ] },
-		"moci": { "methods": [ "setPassword" ] },
+		"moci": { "methods": [ "setPassword", "getDHCPLeases" ] },
 		"service": { "methods": [ "list" ] }
 	}
 }

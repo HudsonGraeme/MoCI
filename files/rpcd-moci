@@ -1,11 +1,40 @@
 #!/bin/sh
 
+clean_token() {
+	case "$1" in
+		*[!A-Za-z0-9.:_-]*) printf '' ;;
+		*) printf '%s' "$1" ;;
+	esac
+}
+
 case "$1" in
 	list)
-		printf '{ "setPassword": { "username": "str", "password": "str" } }\n'
+		printf '{ "setPassword": { "username": "str", "password": "str" }, "getDHCPLeases": { } }\n'
 		;;
 	call)
 		case "$2" in
+			getDHCPLeases)
+				now=$(date +%s)
+				leases=''
+				if [ -f /tmp/dhcp.leases ]; then
+					while read -r expiry mac ip host _; do
+						mac=$(clean_token "$mac")
+						ip=$(clean_token "$ip")
+						host=$(clean_token "$host")
+						[ -n "$ip" ] || continue
+						case "$ip" in *:*) continue ;; esac
+						[ "$host" = "*" ] && host=''
+						if [ "$expiry" -gt 0 ] 2>/dev/null; then
+							rem=$((expiry - now))
+							[ "$rem" -lt 0 ] && rem=0
+						else
+							rem=0
+						fi
+						leases="${leases:+$leases, }{ \"expires\": $rem, \"macaddr\": \"$mac\", \"ipaddr\": \"$ip\", \"hostname\": \"$host\" }"
+					done < /tmp/dhcp.leases
+				fi
+				printf '{ "dhcp_leases": [ %s ], "dhcp6_leases": [ ] }\n' "$leases"
+				;;
 			setPassword)
 				input=$(cat)
 				username=$(printf '%s' "$input" | jsonfilter -e '@.username')
