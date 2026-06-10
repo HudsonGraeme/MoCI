@@ -18,6 +18,7 @@ case "$action" in
 		for d in /www/moci/js/addons/*/; do
 			[ -f "${d}manifest.json" ] && basename "$d"
 		done
+		:
 		;;
 	list-installed)
 		if [ "$pm" = "apk" ]; then
