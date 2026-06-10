@@ -36,7 +36,12 @@ cat files/lighttpd-moci.conf | ${SSH} "cat > /etc/lighttpd/conf.d/50-moci.conf"
 echo "Deploying rpcd ACL..."
 cat rpcd-acl.json | ${SSH} "cat > /usr/share/rpcd/acl.d/moci.json"
 
+echo "Deploying ubusd ACL for the http user..."
+${SSH} "mkdir -p /usr/share/acl.d"
+cat files/ubus-acl-moci.json | ${SSH} "cat > /usr/share/acl.d/moci.json"
+
 echo "Restarting services..."
+${SSH} "kill -HUP \$(pidof ubusd)"
 ${SSH} "/etc/init.d/rpcd restart"
 ${SSH} "/etc/init.d/lighttpd enable"
 ${SSH} "/etc/init.d/lighttpd restart"

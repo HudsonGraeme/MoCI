@@ -48,6 +48,9 @@ define Package/moci/install
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
 	$(INSTALL_DATA) ./rpcd-acl.json $(1)/usr/share/rpcd/acl.d/moci.json
 
+	$(INSTALL_DIR) $(1)/usr/share/acl.d
+	$(INSTALL_DATA) ./files/ubus-acl-moci.json $(1)/usr/share/acl.d/moci.json
+
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/moci.config $(1)/etc/config/moci
 
@@ -60,6 +63,7 @@ endef
 define Package/moci/postinst
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || {
+	kill -HUP $$(pidof ubusd) 2>/dev/null
 	/etc/init.d/rpcd restart
 	if [ -f /etc/init.d/lighttpd ]; then
 		/etc/init.d/lighttpd restart
