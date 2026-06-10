@@ -13,6 +13,17 @@ valid_name() {
 	echo "$1" | grep -qE '^moci-addon-[a-z0-9][a-z0-9-]*$'
 }
 
+FEED_CONF_OPKG=/etc/opkg/moci-addons.conf
+FEED_CONF_APK=/etc/apk/repositories.d/moci-addons.list
+
+valid_feed_name() {
+	echo "$1" | grep -qE '^[a-z0-9][a-z0-9_-]*$'
+}
+
+valid_feed_url() {
+	echo "$1" | grep -qE '^https://[A-Za-z0-9._~:/?#@!$&()*+,;=%-]+$'
+}
+
 case "$action" in
 	list-present)
 		for d in /www/moci/js/addons/*/; do
@@ -39,6 +50,44 @@ case "$action" in
 			apk update
 		else
 			opkg update
+		fi
+		;;
+	feeds)
+		if [ "$pm" = "apk" ]; then
+			[ -f "$FEED_CONF_APK" ] && cat "$FEED_CONF_APK"
+		else
+			[ -f "$FEED_CONF_OPKG" ] && cat "$FEED_CONF_OPKG"
+		fi
+		:
+		;;
+	feed-add)
+		name=$1
+		url=$2
+		valid_feed_name "$name" || { echo "invalid feed name" >&2; exit 1; }
+		valid_feed_url "$url" || { echo "invalid feed url (https only)" >&2; exit 1; }
+		if [ "$pm" = "apk" ]; then
+			mkdir -p "$(dirname "$FEED_CONF_APK")"
+			grep -qxF "$url" "$FEED_CONF_APK" 2>/dev/null && { echo "feed already configured" >&2; exit 1; }
+			echo "$url" >> "$FEED_CONF_APK"
+		else
+			grep -qE "^src/gz $name " "$FEED_CONF_OPKG" 2>/dev/null && { echo "feed name already in use" >&2; exit 1; }
+			echo "src/gz $name $url" >> "$FEED_CONF_OPKG"
+		fi
+		;;
+	feed-remove)
+		if valid_feed_name "$1"; then
+			[ -f "$FEED_CONF_OPKG" ] || exit 0
+			tmp="$FEED_CONF_OPKG.tmp.$$"
+			grep -vE "^src/gz $1 " "$FEED_CONF_OPKG" > "$tmp"
+			mv "$tmp" "$FEED_CONF_OPKG"
+		elif valid_feed_url "$1"; then
+			[ -f "$FEED_CONF_APK" ] || exit 0
+			tmp="$FEED_CONF_APK.tmp.$$"
+			grep -vxF "$1" "$FEED_CONF_APK" > "$tmp"
+			mv "$tmp" "$FEED_CONF_APK"
+		else
+			echo "invalid feed identifier" >&2
+			exit 1
 		fi
 		;;
 	inspect)

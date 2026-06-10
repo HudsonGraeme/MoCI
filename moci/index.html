@@ -1726,6 +1726,31 @@
 								</div>
 							</div>
 							<div class="stat-card" style="margin-top: 24px">
+								<div class="section-title">FEEDS</div>
+								<div id="addon-feeds-list"></div>
+								<div class="diagnostic-form" style="margin-top: 12px">
+									<input
+										type="text"
+										id="feed-name-input"
+										placeholder="name"
+										class="diag-input"
+										style="max-width: 160px"
+									/>
+									<input
+										type="text"
+										id="feed-url-input"
+										placeholder="https://example.com/feed"
+										class="diag-input"
+									/>
+									<button class="action-btn" id="feed-add-btn">ADD</button>
+								</div>
+								<div class="addon-permission-warning" style="margin-top: 12px">
+									Feeds must be usign-signed. Install the feed's public key as
+									/etc/opkg/keys/&lt;fingerprint&gt; over SSH or its packages will fail signature
+									verification.
+								</div>
+							</div>
+							<div class="stat-card" style="margin-top: 24px">
 								<div class="section-title">REGISTRY</div>
 								<div id="registry-addons-list">
 									<div style="text-align: center; color: var(--steel-muted)">Loading registry...</div>

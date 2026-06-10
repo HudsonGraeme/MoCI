@@ -166,17 +166,34 @@ runs `/etc/init.d/rpcd reload` so the new ACL takes effect), see
 `examples/moci-addon-pinglog/`. The package reloads rpcd itself; MoCI core never
 holds that privilege.
 
+## Feeds
+
+The official add-on feed lives at
+`https://hudsongraeme.github.io/moci-feed` (the
+[moci-feed](https://github.com/HudsonGraeme/moci-feed) repository, served by
+GitHub Pages, updated independently of MoCI releases). The `moci` package
+ships its usign public key (`files/moci-feed.pub` →
+`/etc/opkg/keys/bc0c5f67deb5edb8`) and a default `/etc/opkg/moci-addons.conf`
+pointing at it, so Browse works out of the box.
+
+Feeds are managed from Add-ons → Browse → Feeds, or via
+`moci-pkg-call feeds | feed-add <name> <url> | feed-remove <name>`. URLs must
+be HTTPS. A third-party feed's usign public key must be installed as
+`/etc/opkg/keys/<fingerprint>` over SSH before its packages pass signature
+verification — MoCI deliberately has no ACL to write trust roots from the web
+UI.
+
 ## Publishing to a feed
 
-`scripts/build-addon-feed.sh` builds the example packages and an `opkg` index
-into `feed/` without an SDK. For a real feed:
+`scripts/build-addon-feed.sh` builds the example add-on packages and an `opkg`
+index into `feed/` without an SDK, then signs the index with
+`$MOCI_FEED_KEY` (default `~/.usign/moci-feed.sec`). For your own feed:
 
 1. Build the `.ipk`/`.apk` (SDK or the script).
 2. Generate the `Packages` index and **sign it with `usign`**; serve `Packages`,
    `Packages.gz`, `Packages.sig` plus the `.ipk`s over HTTPS.
 3. Install the public key on devices as `/etc/opkg/keys/<fingerprint>`.
-4. MoCI registers the feed by writing `/etc/opkg/moci-addons.conf`:
-   `src/gz moci_addons https://feed.example/<arch>`.
+4. Register the feed in Add-ons → Browse → Feeds.
 
 ## Installing
 

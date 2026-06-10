@@ -16,7 +16,8 @@
 				"/usr/libexec/moci-pkg-call list-present": ["exec"],
 				"/usr/libexec/moci-pkg-call list-installed": ["exec"],
 				"/usr/libexec/moci-pkg-call list-available": ["exec"],
-				"/usr/libexec/moci-pkg-call inspect *": ["exec"]
+				"/usr/libexec/moci-pkg-call inspect *": ["exec"],
+				"/usr/libexec/moci-pkg-call feeds": ["exec"]
 			},
 			"ubus": {
 				"network.interface": ["dump"],
@@ -34,7 +35,8 @@
 				"/usr/libexec/moci-pkg-call install *": ["exec"],
 				"/usr/libexec/moci-pkg-call remove *": ["exec"],
 				"/usr/libexec/moci-pkg-call update": ["exec"],
-				"/etc/opkg/moci-addons.conf": ["write"]
+				"/usr/libexec/moci-pkg-call feed-add *": ["exec"],
+				"/usr/libexec/moci-pkg-call feed-remove *": ["exec"]
 			},
 			"ubus": {
 				"uci": ["set", "add", "delete", "commit"],
