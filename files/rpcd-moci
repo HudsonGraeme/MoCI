@@ -1,0 +1,32 @@
+#!/bin/sh
+
+case "$1" in
+	list)
+		printf '{ "setPassword": { "username": "str", "password": "str" } }\n'
+		;;
+	call)
+		case "$2" in
+			setPassword)
+				input=$(cat)
+				username=$(printf '%s' "$input" | jsonfilter -e '@.username')
+				password=$(printf '%s' "$input" | jsonfilter -e '@.password')
+
+				case "$username" in
+					root) : ;;
+					*) printf '{ "result": false }\n'; exit 0 ;;
+				esac
+
+				if [ -z "$password" ]; then
+					printf '{ "result": false }\n'
+					exit 0
+				fi
+
+				if printf '%s\n%s\n' "$password" "$password" | passwd "$username" >/dev/null 2>&1; then
+					printf '{ "result": true }\n'
+				else
+					printf '{ "result": false }\n'
+				fi
+				;;
+		esac
+		;;
+esac

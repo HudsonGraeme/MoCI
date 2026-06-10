@@ -40,7 +40,8 @@
 				"uci": ["set", "add", "delete", "commit"],
 				"file": ["write", "exec"],
 				"system": ["reboot"],
-				"network.interface": ["up", "down"]
+				"network.interface": ["up", "down"],
+				"moci": ["setPassword"]
 			},
 			"uci": [
 				"network",
