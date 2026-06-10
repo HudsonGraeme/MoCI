@@ -1,0 +1,14 @@
+{
+	"user": "http",
+	"access": {
+		"session": { "methods": [ "login", "access", "destroy" ] },
+		"system": { "methods": [ "board", "info", "reboot" ] },
+		"network.interface": { "methods": [ "dump" ] },
+		"network.interface.*": { "methods": [ "up", "down", "status" ] },
+		"network.wireless": { "methods": [ "status" ] },
+		"uci": { "methods": [ "get", "set", "add", "delete", "commit" ] },
+		"file": { "methods": [ "read", "write", "exec" ] },
+		"luci-rpc": { "methods": [ "getDHCPLeases" ] },
+		"service": { "methods": [ "list" ] }
+	}
+}

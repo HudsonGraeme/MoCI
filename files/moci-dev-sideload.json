@@ -1,0 +1,12 @@
+{
+	"moci-dev-sideload": {
+		"description": "Developer-only: allows MoCI to sideload unsigned add-ons into the webroot. Not installed by default. Install manually on a dev device only.",
+		"write": {
+			"file": {
+				"/www/moci/js/addons/*": ["write"],
+				"/bin/mkdir -p /www/moci/js/addons/*": ["exec"],
+				"/bin/rm -rf /www/moci/js/addons/*": ["exec"]
+			}
+		}
+	}
+}

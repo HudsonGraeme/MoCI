@@ -1,5 +1,5 @@
 import { minify } from 'terser';
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir, copyFile, readdir } from 'fs/promises';
 import { join } from 'path';
 import CleanCSS from 'clean-css';
 
@@ -13,8 +13,7 @@ async function buildJS() {
 		'moci/js/modules/dashboard.js',
 		'moci/js/modules/network.js',
 		'moci/js/modules/system.js',
-		'moci/js/modules/vpn.js',
-		'moci/js/modules/services.js'
+		'moci/js/modules/addons.js'
 	];
 
 	await mkdir(join(distDir, 'js/modules'), { recursive: true });
@@ -54,17 +53,25 @@ async function buildCSS() {
 	);
 }
 
-async function copyHTML() {
-	console.log('Copying HTML...');
+async function copyAssets() {
+	console.log('Copying assets...');
 	const html = await readFile('moci/index.html', 'utf8');
 	await writeFile(join(distDir, 'index.html'), html);
+
+	await copyFile('moci/manifest.json', join(distDir, 'manifest.json'));
+
+	await mkdir(join(distDir, 'icons'), { recursive: true });
+	const icons = await readdir('moci/icons');
+	for (const icon of icons) {
+		await copyFile(join('moci/icons', icon), join(distDir, 'icons', icon));
+	}
 }
 
 async function build() {
 	console.log('Building production bundle...\n');
 	await buildJS();
 	await buildCSS();
-	await copyHTML();
+	await copyAssets();
 	console.log('\nBuild complete! Output in dist/');
 }
 

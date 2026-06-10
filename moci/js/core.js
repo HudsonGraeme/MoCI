@@ -5,6 +5,10 @@ export class OpenWrtCore {
 		this.modules = new Map();
 		this.routes = new Map();
 		this.currentRoute = null;
+		this.extensionPoints = new Map();
+		this.addons = new Map();
+		this.addonManifests = new Map();
+		this.addonRouteMap = new Map();
 	}
 
 	registerRoute(path, handler) {
@@ -19,9 +23,13 @@ export class OpenWrtCore {
 		const routeModuleMap = {
 			dashboard: 'dashboard',
 			network: 'network',
-			system: 'system'
+			system: 'system',
+			addons: 'addons'
 		};
-		return routeModuleMap[basePath];
+		if (routeModuleMap[basePath]) return routeModuleMap[basePath];
+		const addonId = this.addonRouteMap.get(basePath);
+		if (addonId) return `addon:${addonId}`;
+		return null;
 	}
 
 	async handleRouteChange() {
@@ -34,7 +42,9 @@ export class OpenWrtCore {
 		document.querySelectorAll('.page').forEach(page => page.classList.add('hidden'));
 		document.querySelectorAll('.nav a').forEach(link => link.classList.remove('active'));
 
-		const activeLink = document.querySelector(`.nav a[href="#/${basePath}"]`);
+		const activeLink =
+			document.querySelector(`.nav a[href="#/${basePath}"]`) ||
+			document.querySelector(`.nav a[data-addon][href^="#/${basePath}"]`);
 		if (activeLink) activeLink.classList.add('active');
 
 		if (basePath === 'dashboard') {
@@ -52,12 +62,15 @@ export class OpenWrtCore {
 			for (const [routePath, handler] of this.routes) {
 				if (fullPath === routePath || fullPath.startsWith(routePath + '/')) {
 					await handler(fullPath, subPaths);
+					const addonPage = document.getElementById(`addon-${basePath}-page`);
+					if (addonPage) addonPage.classList.remove('hidden');
 					this.currentRoute = fullPath;
 					return;
 				}
 			}
 
-			const pageElement = document.getElementById(`${basePath}-page`);
+			const pageElement =
+				document.getElementById(`${basePath}-page`) || document.getElementById(`addon-${basePath}-page`);
 			if (pageElement) {
 				pageElement.classList.remove('hidden');
 				this.currentRoute = fullPath;
@@ -77,15 +90,21 @@ export class OpenWrtCore {
 		});
 	}
 
+	async initSession() {
+		await this.loadFeatures();
+		await this.loadAddonManifests();
+		await this.loadModules();
+		await this.loadAddons();
+		this.applyFeatureFlags();
+		this.showMainView();
+		this.startApplication();
+	}
+
 	async init() {
 		if (this.sessionId) {
 			const valid = await this.validateSession();
 			if (valid) {
-				await this.loadFeatures();
-				await this.loadModules();
-				this.applyFeatureFlags();
-				this.showMainView();
-				this.startApplication();
+				await this.initSession();
 				return;
 			}
 		}
@@ -132,7 +151,8 @@ export class OpenWrtCore {
 			ssh_keys: '1',
 			storage: '1',
 			leds: '1',
-			firmware: '1'
+			firmware: '1',
+			addons: '1'
 		};
 	}
 
@@ -145,12 +165,15 @@ export class OpenWrtCore {
 			dashboard: './modules/dashboard.js',
 			network: './modules/network.js',
 			system: './modules/system.js',
-			vpn: './modules/vpn.js',
-			services: './modules/services.js'
+			addons: './modules/addons.js'
 		};
 	}
 
 	async loadModule(name) {
+		if (name?.startsWith('addon:')) {
+			return this.loadAddon(name.substring(6));
+		}
+
 		if (this.modules.has(name)) return this.modules.get(name);
 
 		if (!this.shouldLoadModule(name)) return null;
@@ -178,10 +201,9 @@ export class OpenWrtCore {
 	shouldLoadModule(moduleName) {
 		const moduleFeatures = {
 			dashboard: ['dashboard'],
-			network: ['network', 'wireless', 'firewall', 'dhcp', 'dns', 'diagnostics'],
+			network: ['network', 'wireless', 'firewall', 'dhcp', 'dns', 'diagnostics', 'wireguard', 'qos', 'ddns'],
 			system: ['system', 'backup', 'packages', 'services', 'ssh_keys', 'storage', 'leds', 'firmware'],
-			vpn: ['wireguard'],
-			services: ['qos', 'ddns']
+			addons: ['addons']
 		};
 
 		const features = moduleFeatures[moduleName] || [];
@@ -206,6 +228,21 @@ export class OpenWrtCore {
 
 	attachEventListeners() {
 		document.getElementById('logout-btn')?.addEventListener('click', () => this.logout());
+
+		const menuToggle = document.querySelector('.menu-toggle');
+		const nav = document.querySelector('.nav');
+		if (menuToggle && nav) {
+			menuToggle.addEventListener('click', () => {
+				nav.classList.toggle('open');
+				menuToggle.setAttribute('aria-expanded', nav.classList.contains('open'));
+			});
+			nav.querySelectorAll('a').forEach(link => {
+				link.addEventListener('click', () => nav.classList.remove('open'));
+			});
+			window.addEventListener('resize', () => {
+				if (window.innerWidth > 768) nav.classList.remove('open');
+			});
+		}
 	}
 
 	startPolling() {
@@ -297,11 +334,7 @@ export class OpenWrtCore {
 				this.saveCredentials(username, password);
 			}
 
-			await this.loadFeatures();
-			await this.loadModules();
-			this.applyFeatureFlags();
-			this.showMainView();
-			this.startApplication();
+			await this.initSession();
 		} else {
 			throw new Error('Login failed');
 		}
@@ -595,6 +628,320 @@ export class OpenWrtCore {
 		};
 		container.addEventListener('click', handler);
 		return () => container.removeEventListener('click', handler);
+	}
+
+	registerExtension(pointName, contribution) {
+		if (!this.extensionPoints.has(pointName)) {
+			this.extensionPoints.set(pointName, []);
+		}
+		this.extensionPoints.get(pointName).push(contribution);
+	}
+
+	getExtensions(pointName) {
+		return this.extensionPoints.get(pointName) || [];
+	}
+
+	async pkgCall(action, arg) {
+		const params = arg !== undefined ? [action, String(arg)] : [action];
+		const [status, out] = await this.ubusCall(
+			'file',
+			'exec',
+			{
+				command: '/usr/libexec/moci-pkg-call',
+				params
+			},
+			{ timeout: 120000 }
+		);
+		if (status !== 0) throw new Error(`moci-pkg-call ${action} denied`);
+		if (out?.code && out.code !== 0) throw new Error(out.stderr?.trim() || `moci-pkg-call ${action} failed`);
+		return out?.stdout || '';
+	}
+
+	async listPresentAddons() {
+		const out = await this.pkgCall('list-present');
+		return out
+			.split('\n')
+			.map(l => l.trim())
+			.filter(id => /^[a-zA-Z0-9_-]+$/.test(id));
+	}
+
+	async listInstalledPackages() {
+		try {
+			const out = await this.pkgCall('list-installed');
+			return new Set(
+				out
+					.split('\n')
+					.map(l => l.trim().split(/\s+/)[0])
+					.filter(Boolean)
+			);
+		} catch {
+			return new Set();
+		}
+	}
+
+	async loadAddonManifests() {
+		if (!this.isFeatureEnabled('addons')) return;
+		let ids;
+		try {
+			ids = await this.listPresentAddons();
+		} catch (err) {
+			console.warn('Failed to enumerate addons:', err);
+			return;
+		}
+		for (const id of ids) {
+			try {
+				const resp = await fetch(`/moci/js/addons/${id}/manifest.json`);
+				if (!resp.ok) continue;
+				const manifest = await resp.json();
+				this.addonManifests.set(id, manifest);
+				const addonBase = manifest.nav?.route?.split('/').filter(Boolean)[0];
+				if (addonBase) this.addonRouteMap.set(addonBase, id);
+			} catch (err) {
+				console.warn('Failed to load addon manifest:', id, err);
+			}
+		}
+	}
+
+	async loadAddon(id) {
+		if (this.addons.has(id)) return this.addons.get(id);
+		if (!/^[a-zA-Z0-9_-]+$/.test(id)) return null;
+		try {
+			const module = await import(`./addons/${id}/addon.js`);
+			const instance = new module.default(this);
+			if (typeof instance.init === 'function') await instance.init();
+			this.addons.set(id, instance);
+			if (typeof instance.getExtensions === 'function') {
+				const extensions = instance.getExtensions();
+				for (const [pointName, contribution] of Object.entries(extensions)) {
+					this.registerExtension(pointName, { ...contribution, _addonId: id });
+				}
+			}
+			return instance;
+		} catch (err) {
+			console.error(`Failed to load addon ${id}:`, err);
+			return null;
+		}
+	}
+
+	async loadAddons() {
+		for (const [id, manifest] of this.addonManifests) {
+			await this.loadAddon(id);
+			this.injectAddonCSS(id, manifest);
+			this.injectAddonNav(id, manifest);
+			this.createAddonPage(id, manifest);
+		}
+	}
+
+	injectAddonCSS(id, manifest) {
+		if (!manifest.css) return;
+		if (/(?:^|\/)\.\.(?:\/|$)/.test(manifest.css) || manifest.css.startsWith('/') || manifest.css.includes('\\'))
+			return;
+		if (document.querySelector(`link[data-addon="${id}"]`)) return;
+		const link = document.createElement('link');
+		link.rel = 'stylesheet';
+		link.href = `/moci/js/addons/${id}/${manifest.css}`;
+		link.setAttribute('data-addon', id);
+		document.head.appendChild(link);
+	}
+
+	injectAddonNav(id, manifest) {
+		if (!manifest.nav || manifest.nav.placement === 'none') return;
+		if (document.querySelector(`a[data-addon="${id}"]`)) return;
+
+		const link = document.createElement('a');
+		link.href = `#${manifest.nav.route}`;
+		link.textContent = manifest.nav.label;
+		link.setAttribute('data-addon', id);
+
+		const nav = document.querySelector('.nav');
+		if (!nav) return;
+
+		if (manifest.nav.placement === 'top') {
+			const addonsLink = nav.querySelector('a[href="#/addons"]');
+			if (addonsLink) {
+				nav.insertBefore(link, addonsLink);
+			} else {
+				nav.appendChild(link);
+			}
+		} else if (manifest.nav.placement === 'addons') {
+			let group = document.getElementById('addons-nav-group');
+			if (!group) {
+				group = document.createElement('div');
+				group.id = 'addons-nav-group';
+				group.className = 'nav-group';
+				const dropdown = document.createElement('div');
+				dropdown.className = 'nav-dropdown';
+				group.appendChild(dropdown);
+				const addonsLink = nav.querySelector('a[href="#/addons"]');
+				if (addonsLink) {
+					nav.insertBefore(group, addonsLink.nextSibling);
+				} else {
+					nav.appendChild(group);
+				}
+			}
+			group.querySelector('.nav-dropdown').appendChild(link);
+			group.classList.remove('hidden');
+		}
+	}
+
+	createAddonPage(id, manifest) {
+		if (!manifest.nav || manifest.nav.placement === 'none') return;
+		const pageId = `addon-${id}-page`;
+		if (document.getElementById(pageId)) return;
+		const page = document.createElement('div');
+		page.id = pageId;
+		page.className = 'page hidden';
+		document.querySelector('.content')?.appendChild(page);
+	}
+
+	removeAddon(id) {
+		const instance = this.addons.get(id);
+		if (instance?.cleanup) instance.cleanup();
+		this.addons.delete(id);
+		const manifest = this.addonManifests.get(id);
+		if (manifest) {
+			const addonBase = manifest.nav?.route?.split('/').filter(Boolean)[0];
+			if (addonBase) this.addonRouteMap.delete(addonBase);
+		}
+		this.addonManifests.delete(id);
+		document.querySelector(`a[data-addon="${id}"]`)?.remove();
+		document.getElementById(`addon-${id}-page`)?.remove();
+		document.querySelector(`link[data-addon="${id}"]`)?.remove();
+		for (const [key, contribs] of this.extensionPoints) {
+			this.extensionPoints.set(
+				key,
+				contribs.filter(c => c._addonId !== id)
+			);
+		}
+	}
+
+	renderTable(tableSelector, items, colspan, emptyMsg, rowFn) {
+		const tbody = document.querySelector(`${tableSelector} tbody`);
+		if (!tbody) return;
+		if (items.length === 0) {
+			this.renderEmptyTable(tbody, colspan, emptyMsg);
+			return;
+		}
+		tbody.innerHTML = items.map(rowFn).join('');
+	}
+
+	filterUciSections(config, type) {
+		return Object.entries(config)
+			.filter(([, v]) => v['.type'] === type)
+			.map(([k, v]) => ({ section: k, ...v }));
+	}
+
+	getFormValues(fieldMap) {
+		const values = {};
+		for (const [elementId, uciKey] of Object.entries(fieldMap)) {
+			const el = document.getElementById(elementId);
+			if (!el) continue;
+			const formVal = el.type === 'checkbox' ? el.checked : el.value;
+			if (Array.isArray(uciKey)) {
+				for (const key of uciKey) values[key] = formVal;
+			} else {
+				values[uciKey] = formVal;
+			}
+		}
+		return values;
+	}
+
+	setFormValues(fieldMap, data) {
+		for (const [elementId, uciKey] of Object.entries(fieldMap)) {
+			const el = document.getElementById(elementId);
+			if (!el) continue;
+			let val;
+			if (Array.isArray(uciKey)) {
+				for (const key of uciKey) {
+					if (data[key] !== undefined && data[key] !== '') {
+						val = data[key];
+						break;
+					}
+				}
+			} else {
+				val = data[uciKey];
+			}
+			if (el.type === 'checkbox') {
+				el.checked = !!val;
+			} else {
+				el.value = Array.isArray(val) ? val.join(', ') : val || '';
+			}
+		}
+	}
+
+	async uciEdit(config, id, fieldMap, modalId, sectionIdField) {
+		try {
+			const [status, result] = await this.uciGet(config, id);
+			if (status !== 0 || !result?.values) throw new Error('Not found');
+			if (sectionIdField) document.getElementById(sectionIdField).value = id;
+			this.setFormValues(fieldMap, result.values);
+			this.openModal(modalId);
+		} catch {
+			this.showToast('Failed to load config', 'error');
+		}
+	}
+
+	async uciSave({
+		config,
+		uciType,
+		modalId,
+		sectionIdField,
+		fieldMap,
+		defaults,
+		reloadFn,
+		successMsg,
+		sectionNameField
+	}) {
+		const section = sectionIdField ? document.getElementById(sectionIdField)?.value : '';
+		const values = { ...this.getFormValues(fieldMap), ...defaults };
+		try {
+			if (section) {
+				await this.uciSet(config, section, values);
+			} else {
+				const name = sectionNameField ? document.getElementById(sectionNameField)?.value || null : null;
+				const [, res] = await this.uciAdd(config, uciType, name);
+				if (!res?.section) throw new Error('Failed to create section');
+				await this.uciSet(config, res.section, values);
+			}
+			await this.uciCommit(config);
+			this.closeModal(modalId);
+			this.showToast(successMsg || 'Saved', 'success');
+			if (reloadFn) await reloadFn();
+		} catch {
+			this.showToast('Failed to save', 'error');
+		}
+	}
+
+	async uciDeleteEntry(config, id, confirmMsg, reloadFn) {
+		if (!confirm(confirmMsg)) return;
+		try {
+			await this.uciDelete(config, id);
+			await this.uciCommit(config);
+			this.showToast('Deleted', 'success');
+			if (reloadFn) await reloadFn();
+		} catch {
+			this.showToast('Failed to delete', 'error');
+		}
+	}
+
+	spliceFileLines(raw, dataFilter, index, newLine) {
+		const lines = raw.split('\n');
+		const dataIndices = lines.map((l, i) => (dataFilter(l) ? i : -1)).filter(i => i >= 0);
+		if (index !== '' && index !== undefined) {
+			const origIdx = dataIndices[parseInt(index)];
+			if (origIdx !== undefined) {
+				if (newLine === null) {
+					lines.splice(origIdx, 1);
+				} else {
+					lines[origIdx] = newLine;
+				}
+			}
+		} else if (newLine !== null) {
+			if (lines.length && lines[lines.length - 1] === '') lines.pop();
+			lines.push(newLine);
+		}
+		const result = lines.join('\n');
+		return result.endsWith('\n') ? result : result + '\n';
 	}
 
 	resetModal(modalId) {

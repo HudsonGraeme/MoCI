@@ -1,0 +1,11 @@
+#!/bin/sh
+
+host="${1:-1.1.1.1}"
+log=/tmp/moci-pinglog.log
+
+while true; do
+	rtt=$(ping -c1 -W2 "$host" 2>/dev/null | sed -n 's/.*time=\([0-9.]*\).*/\1/p')
+	echo "$(date +%s) ${rtt:-timeout}" >> "$log"
+	tail -n 500 "$log" > "$log.tmp" 2>/dev/null && mv "$log.tmp" "$log"
+	sleep 30
+done
