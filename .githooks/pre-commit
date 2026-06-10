@@ -1,0 +1,12 @@
+#!/bin/sh
+
+staged=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^(moci/.*\.(js|css|html)|scripts/.*\.js|index\.html)$')
+[ -z "$staged" ] && exit 0
+
+if ! pnpm exec prettier --version >/dev/null 2>&1; then
+	echo "pre-commit: prettier unavailable, skipping format" >&2
+	exit 0
+fi
+
+printf '%s\n' "$staged" | tr '\n' '\0' | xargs -0 pnpm exec prettier --write
+printf '%s\n' "$staged" | tr '\n' '\0' | xargs -0 git add

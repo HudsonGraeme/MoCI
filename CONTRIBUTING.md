@@ -19,6 +19,10 @@ pnpm dev:physical 192.168.1.35
 # Edit files in moci/ - changes auto-deploy to target
 ```
 
+Git hooks live in `.githooks/` and are activated automatically by `pnpm install`
+(via the `prepare` script). The pre-commit hook formats staged JS/CSS/HTML with
+prettier; it skips silently if prettier is not installed.
+
 ---
 
 ## Architecture

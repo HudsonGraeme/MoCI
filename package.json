@@ -21,7 +21,8 @@
 		"deploy": "scp -r moci/* root@192.168.1.1:/www/moci/",
 		"build": "node scripts/build.js",
 		"format": "prettier --write \"moci/**/*.{js,css,html}\" \"scripts/**/*.js\" \"index.html\"",
-		"format:check": "prettier --check \"moci/**/*.{js,css,html}\" \"scripts/**/*.js\" \"index.html\""
+		"format:check": "prettier --check \"moci/**/*.{js,css,html}\" \"scripts/**/*.js\" \"index.html\"",
+		"prepare": "git config core.hooksPath .githooks"
 	},
 	"devDependencies": {
 		"chokidar": "^5.0.0",
