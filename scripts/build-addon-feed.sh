@@ -13,7 +13,7 @@ TARFLAGS="--format gnutar --uid 0 --gid 0 --uname root --gname root --no-mac-met
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
-srcdir() { [ "$1" = "moci" ] && echo "$ROOT" || echo "$EX/$1"; }
+srcdir() { echo "$EX/$1"; }
 
 field() { sed -n "s/^$2:=//p" "$1/Makefile" | head -n1; }
 
@@ -22,17 +22,6 @@ stage_files() {
 	data="$2"
 	files="$EX/$name/files"
 	case "$name" in
-		moci)
-			mkdir -p "$data/www/moci/js/modules" "$data/www/moci/js/addons" "$data/usr/libexec" "$data/usr/share/rpcd/acl.d" "$data/etc/config"
-			cp "$ROOT/dist/moci/index.html" "$ROOT/dist/moci/app.css" "$data/www/moci/"
-			cp "$ROOT/dist/moci/js/core.js" "$data/www/moci/js/"
-			for m in dashboard network system vpn services addons; do
-				cp "$ROOT/dist/moci/js/modules/$m.js" "$data/www/moci/js/modules/"
-			done
-			install -m 0755 "$ROOT/files/moci-pkg-call" "$data/usr/libexec/moci-pkg-call"
-			cp "$ROOT/rpcd-acl.json" "$data/usr/share/rpcd/acl.d/moci.json"
-			cp "$ROOT/files/moci.config" "$data/etc/config/moci"
-			;;
 		moci-addon-speedtest)
 			mkdir -p "$data/www/moci/js/addons/speedtest"
 			cp "$files/manifest.json" "$files/addon.js" "$files/style.css" "$data/www/moci/js/addons/speedtest/"
@@ -50,14 +39,6 @@ stage_files() {
 write_control_scripts() {
 	name=$1
 	ctrl="$2"
-	if [ "$name" = "moci" ]; then
-		cat > "$ctrl/postinst" <<'EOF'
-#!/bin/sh
-[ -n "${IPKG_INSTROOT}" ] || /etc/init.d/rpcd restart
-EOF
-		chmod 0755 "$ctrl/postinst"
-		return 0
-	fi
 	[ "$name" = "moci-addon-pinglog" ] || return 0
 	cat > "$ctrl/postinst" <<'EOF'
 #!/bin/sh
@@ -145,11 +126,28 @@ EOF
 
 PACKAGES="$OUT/Packages"
 : > "$PACKAGES"
-for name in moci moci-addon-speedtest moci-addon-pinglog; do
+for name in moci-addon-speedtest moci-addon-pinglog; do
 	build_ipk "$name"
 	index_entry "$name" >> "$PACKAGES"
 done
 
-gzip -k -f "$PACKAGES"
+gzip -kn -f "$PACKAGES"
+
+KEY="${MOCI_FEED_KEY:-$HOME/.usign/moci-feed.sec}"
+USIGN=$(command -v usign || true)
+[ -n "$USIGN" ] || [ ! -x "$HOME/.local/bin/usign" ] || USIGN="$HOME/.local/bin/usign"
+if [ -n "$USIGN" ] && [ -f "$KEY" ]; then
+	"$USIGN" -S -m "$PACKAGES" -s "$KEY" -x "$PACKAGES.sig"
+	echo "feed signed with $KEY"
+else
+	echo "WARNING: feed NOT signed (usign or $KEY missing)" >&2
+fi
+
 echo "feed index: $PACKAGES(.gz)"
 ls -l "$OUT"
+
+REPO="${MOCI_FEED_REPO:-$ROOT/../moci-feed}"
+if [ -d "$REPO/.git" ]; then
+	cp "$OUT"/*.ipk "$PACKAGES" "$PACKAGES.gz" "$PACKAGES.sig" "$REPO/"
+	echo "copied feed to $REPO -- commit and push there to publish"
+fi

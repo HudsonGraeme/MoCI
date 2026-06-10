@@ -641,8 +641,8 @@ export class OpenWrtCore {
 		return this.extensionPoints.get(pointName) || [];
 	}
 
-	async pkgCall(action, arg) {
-		const params = arg !== undefined ? [action, String(arg)] : [action];
+	async pkgCall(action, ...args) {
+		const params = [action, ...args.filter(a => a !== undefined).map(String)];
 		const [status, out] = await this.ubusCall(
 			'file',
 			'exec',
