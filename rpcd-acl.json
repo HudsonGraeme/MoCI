@@ -65,7 +65,8 @@
 				],
 				"moci": [
 					"getDHCPLeases",
-					"getPorts"
+					"getPorts",
+					"getBridges"
 				],
 				"service": [
 					"list"

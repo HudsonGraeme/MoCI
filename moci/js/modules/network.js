@@ -270,19 +270,39 @@ export default class NetworkModule {
 			.filter(d => d.type === 'bridge');
 	}
 
+	renderMembersCell(d, bridges) {
+		const members = bridges[d.name];
+		if (members && members.length) {
+			return members
+				.map(m =>
+					m.wireless
+						? `${this.core.escapeHtml(m.name)} <span style="font-size:11px;color:var(--steel-muted);border:1px solid var(--glass-border);border-radius:8px;padding:0 6px">wifi</span>`
+						: this.core.escapeHtml(m.name)
+				)
+				.join(', ');
+		}
+		const ports = Array.isArray(d.ports) ? d.ports.join(', ') : d.ports || '---';
+		return this.core.escapeHtml(ports);
+	}
+
 	async loadDevices() {
 		await this.core.loadResource('devices-table', 5, 'network', async () => {
 			const [status, result] = await this.core.uciGet('network');
 			if (status !== 0 || !result?.values) throw new Error('No data');
 			this._netCfg = result.values;
 
+			let bridges = {};
+			try {
+				const [bs, br] = await this.core.ubusCall('moci', 'getBridges', {});
+				if (bs === 0 && br?.bridges) bridges = br.bridges;
+			} catch {}
+
 			const devices = this.core.filterUciSections(this._netCfg, 'device');
 			this.core.renderTable('#devices-table', devices, 5, 'No devices configured', d => {
-				const ports = Array.isArray(d.ports) ? d.ports.join(', ') : d.ports || '---';
 				return `<tr>
 					<td>${this.core.escapeHtml(d.name || d.section)}</td>
 					<td>${this.core.escapeHtml((d.type || 'device').toUpperCase())}</td>
-					<td>${this.core.escapeHtml(ports)}</td>
+					<td>${this.renderMembersCell(d, bridges)}</td>
 					<td>${this.core.escapeHtml(d.mtu || 'auto')}</td>
 					<td>${this.core.renderActionButtons(d.section)}</td>
 				</tr>`;
