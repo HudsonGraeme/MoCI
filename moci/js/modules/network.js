@@ -141,6 +141,7 @@ export default class NetworkModule {
 			await this.loadAvailablePorts();
 			this.devicePortsCombo().setOptions(this._availablePorts);
 			this.devicePortsCombo().setSelected([]);
+			this.renderDeviceWireless(null);
 			this.core.openModal('device-modal');
 		});
 
@@ -296,6 +297,7 @@ export default class NetworkModule {
 				const [bs, br] = await this.core.ubusCall('moci', 'getBridges', {});
 				if (bs === 0 && br?.bridges) bridges = br.bridges;
 			} catch {}
+			this._bridges = bridges;
 
 			const devices = this.core.filterUciSections(this._netCfg, 'device');
 			this.core.renderTable('#devices-table', devices, 5, 'No devices configured', d => {
@@ -336,6 +338,24 @@ export default class NetworkModule {
 		} catch {}
 	}
 
+	renderDeviceWireless(name) {
+		const group = document.getElementById('device-wireless-group');
+		const list = document.getElementById('device-wireless-list');
+		if (!group || !list) return;
+		const wifi = (this._bridges?.[name] || []).filter(m => m.wireless);
+		if (!wifi.length) {
+			group.style.display = 'none';
+			list.innerHTML = '';
+			return;
+		}
+		group.style.display = '';
+		list.innerHTML = wifi
+			.map(
+				m => `<span style="display:inline-flex;align-items:center;padding:2px 8px;background:rgba(226,226,229,0.05);border-radius:12px;color:var(--steel-muted);font-size:13px">${this.core.escapeHtml(m.name)}</span>`
+			)
+			.join('');
+	}
+
 	devicePortsCombo() {
 		if (!this._devicePortsCombo) {
 			this._devicePortsCombo = this.core.createCombobox('device-ports-combo', {
@@ -358,6 +378,7 @@ export default class NetworkModule {
 		await this.loadAvailablePorts();
 		this.devicePortsCombo().setOptions(this._availablePorts);
 		this.devicePortsCombo().setSelected(ports);
+		this.renderDeviceWireless(d.name);
 		this.core.openModal('device-modal');
 	}
 
