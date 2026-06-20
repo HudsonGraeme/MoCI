@@ -10,11 +10,11 @@ else
 fi
 
 valid_name() {
-	echo "$1" | grep -qE '^moci-addon-[a-z0-9][a-z0-9-]*$'
+	echo "$1" | grep -qE '^moci-app-[a-z0-9][a-z0-9-]*$'
 }
 
-FEED_CONF_OPKG=/etc/opkg/moci-addons.conf
-FEED_CONF_APK=/etc/apk/repositories.d/moci-addons.list
+FEED_CONF_OPKG=/etc/opkg/moci-apps.conf
+FEED_CONF_APK=/etc/apk/repositories.d/moci-apps.list
 
 valid_feed_name() {
 	echo "$1" | grep -qE '^[a-z0-9][a-z0-9_-]*$'
@@ -33,16 +33,16 @@ case "$action" in
 		;;
 	list-installed)
 		if [ "$pm" = "apk" ]; then
-			apk list -I 2>/dev/null | grep '^moci-addon-' | sed 's/^\(moci-addon-[a-z0-9-]*\)-[0-9][^ ]*.*/\1/' || true
+			apk list -I 2>/dev/null | grep '^moci-app-' | sed 's/^\(moci-app-[a-z0-9-]*\)-[0-9][^ ]*.*/\1/' || true
 		else
-			opkg list-installed 2>/dev/null | grep '^moci-addon-' | awk '{print $1}' || true
+			opkg list-installed 2>/dev/null | grep '^moci-app-' | awk '{print $1}' || true
 		fi
 		;;
 	list-available)
 		if [ "$pm" = "apk" ]; then
-			apk list 2>/dev/null | grep '^moci-addon-' | sed 's/^\(moci-addon-[a-z0-9-]*\)-\([0-9][^ ]*\).*/\1 - \2/' || true
+			apk list 2>/dev/null | grep '^moci-app-' | sed 's/^\(moci-app-[a-z0-9-]*\)-\([0-9][^ ]*\).*/\1 - \2/' || true
 		else
-			opkg list 2>/dev/null | grep '^moci-addon-' || true
+			opkg list 2>/dev/null | grep '^moci-app-' || true
 		fi
 		;;
 	update)
@@ -109,7 +109,7 @@ case "$action" in
 				[ -f data.tar.gz ] || exit 1
 				mkdir -p d && tar -xzf data.tar.gz -C d 2>/dev/null
 			fi
-			find d -type f -path '*/usr/share/rpcd/acl.d/moci-addon-*.json' -exec cat {} \; 2>/dev/null
+			find d -type f -path '*/usr/share/rpcd/acl.d/moci-app-*.json' -exec cat {} \; 2>/dev/null
 			exit 0
 		)
 		ret=$?

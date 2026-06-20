@@ -25,11 +25,11 @@ export default class AddonsModule {
 	}
 
 	pkgName(id) {
-		return `moci-addon-${id}`;
+		return `moci-app-${id}`;
 	}
 
 	addonId(pkgName) {
-		return pkgName.replace(/^moci-addon-/, '');
+		return pkgName.replace(/^moci-app-/, '');
 	}
 
 	setupInstallModal() {
@@ -306,7 +306,7 @@ export default class AddonsModule {
 	}
 
 	async confirmInstall(pkgName) {
-		if (!/^moci-addon-[a-z0-9][a-z0-9-]*$/.test(pkgName)) {
+		if (!/^moci-app-[a-z0-9][a-z0-9-]*$/.test(pkgName)) {
 			this.core.showToast('Invalid package name', 'error');
 			return;
 		}

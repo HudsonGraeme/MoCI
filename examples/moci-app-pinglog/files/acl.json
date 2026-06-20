@@ -1,0 +1,10 @@
+{
+	"moci-app-pinglog": {
+		"description": "MoCI app Ping Log: read latency history",
+		"read": {
+			"file": {
+				"/tmp/moci-pinglog.log": ["read"]
+			}
+		}
+	}
+}
