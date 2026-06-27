@@ -22,16 +22,16 @@ stage_files() {
 	data="$2"
 	files="$EX/$name/files"
 	case "$name" in
-		moci-addon-speedtest)
+		moci-app-speedtest)
 			mkdir -p "$data/www/moci/js/addons/speedtest"
 			cp "$files/manifest.json" "$files/addon.js" "$files/style.css" "$data/www/moci/js/addons/speedtest/"
 			;;
-		moci-addon-pinglog)
+		moci-app-pinglog)
 			mkdir -p "$data/www/moci/js/addons/pinglog" "$data/usr/bin" "$data/etc/init.d" "$data/usr/share/rpcd/acl.d"
 			cp "$files/manifest.json" "$files/addon.js" "$data/www/moci/js/addons/pinglog/"
 			install -m 0755 "$files/moci-pinglog" "$data/usr/bin/moci-pinglog"
 			install -m 0755 "$files/pinglog.init" "$data/etc/init.d/moci-pinglog"
-			cp "$files/acl.json" "$data/usr/share/rpcd/acl.d/moci-addon-pinglog.json"
+			cp "$files/acl.json" "$data/usr/share/rpcd/acl.d/moci-app-pinglog.json"
 			;;
 	esac
 }
@@ -39,7 +39,7 @@ stage_files() {
 write_control_scripts() {
 	name=$1
 	ctrl="$2"
-	[ "$name" = "moci-addon-pinglog" ] || return 0
+	[ "$name" = "moci-app-pinglog" ] || return 0
 	cat > "$ctrl/postinst" <<'EOF'
 #!/bin/sh
 [ -n "${IPKG_INSTROOT}" ] || {
@@ -126,7 +126,7 @@ EOF
 
 PACKAGES="$OUT/Packages"
 : > "$PACKAGES"
-for name in moci-addon-speedtest moci-addon-pinglog; do
+for name in moci-app-speedtest moci-app-pinglog; do
 	build_ipk "$name"
 	index_entry "$name" >> "$PACKAGES"
 done
@@ -148,6 +148,8 @@ ls -l "$OUT"
 
 REPO="${MOCI_FEED_REPO:-$ROOT/../moci-feed}"
 if [ -d "$REPO/.git" ]; then
-	cp "$OUT"/*.ipk "$PACKAGES" "$PACKAGES.gz" "$PACKAGES.sig" "$REPO/"
+	cp "$OUT"/*.ipk "$PACKAGES" "$PACKAGES.gz" "$REPO/"
+	rm -f "$REPO/Packages.sig"
+	[ -f "$PACKAGES.sig" ] && cp "$PACKAGES.sig" "$REPO/"
 	echo "copied feed to $REPO -- commit and push there to publish"
 fi

@@ -1719,7 +1719,7 @@
 									<input
 										type="text"
 										id="addon-url-input"
-										placeholder="https://github.com/user/moci-addon-example"
+										placeholder="https://github.com/user/moci-app-example"
 										class="diag-input"
 									/>
 									<button class="action-btn" id="addon-install-url-btn">FETCH</button>
@@ -1745,9 +1745,9 @@
 									<button class="action-btn" id="feed-add-btn">ADD</button>
 								</div>
 								<div class="addon-permission-warning" style="margin-top: 12px">
-									Feeds must be usign-signed. Install the feed's public key as
-									/etc/opkg/keys/&lt;fingerprint&gt; over SSH or its packages will fail signature
-									verification.
+									Feeds must be usign-signed. Install the feed's public key over SSH as
+									/etc/opkg/keys/&lt;fingerprint&gt; (opkg) or /etc/apk/keys/&lt;fingerprint&gt; (apk)
+									or its packages will fail signature verification.
 								</div>
 							</div>
 							<div class="stat-card" style="margin-top: 24px">

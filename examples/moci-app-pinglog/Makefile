@@ -1,6 +1,6 @@
 include $(TOPDIR)/rules.mk
 
-PKG_NAME:=moci-addon-pinglog
+PKG_NAME:=moci-app-pinglog
 PKG_VERSION:=1.0.0
 PKG_RELEASE:=1
 
@@ -9,16 +9,16 @@ PKG_LICENSE:=MIT
 
 include $(INCLUDE_DIR)/package.mk
 
-define Package/moci-addon-pinglog
+define Package/moci-app-pinglog
   SECTION:=admin
   CATEGORY:=Administration
-  SUBMENU:=MoCI Add-ons
-  TITLE:=MoCI Add-on: Ping Log
+  SUBMENU:=MoCI Apps
+  TITLE:=MoCI App: Ping Log
   PKGARCH:=all
   DEPENDS:=+moci
 endef
 
-define Package/moci-addon-pinglog/description
+define Package/moci-app-pinglog/description
   Background ping monitor for MoCI.
   Ships a procd daemon and an rpcd ACL granting MoCI read access to its log.
 endef
@@ -26,7 +26,7 @@ endef
 define Build/Compile
 endef
 
-define Package/moci-addon-pinglog/install
+define Package/moci-app-pinglog/install
 	$(INSTALL_DIR) $(1)/www/moci/js/addons/pinglog
 	$(INSTALL_DATA) ./files/manifest.json $(1)/www/moci/js/addons/pinglog/manifest.json
 	$(INSTALL_DATA) ./files/addon.js $(1)/www/moci/js/addons/pinglog/addon.js
@@ -38,10 +38,10 @@ define Package/moci-addon-pinglog/install
 	$(INSTALL_BIN) ./files/pinglog.init $(1)/etc/init.d/moci-pinglog
 
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
-	$(INSTALL_DATA) ./files/acl.json $(1)/usr/share/rpcd/acl.d/moci-addon-pinglog.json
+	$(INSTALL_DATA) ./files/acl.json $(1)/usr/share/rpcd/acl.d/moci-app-pinglog.json
 endef
 
-define Package/moci-addon-pinglog/postinst
+define Package/moci-app-pinglog/postinst
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || {
 	/etc/init.d/moci-pinglog enable
@@ -50,7 +50,7 @@ define Package/moci-addon-pinglog/postinst
 }
 endef
 
-define Package/moci-addon-pinglog/prerm
+define Package/moci-app-pinglog/prerm
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || {
 	/etc/init.d/moci-pinglog stop
@@ -58,9 +58,9 @@ define Package/moci-addon-pinglog/prerm
 }
 endef
 
-define Package/moci-addon-pinglog/postrm
+define Package/moci-app-pinglog/postrm
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || /etc/init.d/rpcd reload 2>/dev/null
 endef
 
-$(eval $(call BuildPackage,moci-addon-pinglog))
+$(eval $(call BuildPackage,moci-app-pinglog))

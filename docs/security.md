@@ -22,7 +22,7 @@ arbitrary code.
 **Enforced**
 - The feed signature and package checksums.
 - Core's exec surface: the web session can only invoke `moci-pkg-call`, which is
-  namespace-locked to `moci-addon-*` and rejects path traversal / injection.
+  namespace-locked to `moci-app-*` and rejects path traversal / injection.
 - Core no longer writes `acl.d` or reloads rpcd: the old browser-driven
   privilege-grant primitive is gone.
 
