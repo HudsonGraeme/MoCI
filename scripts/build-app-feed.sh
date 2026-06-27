@@ -149,6 +149,7 @@ ls -l "$OUT"
 REPO="${MOCI_FEED_REPO:-$ROOT/../moci-feed}"
 if [ -d "$REPO/.git" ]; then
 	cp "$OUT"/*.ipk "$PACKAGES" "$PACKAGES.gz" "$REPO/"
+	rm -f "$REPO/Packages.sig"
 	[ -f "$PACKAGES.sig" ] && cp "$PACKAGES.sig" "$REPO/"
 	echo "copied feed to $REPO -- commit and push there to publish"
 fi
