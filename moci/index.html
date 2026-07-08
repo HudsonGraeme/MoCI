@@ -524,6 +524,76 @@
 
 						<div class="tab-content hidden" id="tab-firewall">
 							<div class="stat-card">
+								<div class="section-title">GENERAL SETTINGS</div>
+								<div class="form-group">
+									<label class="form-label">SYN FLOOD PROTECTION</label>
+									<select id="fw-synflood" class="form-input">
+										<option value="1">Enabled</option>
+										<option value="0">Disabled</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label class="form-label">DROP INVALID PACKETS</label>
+									<select id="fw-drop-invalid" class="form-input">
+										<option value="1">Enabled</option>
+										<option value="0">Disabled</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label class="form-label">INPUT POLICY</label>
+									<select id="fw-default-input" class="form-input">
+										<option value="ACCEPT">ACCEPT</option>
+										<option value="REJECT">REJECT</option>
+										<option value="DROP">DROP</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label class="form-label">OUTPUT POLICY</label>
+									<select id="fw-default-output" class="form-input">
+										<option value="ACCEPT">ACCEPT</option>
+										<option value="REJECT">REJECT</option>
+										<option value="DROP">DROP</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label class="form-label">FORWARD POLICY</label>
+									<select id="fw-default-forward" class="form-input">
+										<option value="ACCEPT">ACCEPT</option>
+										<option value="REJECT">REJECT</option>
+										<option value="DROP">DROP</option>
+									</select>
+								</div>
+								<button class="action-btn" id="save-fw-defaults-btn">SAVE SETTINGS</button>
+							</div>
+
+							<div class="stat-card" style="margin-top: 24px">
+								<div class="section-title">ZONES</div>
+								<button class="action-btn" id="add-zone-btn" style="margin-bottom: 16px">
+									ADD ZONE
+								</button>
+								<table class="data-table" id="zones-table">
+									<thead>
+										<tr>
+											<th>ZONE</th>
+											<th>INPUT</th>
+											<th>OUTPUT</th>
+											<th>FORWARD</th>
+											<th>MASQUERADE</th>
+											<th>NETWORKS</th>
+											<th>ACTIONS</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td colspan="7" style="text-align: center; color: var(--steel-muted)">
+												Loading...
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+
+							<div class="stat-card" style="margin-top: 24px">
 								<div class="section-title">PORT FORWARDING RULES</div>
 								<button class="action-btn" id="add-forward-btn" style="margin-bottom: 16px">
 									ADD RULE
@@ -564,6 +634,33 @@
 											<th>PROTOCOL</th>
 											<th>PORT</th>
 											<th>ACTION</th>
+											<th>ACTIONS</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td colspan="7" style="text-align: center; color: var(--steel-muted)">
+												Loading...
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+
+							<div class="stat-card" style="margin-top: 24px">
+								<div class="section-title">NAT RULES</div>
+								<button class="action-btn" id="add-nat-btn" style="margin-bottom: 16px">
+									ADD RULE
+								</button>
+								<table class="data-table" id="nat-table">
+									<thead>
+										<tr>
+											<th>NAME</th>
+											<th>SOURCE ZONE</th>
+											<th>PROTOCOL</th>
+											<th>ACTION</th>
+											<th>REWRITE IP</th>
+											<th>ENABLED</th>
 											<th>ACTIONS</th>
 										</tr>
 									</thead>
@@ -732,6 +829,164 @@
 								<div class="modal-footer">
 									<button class="action-btn" id="cancel-fw-rule-btn">CANCEL</button>
 									<button class="action-btn" id="save-fw-rule-btn">SAVE RULE</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="modal hidden" id="zone-modal">
+							<div class="modal-backdrop"></div>
+							<div class="modal-content">
+								<div class="modal-header">
+									<h3 class="modal-title">FIREWALL ZONE</h3>
+									<button class="modal-close" id="close-zone-modal">&times;</button>
+								</div>
+								<div class="modal-body">
+									<input type="hidden" id="edit-zone-section" />
+									<div class="form-group">
+										<label class="form-label">ZONE NAME</label>
+										<input type="text" id="edit-zone-name" class="form-input" placeholder="lan" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">INPUT POLICY</label>
+										<select id="edit-zone-input" class="form-input">
+											<option value="ACCEPT">ACCEPT</option>
+											<option value="REJECT">REJECT</option>
+											<option value="DROP">DROP</option>
+										</select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">OUTPUT POLICY</label>
+										<select id="edit-zone-output" class="form-input">
+											<option value="ACCEPT">ACCEPT</option>
+											<option value="REJECT">REJECT</option>
+											<option value="DROP">DROP</option>
+										</select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">FORWARD POLICY</label>
+										<select id="edit-zone-forward" class="form-input">
+											<option value="REJECT">REJECT</option>
+											<option value="ACCEPT">ACCEPT</option>
+											<option value="DROP">DROP</option>
+										</select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">MASQUERADE</label>
+										<select id="edit-zone-masq" class="form-input">
+											<option value="0">No</option>
+											<option value="1">Yes</option>
+										</select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">MSS CLAMPING</label>
+										<select id="edit-zone-mtu-fix" class="form-input">
+											<option value="0">No</option>
+											<option value="1">Yes</option>
+										</select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">COVERED NETWORKS</label>
+										<div id="zone-networks-combo"></div>
+									</div>
+									<div class="form-group">
+										<label class="form-label">ALLOW FORWARD TO ZONES</label>
+										<div id="zone-forward-combo"></div>
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button class="action-btn" id="cancel-zone-btn">CANCEL</button>
+									<button class="action-btn" id="save-zone-btn">SAVE ZONE</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="modal hidden" id="nat-modal">
+							<div class="modal-backdrop"></div>
+							<div class="modal-content">
+								<div class="modal-header">
+									<h3 class="modal-title">NAT RULE</h3>
+									<button class="modal-close" id="close-nat-modal">&times;</button>
+								</div>
+								<div class="modal-body">
+									<input type="hidden" id="edit-nat-section" />
+									<div class="form-group">
+										<label class="form-label">RULE NAME</label>
+										<input
+											type="text"
+											id="edit-nat-name"
+											class="form-input"
+											placeholder="Masquerade guest traffic"
+										/>
+									</div>
+									<div class="form-group">
+										<label class="form-label">SOURCE ZONE</label>
+										<select id="edit-nat-src" class="form-input"></select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">PROTOCOL</label>
+										<select id="edit-nat-proto" class="form-input">
+											<option value="all">Any</option>
+											<option value="tcp">TCP</option>
+											<option value="udp">UDP</option>
+											<option value="tcpudp">TCP+UDP</option>
+											<option value="icmp">ICMP</option>
+										</select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">ACTION</label>
+										<select id="edit-nat-target" class="form-input">
+											<option value="MASQUERADE">MASQUERADE</option>
+											<option value="SNAT">SNAT</option>
+											<option value="ACCEPT">ACCEPT (no rewrite)</option>
+										</select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">SOURCE IP (CIDR)</label>
+										<input
+											type="text"
+											id="edit-nat-src-ip"
+											class="form-input"
+											placeholder="192.168.2.0/24 (leave empty for any)"
+										/>
+									</div>
+									<div class="form-group">
+										<label class="form-label">DESTINATION IP (CIDR)</label>
+										<input
+											type="text"
+											id="edit-nat-dest-ip"
+											class="form-input"
+											placeholder="leave empty for any"
+										/>
+									</div>
+									<div class="form-group">
+										<label class="form-label">REWRITE TO IP (SNAT)</label>
+										<input
+											type="text"
+											id="edit-nat-snat-ip"
+											class="form-input"
+											placeholder="required for SNAT"
+										/>
+									</div>
+									<div class="form-group">
+										<label class="form-label">REWRITE TO PORT (SNAT)</label>
+										<input
+											type="text"
+											id="edit-nat-snat-port"
+											class="form-input"
+											placeholder="leave empty to keep port"
+										/>
+									</div>
+									<div class="form-group">
+										<label class="form-label">ENABLED</label>
+										<select id="edit-nat-enabled" class="form-input">
+											<option value="1">Yes</option>
+											<option value="0">No (Disabled)</option>
+										</select>
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button class="action-btn" id="cancel-nat-btn">CANCEL</button>
+									<button class="action-btn" id="save-nat-btn">SAVE RULE</button>
 								</div>
 							</div>
 						</div>
