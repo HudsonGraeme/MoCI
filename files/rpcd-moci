@@ -9,10 +9,42 @@ clean_token() {
 
 case "$1" in
 	list)
-		printf '{ "setPassword": { "username": "str", "password": "str" }, "getDHCPLeases": { } }\n'
+		printf '{ "setPassword": { "username": "str", "password": "str" }, "getDHCPLeases": { }, "getPorts": { }, "getBridges": { } }\n'
 		;;
 	call)
 		case "$2" in
+			getBridges)
+				out=''
+				for b in /sys/class/net/*; do
+					[ -d "$b/bridge" ] || continue
+					bn=$(clean_token "${b##*/}")
+					[ -n "$bn" ] || continue
+					members=''
+					for m in "$b/brif/"*; do
+						[ -e "$m" ] || continue
+						mn=$(clean_token "${m##*/}")
+						[ -n "$mn" ] || continue
+						if [ -e "/sys/class/net/$mn/phy80211" ]; then w=true; else w=false; fi
+						members="${members:+$members, }{ \"name\": \"$mn\", \"wireless\": $w }"
+					done
+					out="${out:+$out, }\"$bn\": [ $members ]"
+				done
+				printf '{ "bridges": { %s } }\n' "$out"
+				;;
+			getPorts)
+				ports=''
+				for d in /sys/class/net/*; do
+					n=${d##*/}
+					[ "$n" = "lo" ] && continue
+					[ -d "$d/bridge" ] && continue
+					[ -e "$d/phy80211" ] && continue
+					[ -e "$d/device" ] || continue
+					n=$(clean_token "$n")
+					[ -n "$n" ] || continue
+					ports="${ports:+$ports, }\"$n\""
+				done
+				printf '{ "ports": [ %s ] }\n' "$ports"
+				;;
 			getDHCPLeases)
 				now=$(date +%s)
 				leases=''
