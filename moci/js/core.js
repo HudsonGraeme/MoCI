@@ -831,9 +831,9 @@ export class OpenWrtCore {
 		el.classList.add('combobox');
 		el.innerHTML = `
 			<div class="combobox-control">
-				<input type="text" class="combobox-input" placeholder="${this.escapeHtml(placeholder)}" autocomplete="off" />
+				<input type="text" class="combobox-input" placeholder="${this.escapeHtml(placeholder)}" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" />
 			</div>
-			<ul class="combobox-menu hidden"></ul>`;
+			<ul class="combobox-menu hidden" role="listbox"></ul>`;
 		const control = el.querySelector('.combobox-control');
 		const input = el.querySelector('.combobox-input');
 		const menu = el.querySelector('.combobox-menu');
@@ -853,7 +853,7 @@ export class OpenWrtCore {
 			selected.forEach(val => {
 				const chip = document.createElement('span');
 				chip.className = 'combobox-chip';
-				chip.innerHTML = `${this.escapeHtml(val)} <button type="button" tabindex="-1">&times;</button>`;
+				chip.innerHTML = `${this.escapeHtml(val)} <button type="button" aria-label="Remove ${this.escapeHtml(val)}">&times;</button>`;
 				chip.querySelector('button').addEventListener('click', e => {
 					e.stopPropagation();
 					remove(val);
@@ -871,7 +871,7 @@ export class OpenWrtCore {
 				? opts
 						.map(
 							(o, i) =>
-								`<li class="combobox-option${i === active ? ' is-active' : ''}" data-value="${this.escapeHtml(o)}">${this.escapeHtml(o)}</li>`
+								`<li class="combobox-option${i === active ? ' is-active' : ''}" role="option" aria-selected="${i === active}" data-value="${this.escapeHtml(o)}">${this.escapeHtml(o)}</li>`
 						)
 						.join('')
 				: '<li class="combobox-empty">No matches</li>';
@@ -881,12 +881,14 @@ export class OpenWrtCore {
 			open = true;
 			control.classList.add('is-open');
 			menu.classList.remove('hidden');
+			input.setAttribute('aria-expanded', 'true');
 			renderMenu();
 		};
 		const closeMenu = () => {
 			open = false;
 			control.classList.remove('is-open');
 			menu.classList.add('hidden');
+			input.setAttribute('aria-expanded', 'false');
 		};
 
 		const add = val => {
