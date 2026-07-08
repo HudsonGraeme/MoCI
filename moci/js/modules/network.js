@@ -17,6 +17,20 @@ const FW_RULE_FIELDS = {
 	'edit-fw-rule-src-ip': 'src_ip'
 };
 
+const NAT_FIELDS = {
+	'edit-nat-name': 'name',
+	'edit-nat-src': 'src',
+	'edit-nat-proto': 'proto',
+	'edit-nat-target': 'target',
+	'edit-nat-src-ip': 'src_ip',
+	'edit-nat-dest-ip': 'dest_ip',
+	'edit-nat-snat-ip': 'snat_ip',
+	'edit-nat-snat-port': 'snat_port',
+	'edit-nat-enabled': 'enabled'
+};
+
+const ZONE_POLICY_BADGES = { ACCEPT: 'success', REJECT: 'warning', DROP: 'error' };
+
 const STATIC_LEASE_FIELDS = {
 	'edit-static-lease-name': 'name',
 	'edit-static-lease-mac': 'mac',
@@ -88,6 +102,8 @@ export default class NetworkModule {
 			{ prefix: 'wireless', save: () => this.saveWireless() },
 			{ prefix: 'forward', save: () => this.saveForward() },
 			{ prefix: 'fw-rule', save: () => this.saveFirewallRule() },
+			{ prefix: 'zone', save: () => this.saveZone() },
+			{ prefix: 'nat', save: () => this.saveNat() },
 			{ prefix: 'static-lease', save: () => this.saveStaticLease() },
 			{ prefix: 'dns-entry', save: () => this.saveDnsEntry() },
 			{ prefix: 'host-entry', save: () => this.saveHostEntry() },
@@ -124,6 +140,22 @@ export default class NetworkModule {
 			});
 		});
 
+		document.getElementById('add-zone-btn')?.addEventListener('click', async () => {
+			this.core.resetModal('zone-modal');
+			await this.loadNetworkNames();
+			this.zoneNetworksCombo().setOptions(this._networkNames);
+			this.zoneNetworksCombo().setSelected([]);
+			this.zoneForwardCombo().setOptions(this.zoneNames());
+			this.zoneForwardCombo().setSelected([]);
+			this.core.openModal('zone-modal');
+		});
+
+		document.getElementById('add-nat-btn')?.addEventListener('click', () => {
+			this.core.resetModal('nat-modal');
+			this.populateNatZoneSelect('');
+			this.core.openModal('nat-modal');
+		});
+
 		document.getElementById('add-bridge-vlan-btn')?.addEventListener('click', () => {
 			this.core.resetModal('bridge-vlan-modal');
 			document.getElementById('edit-bridge-vlan-section').value = '';
@@ -152,6 +184,8 @@ export default class NetworkModule {
 			'wireless-table': { edit: id => this.editWireless(id), delete: id => this.deleteWireless(id) },
 			'firewall-table': { edit: id => this.editForward(id), delete: id => this.deleteForward(id) },
 			'fw-rules-table': { edit: id => this.editFirewallRule(id), delete: id => this.deleteFirewallRule(id) },
+			'zones-table': { edit: id => this.editZone(id), delete: id => this.deleteZone(id) },
+			'nat-table': { edit: id => this.editNat(id), delete: id => this.deleteNat(id) },
 			'dhcp-static-table': { edit: id => this.editStaticLease(id), delete: id => this.deleteStaticLease(id) },
 			'dns-entries-table': { edit: id => this.editDnsEntry(id), delete: id => this.deleteDnsEntry(id) },
 			'hosts-table': { edit: id => this.editHostEntry(id), delete: id => this.deleteHostEntry(id) },
@@ -165,6 +199,7 @@ export default class NetworkModule {
 			if (cleanup) this.cleanups.push(cleanup);
 		}
 
+		document.getElementById('save-fw-defaults-btn')?.addEventListener('click', () => this.saveFwDefaults());
 		document.getElementById('save-qos-config-btn')?.addEventListener('click', () => this.saveQoSConfig());
 		document.getElementById('save-wg-config-btn')?.addEventListener('click', () => this.saveWgConfig());
 		document.getElementById('generate-wg-keys-btn')?.addEventListener('click', () => this.generateWgKeys());
@@ -634,6 +669,11 @@ export default class NetworkModule {
 		await this.core.loadResource('firewall-table', 7, 'firewall', async () => {
 			const [status, result] = await this.core.uciGet('firewall');
 			if (status !== 0 || !result?.values) throw new Error('No data');
+			this._fwCfg = result.values;
+
+			this.renderFwDefaults();
+			this.renderZones();
+			this.renderNatRules();
 
 			const forwards = this.core.filterUciSections(result.values, 'redirect');
 			const rules = this.core.filterUciSections(result.values, 'rule');
@@ -711,6 +751,275 @@ export default class NetworkModule {
 
 	deleteFirewallRule(id) {
 		this.core.uciDeleteEntry('firewall', id, 'Delete this firewall rule?', () => this.loadFirewall());
+	}
+
+	toList(value) {
+		return Array.isArray(value) ? value : value ? [value] : [];
+	}
+
+	zoneNames(exclude) {
+		return this.core
+			.filterUciSections(this._fwCfg || {}, 'zone')
+			.map(z => z.name)
+			.filter(n => n && n !== exclude);
+	}
+
+	zoneForwardings(zoneName) {
+		return this.core.filterUciSections(this._fwCfg || {}, 'forwarding').filter(f => f.src === zoneName);
+	}
+
+	renderPolicyBadge(policy) {
+		const p = (policy || 'REJECT').toUpperCase();
+		return this.core.renderBadge(ZONE_POLICY_BADGES[p] || 'info', p);
+	}
+
+	renderFwDefaults() {
+		const defaults = this.core.filterUciSections(this._fwCfg, 'defaults')[0];
+		this._fwDefaultsSection = defaults?.section || null;
+		const el = id => document.getElementById(id);
+		el('fw-synflood').value = (defaults?.synflood_protect ?? defaults?.syn_flood) === '0' ? '0' : '1';
+		el('fw-drop-invalid').value = defaults?.drop_invalid === '1' ? '1' : '0';
+		el('fw-default-input').value = defaults?.input || 'ACCEPT';
+		el('fw-default-output').value = defaults?.output || 'ACCEPT';
+		el('fw-default-forward').value = defaults?.forward || 'REJECT';
+	}
+
+	async saveFwDefaults() {
+		try {
+			let target = this._fwDefaultsSection;
+			if (!target) {
+				const [, res] = await this.core.uciAdd('firewall', 'defaults');
+				target = res.section;
+			}
+			await this.core.uciSet('firewall', target, {
+				synflood_protect: document.getElementById('fw-synflood').value,
+				drop_invalid: document.getElementById('fw-drop-invalid').value,
+				input: document.getElementById('fw-default-input').value,
+				output: document.getElementById('fw-default-output').value,
+				forward: document.getElementById('fw-default-forward').value
+			});
+			await this.core.uciCommit('firewall');
+			this.core.showToast('Firewall settings saved', 'success');
+			this.loadFirewall();
+		} catch {
+			this.core.showToast('Failed to save firewall settings', 'error');
+		}
+	}
+
+	renderZones() {
+		const zones = this.core.filterUciSections(this._fwCfg, 'zone');
+		this.core.renderTable('#zones-table', zones, 7, 'No zones configured', z => {
+			const dests = this.zoneForwardings(z.name)
+				.map(f => f.dest)
+				.filter(Boolean);
+			const label = dests.length
+				? `${this.core.escapeHtml(z.name || z.section)} &rArr; ${this.core.escapeHtml(dests.join(', '))}`
+				: this.core.escapeHtml(z.name || z.section);
+			const nets = this.toList(z.network).join(', ') || '---';
+			return `<tr>
+				<td>${label}</td>
+				<td>${this.renderPolicyBadge(z.input)}</td>
+				<td>${this.renderPolicyBadge(z.output)}</td>
+				<td>${this.renderPolicyBadge(z.forward)}</td>
+				<td>${this.core.renderStatusBadge(z.masq === '1', 'ON', 'OFF')}</td>
+				<td>${this.core.escapeHtml(nets)}</td>
+				<td>${this.core.renderActionButtons(z.section)}</td>
+			</tr>`;
+		});
+	}
+
+	async loadNetworkNames() {
+		this._networkNames = [];
+		try {
+			const [s, r] = await this.core.uciGet('network');
+			if (s === 0 && r?.values) {
+				this._networkNames = this.core
+					.filterUciSections(r.values, 'interface')
+					.map(i => i.section)
+					.filter(n => n !== 'loopback');
+			}
+		} catch {}
+	}
+
+	zoneNetworksCombo() {
+		if (!this._zoneNetworksCombo) {
+			this._zoneNetworksCombo = this.core.createCombobox('zone-networks-combo', {
+				placeholder: 'Select networks...'
+			});
+		}
+		return this._zoneNetworksCombo;
+	}
+
+	zoneForwardCombo() {
+		if (!this._zoneForwardCombo) {
+			this._zoneForwardCombo = this.core.createCombobox('zone-forward-combo', {
+				placeholder: 'Select destination zones...'
+			});
+		}
+		return this._zoneForwardCombo;
+	}
+
+	async editZone(id) {
+		const z = this._fwCfg?.[id];
+		if (!z) {
+			this.core.showToast('Failed to load zone config', 'error');
+			return;
+		}
+		document.getElementById('edit-zone-section').value = id;
+		document.getElementById('edit-zone-name').value = z.name || '';
+		document.getElementById('edit-zone-input').value = z.input || 'ACCEPT';
+		document.getElementById('edit-zone-output').value = z.output || 'ACCEPT';
+		document.getElementById('edit-zone-forward').value = z.forward || 'REJECT';
+		document.getElementById('edit-zone-masq').value = z.masq === '1' ? '1' : '0';
+		document.getElementById('edit-zone-mtu-fix').value = z.mtu_fix === '1' ? '1' : '0';
+		await this.loadNetworkNames();
+		this.zoneNetworksCombo().setOptions(this._networkNames);
+		this.zoneNetworksCombo().setSelected(this.toList(z.network));
+		this.zoneForwardCombo().setOptions(this.zoneNames(z.name));
+		this.zoneForwardCombo().setSelected(
+			this.zoneForwardings(z.name)
+				.map(f => f.dest)
+				.filter(Boolean)
+		);
+		this.core.openModal('zone-modal');
+	}
+
+	async saveZone() {
+		const section = document.getElementById('edit-zone-section').value;
+		const name = document.getElementById('edit-zone-name').value.trim();
+		if (!/^[a-zA-Z0-9_]{1,11}$/.test(name)) {
+			this.core.showToast('Zone name must be 1-11 alphanumeric or underscore characters', 'error');
+			return;
+		}
+		const networks = this.zoneNetworksCombo().getSelected();
+		const values = {
+			name,
+			input: document.getElementById('edit-zone-input').value,
+			output: document.getElementById('edit-zone-output').value,
+			forward: document.getElementById('edit-zone-forward').value,
+			masq: document.getElementById('edit-zone-masq').value,
+			mtu_fix: document.getElementById('edit-zone-mtu-fix').value
+		};
+		if (networks.length) values.network = networks;
+		const oldName = section ? this._fwCfg?.[section]?.name : null;
+		try {
+			let target = section;
+			if (!target) {
+				const [, res] = await this.core.uciAdd('firewall', 'zone');
+				target = res.section;
+			}
+			await this.core.uciSet('firewall', target, values);
+			if (!networks.length && this._fwCfg?.[target]?.network) {
+				await this.core.uciDelete('firewall', target, 'network');
+			}
+
+			const allForwardings = this.core.filterUciSections(this._fwCfg || {}, 'forwarding');
+			if (oldName && oldName !== name) {
+				for (const type of ['forwarding', 'rule', 'redirect', 'nat']) {
+					for (const ref of this.core.filterUciSections(this._fwCfg || {}, type)) {
+						const upd = {};
+						if (ref.src === oldName) upd.src = name;
+						if (ref.dest === oldName) upd.dest = name;
+						if (Object.keys(upd).length) await this.core.uciSet('firewall', ref.section, upd);
+					}
+				}
+			}
+
+			const desired = this.zoneForwardCombo().getSelected();
+			const current = allForwardings.filter(f => f.src === (oldName || name));
+			for (const f of current) {
+				if (!desired.includes(f.dest)) await this.core.uciDelete('firewall', f.section);
+			}
+			const existingDests = current.map(f => f.dest);
+			for (const dest of desired) {
+				if (existingDests.includes(dest)) continue;
+				const [, res] = await this.core.uciAdd('firewall', 'forwarding');
+				await this.core.uciSet('firewall', res.section, { src: name, dest });
+			}
+
+			await this.core.uciCommit('firewall');
+			this.core.closeModal('zone-modal');
+			this.core.showToast('Zone saved', 'success');
+			this.loadFirewall();
+		} catch {
+			this.core.showToast('Failed to save zone', 'error');
+		}
+	}
+
+	async deleteZone(id) {
+		const name = this._fwCfg?.[id]?.name;
+		if (!confirm(`Delete zone "${name || id}" and its forwardings?`)) return;
+		try {
+			const stale = this.core
+				.filterUciSections(this._fwCfg || {}, 'forwarding')
+				.filter(f => f.src === name || f.dest === name);
+			for (const f of stale) await this.core.uciDelete('firewall', f.section);
+			await this.core.uciDelete('firewall', id);
+			await this.core.uciCommit('firewall');
+			this.core.showToast('Zone deleted', 'success');
+			this.loadFirewall();
+		} catch {
+			this.core.showToast('Failed to delete zone', 'error');
+		}
+	}
+
+	renderNatRules() {
+		const rules = this.core.filterUciSections(this._fwCfg, 'nat');
+		this.core.renderTable(
+			'#nat-table',
+			rules,
+			7,
+			'No NAT rules configured',
+			r => `<tr>
+			<td>${this.core.escapeHtml(r.name || r.section)}</td>
+			<td>${this.core.escapeHtml(r.src || 'Any')}</td>
+			<td>${this.core.escapeHtml(r.proto || 'all')}</td>
+			<td>${this.core.renderBadge(r.target === 'ACCEPT' ? 'info' : 'success', r.target || 'MASQUERADE')}</td>
+			<td>${this.core.escapeHtml(r.snat_ip || '---')}</td>
+			<td>${this.core.renderStatusBadge(r.enabled !== '0')}</td>
+			<td>${this.core.renderActionButtons(r.section)}</td>
+		</tr>`
+		);
+	}
+
+	populateNatZoneSelect(selected) {
+		const sel = document.getElementById('edit-nat-src');
+		if (!sel) return;
+		const names = this.zoneNames();
+		if (selected && !names.includes(selected)) names.push(selected);
+		sel.innerHTML = names
+			.map(
+				n =>
+					`<option value="${this.core.escapeHtml(n)}"${n === selected ? ' selected' : ''}>${this.core.escapeHtml(n)}</option>`
+			)
+			.join('');
+	}
+
+	editNat(id) {
+		this.populateNatZoneSelect(this._fwCfg?.[id]?.src || '');
+		this.core.uciEdit('firewall', id, NAT_FIELDS, 'nat-modal', 'edit-nat-section');
+	}
+
+	saveNat() {
+		const target = document.getElementById('edit-nat-target').value;
+		const snatIp = document.getElementById('edit-nat-snat-ip').value.trim();
+		if (target === 'SNAT' && !snatIp) {
+			this.core.showToast('SNAT requires a rewrite IP address', 'error');
+			return;
+		}
+		this.core.uciSave({
+			config: 'firewall',
+			uciType: 'nat',
+			modalId: 'nat-modal',
+			sectionIdField: 'edit-nat-section',
+			fieldMap: NAT_FIELDS,
+			reloadFn: () => this.loadFirewall(),
+			successMsg: 'NAT rule saved'
+		});
+	}
+
+	deleteNat(id) {
+		this.core.uciDeleteEntry('firewall', id, 'Delete this NAT rule?', () => this.loadFirewall());
 	}
 
 	async loadDHCP() {
