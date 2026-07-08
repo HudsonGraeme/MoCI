@@ -17,7 +17,9 @@
 				"/usr/libexec/moci-pkg-call list-installed": ["exec"],
 				"/usr/libexec/moci-pkg-call list-available": ["exec"],
 				"/usr/libexec/moci-pkg-call inspect *": ["exec"],
-				"/usr/libexec/moci-pkg-call feeds": ["exec"]
+				"/usr/libexec/moci-pkg-call feeds": ["exec"],
+				"/sbin/logread": ["exec"],
+				"/bin/dmesg": ["exec"]
 			},
 			"ubus": {
 				"network.interface": ["dump"],
