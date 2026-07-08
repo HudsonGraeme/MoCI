@@ -332,8 +332,8 @@ export default class NetworkModule {
 			} catch {}
 			this._bridges = bridges;
 
-			const devices = this.core.filterUciSections(this._netCfg, 'device');
-			this.core.renderTable('#devices-table', devices, 5, 'No devices configured', d => {
+			const devices = this.bridgeDevices();
+			this.core.renderTable('#devices-table', devices, 5, 'No bridges configured', d => {
 				return `<tr>
 					<td>${this.core.escapeHtml(d.name || d.section)}</td>
 					<td>${this.core.escapeHtml((d.type || 'device').toUpperCase())}</td>
@@ -405,6 +405,10 @@ export default class NetworkModule {
 			this.core.showToast('Failed to load device config', 'error');
 			return;
 		}
+		if (d.type !== 'bridge') {
+			this.core.showToast('Only bridge devices can be edited here', 'error');
+			return;
+		}
 		document.getElementById('edit-device-section').value = id;
 		document.getElementById('edit-device-name').value = d.name || '';
 		document.getElementById('edit-device-mtu').value = d.mtu || '';
@@ -424,8 +428,15 @@ export default class NetworkModule {
 			this.core.showToast('Device name is required', 'error');
 			return;
 		}
-		const values = { name, type: 'bridge', ports: this.devicePortsCombo().getSelected() };
+		if (mtu && !/^\d+$/.test(mtu)) {
+			this.core.showToast('MTU must be a number', 'error');
+			return;
+		}
+		const ports = this.devicePortsCombo().getSelected();
+		const values = { name, type: 'bridge' };
+		if (ports.length) values.ports = ports;
 		if (mtu) values.mtu = mtu;
+		const oldName = section ? this._netCfg?.[section]?.name : null;
 		try {
 			let target = section;
 			if (!target) {
@@ -433,6 +444,14 @@ export default class NetworkModule {
 				target = res.section;
 			}
 			await this.core.uciSet('network', target, values);
+			if (!ports.length && this._netCfg?.[target]?.ports) {
+				await this.core.uciDelete('network', target, 'ports');
+			}
+			if (oldName && oldName !== name) {
+				for (const v of this.core.filterUciSections(this._netCfg, 'bridge-vlan')) {
+					if (v.device === oldName) await this.core.uciSet('network', v.section, { device: name });
+				}
+			}
 			await this.core.uciCommit('network');
 			this.core.closeModal('device-modal');
 			this.core.showToast('Device saved', 'success');
@@ -442,8 +461,22 @@ export default class NetworkModule {
 		}
 	}
 
-	deleteDevice(id) {
-		this.core.uciDeleteEntry('network', id, 'Delete this device?', () => this.loadDevices());
+	async deleteDevice(id) {
+		const name = this._netCfg?.[id]?.name;
+		const vlans = this.core.filterUciSections(this._netCfg || {}, 'bridge-vlan').filter(v => v.device === name);
+		const msg = vlans.length
+			? `Delete bridge "${name}" and its ${vlans.length} bridge VLAN(s)?`
+			: 'Delete this device?';
+		if (!confirm(msg)) return;
+		try {
+			for (const v of vlans) await this.core.uciDelete('network', v.section);
+			await this.core.uciDelete('network', id);
+			await this.core.uciCommit('network');
+			this.core.showToast('Deleted', 'success');
+			this.loadDevices();
+		} catch {
+			this.core.showToast('Failed to delete device', 'error');
+		}
 	}
 
 	renderVlanPortGrid(deviceName, existing = []) {
