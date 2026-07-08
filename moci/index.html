@@ -1727,6 +1727,7 @@
 						<div class="tabs">
 							<button class="tab-btn active" data-tab="general">GENERAL</button>
 							<button class="tab-btn" data-tab="admin">ADMINISTRATION</button>
+							<button class="tab-btn" data-tab="logs">LOGS</button>
 							<button class="tab-btn" data-tab="backup">BACKUP/RESTORE</button>
 							<button class="tab-btn" data-tab="software">SOFTWARE</button>
 							<button class="tab-btn" data-tab="startup">STARTUP</button>
@@ -1750,6 +1751,29 @@
 								</div>
 								<div class="quick-actions">
 									<button class="action-btn" id="save-general-btn">SAVE CHANGES</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="tab-content hidden" id="tab-logs">
+							<div class="stat-card">
+								<div class="section-title">SYSTEM LOG</div>
+								<div class="diagnostic-form" style="margin-bottom: 12px">
+									<input type="text" id="syslog-filter" placeholder="Filter..." class="diag-input" />
+									<button class="action-btn" id="refresh-syslog-btn">REFRESH</button>
+								</div>
+								<div class="log-viewer" id="syslog-output" style="max-height: 600px">
+									<div class="log-line">Loading...</div>
+								</div>
+							</div>
+							<div class="stat-card" style="margin-top: 24px">
+								<div class="section-title">KERNEL LOG</div>
+								<div class="diagnostic-form" style="margin-bottom: 12px">
+									<input type="text" id="klog-filter" placeholder="Filter..." class="diag-input" />
+									<button class="action-btn" id="refresh-klog-btn">REFRESH</button>
+								</div>
+								<div class="log-viewer" id="klog-output" style="max-height: 600px">
+									<div class="log-line">Loading...</div>
 								</div>
 							</div>
 						</div>

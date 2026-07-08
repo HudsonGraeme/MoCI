@@ -825,6 +825,23 @@ export class OpenWrtCore {
 		tbody.innerHTML = items.map(rowFn).join('');
 	}
 
+	renderLogLines(element, lines, emptyMsg = 'No logs available') {
+		if (!element) return;
+		if (!lines.length) {
+			element.innerHTML = `<div class="log-line">${this.escapeHtml(emptyMsg)}</div>`;
+			return;
+		}
+		element.innerHTML = lines
+			.map(line => {
+				let className = 'log-line';
+				const lower = line.toLowerCase();
+				if (lower.includes('error') || lower.includes('fail')) className += ' error';
+				else if (lower.includes('warn')) className += ' warn';
+				return `<div class="${className}">${this.escapeHtml(line)}</div>`;
+			})
+			.join('');
+	}
+
 	createCombobox(container, { placeholder = '', onChange } = {}) {
 		const el = typeof container === 'string' ? document.getElementById(container) : container;
 		if (!el) return null;
