@@ -153,7 +153,7 @@ export default class SystemModule {
 		output.innerHTML = '<div class="log-line">Loading...</div>';
 		try {
 			const [s, r] = await this.core.ubusCall('file', 'exec', commands[kind], { timeout: 15000 });
-			if (s !== 0) throw new Error('Command failed');
+			if (s !== 0 || !r || (r.code && r.code !== 0)) throw new Error('Command failed');
 			if (!this._logLines) this._logLines = {};
 			this._logLines[kind] = (r.stdout || '').split('\n').filter(l => l.trim());
 			this.renderLog(kind);
