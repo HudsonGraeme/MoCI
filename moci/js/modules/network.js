@@ -266,9 +266,7 @@ export default class NetworkModule {
 
 	bridgeDevices() {
 		if (!this._netCfg) return [];
-		return this.core
-			.filterUciSections(this._netCfg, 'device')
-			.filter(d => d.type === 'bridge');
+		return this.core.filterUciSections(this._netCfg, 'device').filter(d => d.type === 'bridge');
 	}
 
 	renderMembersCell(d, bridges) {
@@ -351,7 +349,8 @@ export default class NetworkModule {
 		group.style.display = '';
 		list.innerHTML = wifi
 			.map(
-				m => `<span style="display:inline-flex;align-items:center;padding:2px 8px;background:rgba(226,226,229,0.05);border-radius:12px;color:var(--steel-muted);font-size:13px">${this.core.escapeHtml(m.name)}</span>`
+				m =>
+					`<span style="display:inline-flex;align-items:center;padding:2px 8px;background:rgba(226,226,229,0.05);border-radius:12px;color:var(--steel-muted);font-size:13px">${this.core.escapeHtml(m.name)}</span>`
 			)
 			.join('');
 	}
@@ -422,15 +421,16 @@ export default class NetworkModule {
 			const p = this.parsePortSpec(spec);
 			existingByPort[p.port] = p;
 		});
-		grid.innerHTML = ports
-			.filter(Boolean)
-			.map(port => {
-				const cur = existingByPort[port];
-				const state = !cur ? 'off' : cur.tagged ? 'tagged' : 'untagged';
-				const pvid = cur?.pvid ? 'checked' : '';
-				const opt = (val, label) =>
-					`<option value="${val}"${state === val ? ' selected' : ''}>${label}</option>`;
-				return `<div class="form-group" style="display:flex;align-items:center;gap:12px">
+		grid.innerHTML =
+			ports
+				.filter(Boolean)
+				.map(port => {
+					const cur = existingByPort[port];
+					const state = !cur ? 'off' : cur.tagged ? 'tagged' : 'untagged';
+					const pvid = cur?.pvid ? 'checked' : '';
+					const opt = (val, label) =>
+						`<option value="${val}"${state === val ? ' selected' : ''}>${label}</option>`;
+					return `<div class="form-group" style="display:flex;align-items:center;gap:12px">
 					<span style="flex:1">${this.core.escapeHtml(port)}</span>
 					<select class="form-input vlan-port-state" data-port="${this.core.escapeHtml(port)}" style="flex:1">
 						${opt('off', 'Excluded')}${opt('untagged', 'Untagged')}${opt('tagged', 'Tagged')}
@@ -439,8 +439,8 @@ export default class NetworkModule {
 						<input type="checkbox" class="vlan-port-pvid" data-port="${this.core.escapeHtml(port)}" ${pvid} /> PVID
 					</label>
 				</div>`;
-			})
-			.join('') || '<p style="color:var(--steel-muted)">Selected device has no ports.</p>';
+				})
+				.join('') || '<p style="color:var(--steel-muted)">Selected device has no ports.</p>';
 	}
 
 	populateVlanDeviceSelect(selected) {
@@ -448,7 +448,10 @@ export default class NetworkModule {
 		if (!sel) return;
 		const devices = this.bridgeDevices();
 		sel.innerHTML = devices
-			.map(d => `<option value="${this.core.escapeHtml(d.name)}"${d.name === selected ? ' selected' : ''}>${this.core.escapeHtml(d.name)}</option>`)
+			.map(
+				d =>
+					`<option value="${this.core.escapeHtml(d.name)}"${d.name === selected ? ' selected' : ''}>${this.core.escapeHtml(d.name)}</option>`
+			)
 			.join('');
 		sel.onchange = () => this.renderVlanPortGrid(sel.value);
 	}

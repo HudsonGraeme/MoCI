@@ -226,7 +226,9 @@
 
 						<div class="tab-content" id="tab-devices">
 							<div class="stat-card">
-								<button class="action-btn" id="add-device-btn" style="margin-bottom: 16px">+ ADD BRIDGE</button>
+								<button class="action-btn" id="add-device-btn" style="margin-bottom: 16px">
+									+ ADD BRIDGE
+								</button>
 								<table class="data-table" id="devices-table">
 									<thead>
 										<tr>
@@ -248,7 +250,9 @@
 							</div>
 
 							<div class="stat-card" style="margin-top: 24px">
-								<button class="action-btn" id="add-bridge-vlan-btn" style="margin-bottom: 16px">+ ADD VLAN</button>
+								<button class="action-btn" id="add-bridge-vlan-btn" style="margin-bottom: 16px">
+									+ ADD VLAN
+								</button>
 								<table class="data-table" id="bridge-vlans-table">
 									<thead>
 										<tr>
@@ -280,15 +284,23 @@
 									<input type="hidden" id="edit-device-section" />
 									<div class="form-group">
 										<label class="form-label">NAME</label>
-										<input type="text" id="edit-device-name" class="form-input" placeholder="br-lan" />
+										<input
+											type="text"
+											id="edit-device-name"
+											class="form-input"
+											placeholder="br-lan"
+										/>
 									</div>
 									<div class="form-group">
 										<label class="form-label">PORTS</label>
 										<div id="device-ports-combo"></div>
 									</div>
-									<div class="form-group" id="device-wireless-group" style="display:none">
+									<div class="form-group" id="device-wireless-group" style="display: none">
 										<label class="form-label">WIRELESS MEMBERS (read-only)</label>
-										<div id="device-wireless-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+										<div
+											id="device-wireless-list"
+											style="display: flex; flex-wrap: wrap; gap: 6px"
+										></div>
 									</div>
 									<div class="form-group">
 										<label class="form-label">MTU (optional)</label>
@@ -317,7 +329,12 @@
 									</div>
 									<div class="form-group">
 										<label class="form-label">VLAN ID</label>
-										<input type="text" id="edit-bridge-vlan-vlan" class="form-input" placeholder="10" />
+										<input
+											type="text"
+											id="edit-bridge-vlan-vlan"
+											class="form-input"
+											placeholder="10"
+										/>
 									</div>
 									<label class="form-label">PORT MEMBERSHIP</label>
 									<div id="bridge-vlan-ports"></div>
