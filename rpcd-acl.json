@@ -25,7 +25,7 @@
 				"uci": ["get"],
 				"file": ["read"],
 				"system": ["info", "board"],
-				"moci": ["getDHCPLeases"],
+				"moci": ["getDHCPLeases", "getPorts", "getBridges"],
 				"service": ["list"]
 			},
 			"uci": ["moci"]
