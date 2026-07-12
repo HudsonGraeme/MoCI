@@ -73,6 +73,7 @@ export default class NetworkModule {
 				const loadHandlers = {
 					interfaces: () => this.loadInterfaces(),
 					devices: () => this.loadDevices(),
+					routes: () => this.loadRoutes(),
 					wireless: () => this.loadWireless(),
 					firewall: () => this.loadFirewall(),
 					dhcp: () => this.loadDHCP(),
@@ -104,6 +105,8 @@ export default class NetworkModule {
 			{ prefix: 'fw-rule', save: () => this.saveFirewallRule() },
 			{ prefix: 'zone', save: () => this.saveZone() },
 			{ prefix: 'nat', save: () => this.saveNat() },
+			{ prefix: 'route', save: () => this.saveRoute() },
+			{ prefix: 'dhcp-pool', save: () => this.saveDhcpPool() },
 			{ prefix: 'static-lease', save: () => this.saveStaticLease() },
 			{ prefix: 'dns-entry', save: () => this.saveDnsEntry() },
 			{ prefix: 'host-entry', save: () => this.saveHostEntry() },
@@ -138,6 +141,19 @@ export default class NetworkModule {
 				this.core.resetModal(modalId);
 				this.core.openModal(modalId);
 			});
+		});
+
+		document.getElementById('add-route-btn')?.addEventListener('click', () => this.openRouteModal('route'));
+		document.getElementById('add-route6-btn')?.addEventListener('click', () => this.openRouteModal('route6'));
+
+		document.getElementById('add-dhcp-pool-btn')?.addEventListener('click', async () => {
+			this.core.resetModal('dhcp-pool-modal');
+			const nameInput = document.getElementById('edit-pool-name');
+			nameInput.disabled = false;
+			nameInput.value = '';
+			await this.loadNetworkNames();
+			this.populateIfaceSelect('edit-pool-interface', '');
+			this.core.openModal('dhcp-pool-modal');
 		});
 
 		document.getElementById('add-zone-btn')?.addEventListener('click', async () => {
@@ -186,6 +202,9 @@ export default class NetworkModule {
 			'fw-rules-table': { edit: id => this.editFirewallRule(id), delete: id => this.deleteFirewallRule(id) },
 			'zones-table': { edit: id => this.editZone(id), delete: id => this.deleteZone(id) },
 			'nat-table': { edit: id => this.editNat(id), delete: id => this.deleteNat(id) },
+			'routes-table': { edit: id => this.editRoute(id), delete: id => this.deleteRoute(id) },
+			'routes6-table': { edit: id => this.editRoute(id), delete: id => this.deleteRoute(id) },
+			'dhcp-pools-table': { edit: id => this.editDhcpPool(id), delete: id => this.deleteDhcpPool(id) },
 			'dhcp-static-table': { edit: id => this.editStaticLease(id), delete: id => this.deleteStaticLease(id) },
 			'dns-entries-table': { edit: id => this.editDnsEntry(id), delete: id => this.deleteDnsEntry(id) },
 			'hosts-table': { edit: id => this.editHostEntry(id), delete: id => this.deleteHostEntry(id) },
@@ -200,6 +219,7 @@ export default class NetworkModule {
 		}
 
 		document.getElementById('save-fw-defaults-btn')?.addEventListener('click', () => this.saveFwDefaults());
+		document.getElementById('save-dns-config-btn')?.addEventListener('click', () => this.saveDnsConfig());
 		document.getElementById('save-qos-config-btn')?.addEventListener('click', () => this.saveQoSConfig());
 		document.getElementById('save-wg-config-btn')?.addEventListener('click', () => this.saveWgConfig());
 		document.getElementById('generate-wg-keys-btn')?.addEventListener('click', () => this.generateWgKeys());
@@ -209,6 +229,7 @@ export default class NetworkModule {
 		document.getElementById('ping-btn')?.addEventListener('click', () => this.runDiagnostic('ping'));
 		document.getElementById('traceroute-btn')?.addEventListener('click', () => this.runDiagnostic('traceroute'));
 		document.getElementById('wol-btn')?.addEventListener('click', () => this.runWoL());
+		document.getElementById('nslookup-btn')?.addEventListener('click', () => this.runDiagnostic('nslookup'));
 	}
 
 	cleanup() {
@@ -434,7 +455,6 @@ export default class NetworkModule {
 		}
 		const ports = this.devicePortsCombo().getSelected();
 		const values = { name, type: 'bridge' };
-		if (ports.length) values.ports = ports;
 		if (mtu) values.mtu = mtu;
 		const oldName = section ? this._netCfg?.[section]?.name : null;
 		try {
@@ -444,9 +464,7 @@ export default class NetworkModule {
 				target = res.section;
 			}
 			await this.core.uciSet('network', target, values);
-			if (!ports.length && this._netCfg?.[target]?.ports) {
-				await this.core.uciDelete('network', target, 'ports');
-			}
+			await this.setListOption('network', target, 'ports', ports, !!this._netCfg?.[target]?.ports);
 			if (oldName && oldName !== name) {
 				for (const v of this.core.filterUciSections(this._netCfg, 'bridge-vlan')) {
 					if (v.device === oldName) await this.core.uciSet('network', v.section, { device: name });
@@ -514,13 +532,11 @@ export default class NetworkModule {
 	populateVlanDeviceSelect(selected) {
 		const sel = document.getElementById('edit-bridge-vlan-device');
 		if (!sel) return;
-		const devices = this.bridgeDevices();
-		sel.innerHTML = devices
-			.map(
-				d =>
-					`<option value="${this.core.escapeHtml(d.name)}"${d.name === selected ? ' selected' : ''}>${this.core.escapeHtml(d.name)}</option>`
-			)
-			.join('');
+		this.populateSelect(
+			'edit-bridge-vlan-device',
+			this.bridgeDevices().map(d => d.name),
+			selected
+		);
 		sel.onchange = () => this.renderVlanPortGrid(sel.value);
 	}
 
@@ -572,6 +588,140 @@ export default class NetworkModule {
 
 	deleteBridgeVlan(id) {
 		this.core.uciDeleteEntry('network', id, 'Delete this bridge VLAN?', () => this.loadDevices());
+	}
+
+	populateSelect(id, names, selected) {
+		const sel = document.getElementById(id);
+		if (!sel) return;
+		sel.innerHTML = names
+			.map(
+				n =>
+					`<option value="${this.core.escapeHtml(n)}"${n === selected ? ' selected' : ''}>${this.core.escapeHtml(n)}</option>`
+			)
+			.join('');
+	}
+
+	populateIfaceSelect(id, selected) {
+		this.populateSelect(id, this._networkNames || [], selected);
+	}
+
+	async setListOption(config, section, option, list, hadValue) {
+		if (list.length) {
+			await this.core.uciSet(config, section, { [option]: list });
+		} else if (hadValue) {
+			await this.core.uciDelete(config, section, option);
+		}
+	}
+
+	async loadRoutes() {
+		await this.core.loadResource('routes-table', 6, 'network', async () => {
+			const [status, result] = await this.core.uciGet('network');
+			if (status !== 0 || !result?.values) throw new Error('No data');
+			this._netCfg = result.values;
+			for (const [type, tableId] of [
+				['route', '#routes-table'],
+				['route6', '#routes6-table']
+			]) {
+				const routes = this.core.filterUciSections(this._netCfg, type);
+				this.core.renderTable(tableId, routes, 6, 'No static routes configured', r => {
+					const target = r.netmask ? `${r.target || '---'} / ${r.netmask}` : r.target || '---';
+					return `<tr>
+					<td>${this.core.escapeHtml(target)}</td>
+					<td>${this.core.escapeHtml(r.gateway || '---')}</td>
+					<td>${this.core.escapeHtml(r.interface || '---')}</td>
+					<td>${this.core.escapeHtml(r.metric || '0')}</td>
+					<td>${this.core.escapeHtml(r.type || 'unicast')}</td>
+					<td>${this.core.renderActionButtons(r.section)}</td>
+				</tr>`;
+				});
+			}
+		});
+	}
+
+	async openRouteModal(family) {
+		this.core.resetModal('route-modal');
+		document.getElementById('edit-route-family').value = family;
+		document.getElementById('route-netmask-group').style.display = family === 'route6' ? 'none' : '';
+		await this.loadNetworkNames();
+		this.populateIfaceSelect('edit-route-iface', '');
+		this.core.openModal('route-modal');
+	}
+
+	async editRoute(id) {
+		const r = this._netCfg?.[id];
+		if (!r) {
+			this.core.showToast('Failed to load route config', 'error');
+			return;
+		}
+		const family = r['.type'];
+		this.core.resetModal('route-modal');
+		document.getElementById('edit-route-section').value = id;
+		document.getElementById('edit-route-family').value = family;
+		document.getElementById('route-netmask-group').style.display = family === 'route6' ? 'none' : '';
+		await this.loadNetworkNames();
+		this.populateIfaceSelect('edit-route-iface', r.interface || '');
+		document.getElementById('edit-route-target').value = r.target || '';
+		document.getElementById('edit-route-netmask').value = r.netmask || '';
+		document.getElementById('edit-route-gateway').value = r.gateway || '';
+		document.getElementById('edit-route-metric').value = r.metric || '';
+		document.getElementById('edit-route-mtu').value = r.mtu || '';
+		document.getElementById('edit-route-type').value = r.type || 'unicast';
+		this.core.openModal('route-modal');
+	}
+
+	async saveRoute() {
+		const section = document.getElementById('edit-route-section').value;
+		const family = document.getElementById('edit-route-family').value || 'route';
+		const target = document.getElementById('edit-route-target').value.trim();
+		if (!target) {
+			this.core.showToast('Route target is required', 'error');
+			return;
+		}
+		const optionals = {
+			netmask: family === 'route6' ? '' : document.getElementById('edit-route-netmask').value.trim(),
+			gateway: document.getElementById('edit-route-gateway').value.trim(),
+			metric: document.getElementById('edit-route-metric').value.trim(),
+			mtu: document.getElementById('edit-route-mtu').value.trim()
+		};
+		for (const key of ['metric', 'mtu']) {
+			if (optionals[key] && !/^\d+$/.test(optionals[key])) {
+				this.core.showToast(`${key.toUpperCase()} must be a number`, 'error');
+				return;
+			}
+		}
+		const values = {
+			interface: document.getElementById('edit-route-iface').value,
+			target,
+			type: document.getElementById('edit-route-type').value
+		};
+		for (const [key, val] of Object.entries(optionals)) {
+			if (val) values[key] = val;
+		}
+		try {
+			let sectionTarget = section;
+			if (!sectionTarget) {
+				const [, res] = await this.core.uciAdd('network', family);
+				sectionTarget = res.section;
+			}
+			await this.core.uciSet('network', sectionTarget, values);
+			if (section) {
+				for (const [key, val] of Object.entries(optionals)) {
+					if (!val && this._netCfg?.[section]?.[key]) {
+						await this.core.uciDelete('network', section, key);
+					}
+				}
+			}
+			await this.core.uciCommit('network');
+			this.core.closeModal('route-modal');
+			this.core.showToast('Route saved', 'success');
+			this.loadRoutes();
+		} catch {
+			this.core.showToast('Failed to save route', 'error');
+		}
+	}
+
+	deleteRoute(id) {
+		this.core.uciDeleteEntry('network', id, 'Delete this static route?', () => this.loadRoutes());
 	}
 
 	async loadWireless() {
@@ -900,7 +1050,6 @@ export default class NetworkModule {
 			masq: document.getElementById('edit-zone-masq').value,
 			mtu_fix: document.getElementById('edit-zone-mtu-fix').value
 		};
-		if (networks.length) values.network = networks;
 		const oldName = section ? this._fwCfg?.[section]?.name : null;
 		try {
 			let target = section;
@@ -909,9 +1058,7 @@ export default class NetworkModule {
 				target = res.section;
 			}
 			await this.core.uciSet('firewall', target, values);
-			if (!networks.length && this._fwCfg?.[target]?.network) {
-				await this.core.uciDelete('firewall', target, 'network');
-			}
+			await this.setListOption('firewall', target, 'network', networks, !!this._fwCfg?.[target]?.network);
 
 			const allForwardings = this.core.filterUciSections(this._fwCfg || {}, 'forwarding');
 			if (oldName && oldName !== name) {
@@ -983,16 +1130,9 @@ export default class NetworkModule {
 	}
 
 	populateNatZoneSelect(selected) {
-		const sel = document.getElementById('edit-nat-src');
-		if (!sel) return;
 		const names = this.zoneNames();
 		if (selected && !names.includes(selected)) names.push(selected);
-		sel.innerHTML = names
-			.map(
-				n =>
-					`<option value="${this.core.escapeHtml(n)}"${n === selected ? ' selected' : ''}>${this.core.escapeHtml(n)}</option>`
-			)
-			.join('');
+		this.populateSelect('edit-nat-src', names, selected);
 	}
 
 	editNat(id) {
@@ -1045,6 +1185,24 @@ export default class NetworkModule {
 
 			const [status, result] = await this.core.uciGet('dhcp');
 			if (status !== 0 || !result?.values) return;
+			this._dhcpCfg = result.values;
+
+			const pools = this.core.filterUciSections(result.values, 'dhcp');
+			this.core.renderTable(
+				'#dhcp-pools-table',
+				pools,
+				7,
+				'No DHCP pools configured',
+				p => `<tr>
+				<td>${this.core.escapeHtml(p.section)}</td>
+				<td>${this.core.escapeHtml(p.interface || '---')}</td>
+				<td>${this.core.escapeHtml(p.start || '---')}</td>
+				<td>${this.core.escapeHtml(p.limit || '---')}</td>
+				<td>${this.core.escapeHtml(p.leasetime || '---')}</td>
+				<td>${this.core.renderStatusBadge(p.ignore !== '1', 'ACTIVE', 'IGNORED')}</td>
+				<td>${this.core.renderActionButtons(p.section)}</td>
+			</tr>`
+			);
 
 			const statics = this.core.filterUciSections(result.values, 'host');
 			this.core.renderTable(
@@ -1082,10 +1240,81 @@ export default class NetworkModule {
 		this.core.uciDeleteEntry('dhcp', id, 'Delete this static lease?', () => this.loadDHCP());
 	}
 
+	async editDhcpPool(id) {
+		const c = this._dhcpCfg?.[id];
+		if (!c) {
+			this.core.showToast('Failed to load pool config', 'error');
+			return;
+		}
+		this.core.resetModal('dhcp-pool-modal');
+		const nameInput = document.getElementById('edit-pool-name');
+		nameInput.value = id;
+		nameInput.disabled = true;
+		document.getElementById('edit-pool-section').value = id;
+		await this.loadNetworkNames();
+		this.populateIfaceSelect('edit-pool-interface', c.interface || '');
+		document.getElementById('edit-pool-start').value = c.start || '';
+		document.getElementById('edit-pool-limit').value = c.limit || '';
+		document.getElementById('edit-pool-leasetime').value = c.leasetime || '';
+		document.getElementById('edit-pool-ignore').value = c.ignore === '1' ? '1' : '0';
+		document.getElementById('edit-pool-dhcpv6').value = c.dhcpv6 || '';
+		document.getElementById('edit-pool-ra').value = c.ra || '';
+		this.core.openModal('dhcp-pool-modal');
+	}
+
+	async saveDhcpPool() {
+		const section = document.getElementById('edit-pool-section').value;
+		const optionals = {
+			start: document.getElementById('edit-pool-start').value.trim(),
+			limit: document.getElementById('edit-pool-limit').value.trim(),
+			leasetime: document.getElementById('edit-pool-leasetime').value.trim(),
+			dhcpv6: document.getElementById('edit-pool-dhcpv6').value,
+			ra: document.getElementById('edit-pool-ra').value
+		};
+		const values = {
+			interface: document.getElementById('edit-pool-interface').value,
+			ignore: document.getElementById('edit-pool-ignore').value
+		};
+		for (const [key, val] of Object.entries(optionals)) {
+			if (val) values[key] = val;
+		}
+		try {
+			let target = section;
+			if (!target) {
+				const name = document.getElementById('edit-pool-name').value.trim();
+				if (!/^[a-zA-Z0-9_]+$/.test(name)) {
+					this.core.showToast('Pool name must be alphanumeric or underscore', 'error');
+					return;
+				}
+				const [, res] = await this.core.uciAdd('dhcp', 'dhcp', name);
+				target = res?.section || name;
+			}
+			await this.core.uciSet('dhcp', target, values);
+			if (section) {
+				for (const [key, val] of Object.entries(optionals)) {
+					if (!val && this._dhcpCfg?.[section]?.[key]) {
+						await this.core.uciDelete('dhcp', section, key);
+					}
+				}
+			}
+			await this.core.uciCommit('dhcp');
+			this.core.closeModal('dhcp-pool-modal');
+			this.core.showToast('DHCP pool saved', 'success');
+			this.loadDHCP();
+		} catch {
+			this.core.showToast('Failed to save DHCP pool', 'error');
+		}
+	}
+
+	deleteDhcpPool(id) {
+		this.core.uciDeleteEntry('dhcp', id, `Delete DHCP pool "${id}"?`, () => this.loadDHCP());
+	}
+
 	async loadDNS() {
 		await this.core.loadResource('dns-entries-table', 3, 'dns', async () => {
 			const [status, result] = await this.core.uciGet('dhcp');
 			if (status === 0 && result?.values) {
+				this.renderDnsConfig(result.values);
 				const domains = this.core.filterUciSections(result.values, 'domain');
 				this.core.renderTable(
 					'#dns-entries-table',
@@ -1130,6 +1359,46 @@ export default class NetworkModule {
 				return { ip: parts[0], names: parts.slice(1).join(' ') };
 			})
 			.filter(e => e.ip && e.names);
+	}
+
+	renderDnsConfig(cfg) {
+		const dnsmasq = this.core.filterUciSections(cfg, 'dnsmasq')[0];
+		this._dnsmasqSection = dnsmasq?.section || null;
+		this._dnsmasqHadServers = !!dnsmasq?.server;
+		const el = id => document.getElementById(id);
+		el('dns-authoritative').value = dnsmasq?.authoritative === '0' ? '0' : '1';
+		el('dns-domain').value = dnsmasq?.domain || '';
+		el('dns-local').value = dnsmasq?.local || '';
+		el('dns-rebind').value = dnsmasq?.rebind_protection === '0' ? '0' : '1';
+		el('dns-logqueries').value = dnsmasq?.logqueries === '1' ? '1' : '0';
+		el('dns-servers').value = this.toList(dnsmasq?.server).join(' ');
+	}
+
+	async saveDnsConfig() {
+		const servers = document
+			.getElementById('dns-servers')
+			.value.split(/[\s,]+/)
+			.filter(Boolean);
+		try {
+			let target = this._dnsmasqSection;
+			if (!target) {
+				const [, res] = await this.core.uciAdd('dhcp', 'dnsmasq');
+				target = res.section;
+			}
+			await this.core.uciSet('dhcp', target, {
+				authoritative: document.getElementById('dns-authoritative').value,
+				domain: document.getElementById('dns-domain').value.trim(),
+				local: document.getElementById('dns-local').value.trim(),
+				rebind_protection: document.getElementById('dns-rebind').value,
+				logqueries: document.getElementById('dns-logqueries').value
+			});
+			await this.setListOption('dhcp', target, 'server', servers, this._dnsmasqHadServers);
+			await this.core.uciCommit('dhcp');
+			this.core.showToast('DNS settings saved', 'success');
+			this.loadDNS();
+		} catch {
+			this.core.showToast('Failed to save DNS settings', 'error');
+		}
 	}
 
 	editDnsEntry(id) {
@@ -1533,9 +1802,14 @@ export default class NetworkModule {
 
 		output.innerHTML = '<div class="log-line">Running...</div>';
 
+		const family = document.getElementById(`${type}-family`)?.value || '';
 		const commands = {
-			ping: { command: '/bin/ping', params: ['-c', '5', '-W', '3', host] },
-			traceroute: { command: '/usr/bin/traceroute', params: ['-w', '3', '-m', '15', host] }
+			ping: { command: family ? '/bin/ping6' : '/bin/ping', params: ['-c', '5', '-W', '3', host] },
+			traceroute: {
+				command: family ? '/usr/bin/traceroute6' : '/usr/bin/traceroute',
+				params: ['-w', '3', '-m', '15', host]
+			},
+			nslookup: { command: '/usr/bin/nslookup', params: [host] }
 		};
 
 		try {

@@ -19,7 +19,12 @@
 				"/usr/libexec/moci-pkg-call inspect *": ["exec"],
 				"/usr/libexec/moci-pkg-call feeds": ["exec"],
 				"/sbin/logread": ["exec"],
-				"/bin/dmesg": ["exec"]
+				"/bin/dmesg": ["exec"],
+				"/bin/ping": ["exec"],
+				"/bin/ping6": ["exec"],
+				"/usr/bin/traceroute": ["exec"],
+				"/usr/bin/traceroute6": ["exec"],
+				"/usr/bin/nslookup": ["exec"]
 			},
 			"ubus": {
 				"network.interface": ["dump"],
@@ -38,7 +43,8 @@
 				"/usr/libexec/moci-pkg-call remove *": ["exec"],
 				"/usr/libexec/moci-pkg-call update": ["exec"],
 				"/usr/libexec/moci-pkg-call feed-add *": ["exec"],
-				"/usr/libexec/moci-pkg-call feed-remove *": ["exec"]
+				"/usr/libexec/moci-pkg-call feed-remove *": ["exec"],
+				"/usr/bin/etherwake": ["exec"]
 			},
 			"ubus": {
 				"uci": ["set", "add", "delete", "commit"],
