@@ -9,10 +9,25 @@ clean_token() {
 
 case "$1" in
 	list)
-		printf '{ "setPassword": { "username": "str", "password": "str" }, "getDHCPLeases": { }, "getPorts": { }, "getBridges": { } }\n'
+		printf '{ "setPassword": { "username": "str", "password": "str" }, "getDHCPLeases": { }, "getPorts": { }, "getBridges": { }, "wgGenKey": { } }\n'
 		;;
 	call)
 		case "$2" in
+			wgGenKey)
+				if [ ! -x /usr/bin/wg ]; then
+					printf '{ "error": "wireguard-tools not installed" }\n'
+					exit 0
+				fi
+				priv=$(/usr/bin/wg genkey 2>/dev/null)
+				case "$priv" in
+					*[!A-Za-z0-9+/=]*|'') printf '{ "error": "key generation failed" }\n'; exit 0 ;;
+				esac
+				pub=$(printf '%s' "$priv" | /usr/bin/wg pubkey 2>/dev/null)
+				case "$pub" in
+					*[!A-Za-z0-9+/=]*|'') printf '{ "error": "key generation failed" }\n'; exit 0 ;;
+				esac
+				printf '{ "private_key": "%s", "public_key": "%s" }\n' "$priv" "$pub"
+				;;
 			getBridges)
 				out=''
 				for b in /sys/class/net/*; do

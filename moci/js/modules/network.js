@@ -1675,44 +1675,19 @@ export default class NetworkModule {
 	}
 
 	async generateWgKeys() {
-		let wroteKeyFile = false;
 		try {
-			const [s, r] = await this.core.ubusCall('file', 'exec', {
-				command: '/usr/bin/wg',
-				params: ['genkey']
-			});
-			if (s !== 0 || !r?.stdout) throw new Error('Key generation failed');
-			const privateKey = r.stdout.trim();
-			if (!/^[A-Za-z0-9+/]{43}=$/.test(privateKey)) {
+			const [s, r] = await this.core.ubusCall('moci', 'wgGenKey', {});
+			if (s !== 0 || !r?.private_key) throw new Error(r?.error || 'Key generation failed');
+			if (!/^[A-Za-z0-9+/]{43}=$/.test(r.private_key)) {
 				throw new Error('Invalid key format');
 			}
-			document.getElementById('wg-private-key').value = privateKey;
-
-			await this.core.ubusCall('file', 'write', {
-				path: '/tmp/.wg_priv.key',
-				data: privateKey + '\n'
-			});
-			wroteKeyFile = true;
-
-			const [s2, r2] = await this.core.ubusCall('file', 'exec', {
-				command: '/bin/sh',
-				params: ['-c', 'cat /tmp/.wg_priv.key | /usr/bin/wg pubkey']
-			});
-			if (s2 === 0 && r2?.stdout) {
-				document.getElementById('wg-public-key').value = r2.stdout.trim();
+			document.getElementById('wg-private-key').value = r.private_key;
+			if (r.public_key) {
+				document.getElementById('wg-public-key').value = r.public_key;
 			}
 			this.core.showToast('Keys generated', 'success');
 		} catch {
 			this.core.showToast('Failed to generate keys', 'error');
-		} finally {
-			if (wroteKeyFile) {
-				try {
-					await this.core.ubusCall('file', 'exec', {
-						command: '/bin/rm',
-						params: ['-f', '/tmp/.wg_priv.key']
-					});
-				} catch {}
-			}
 		}
 	}
 
