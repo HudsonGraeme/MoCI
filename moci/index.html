@@ -190,6 +190,7 @@
 						<div class="tabs">
 							<button class="tab-btn active" data-tab="interfaces">INTERFACES</button>
 							<button class="tab-btn" data-tab="devices">DEVICES</button>
+							<button class="tab-btn" data-tab="routes">ROUTES</button>
 							<button class="tab-btn" data-tab="wireless">WIRELESS</button>
 							<button class="tab-btn" data-tab="firewall">FIREWALL</button>
 							<button class="tab-btn" data-tab="dhcp" data-feature="dhcp">DHCP</button>
@@ -342,6 +343,143 @@
 								<div class="modal-footer">
 									<button class="action-btn" id="cancel-bridge-vlan-btn">CANCEL</button>
 									<button class="action-btn" id="save-bridge-vlan-btn">SAVE CHANGES</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="modal hidden" id="route-modal">
+							<div class="modal-backdrop"></div>
+							<div class="modal-content">
+								<div class="modal-header">
+									<h3 class="modal-title">STATIC ROUTE</h3>
+									<button class="modal-close" id="close-route-modal">&times;</button>
+								</div>
+								<div class="modal-body">
+									<input type="hidden" id="edit-route-section" />
+									<input type="hidden" id="edit-route-family" />
+									<div class="form-group">
+										<label class="form-label">INTERFACE</label>
+										<select id="edit-route-iface" class="form-input"></select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">TARGET</label>
+										<input
+											type="text"
+											id="edit-route-target"
+											class="form-input"
+											placeholder="192.168.10.0/24 or host IP"
+										/>
+									</div>
+									<div class="form-group" id="route-netmask-group">
+										<label class="form-label">NETMASK (OPTIONAL)</label>
+										<input
+											type="text"
+											id="edit-route-netmask"
+											class="form-input"
+											placeholder="255.255.255.0"
+										/>
+									</div>
+									<div class="form-group">
+										<label class="form-label">GATEWAY</label>
+										<input
+											type="text"
+											id="edit-route-gateway"
+											class="form-input"
+											placeholder="192.168.1.1"
+										/>
+									</div>
+									<div class="form-group">
+										<label class="form-label">METRIC (OPTIONAL)</label>
+										<input type="text" id="edit-route-metric" class="form-input" placeholder="0" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">MTU (OPTIONAL)</label>
+										<input type="text" id="edit-route-mtu" class="form-input" placeholder="1500" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">TYPE</label>
+										<select id="edit-route-type" class="form-input">
+											<option value="unicast">unicast</option>
+											<option value="local">local</option>
+											<option value="broadcast">broadcast</option>
+											<option value="multicast">multicast</option>
+											<option value="unreachable">unreachable</option>
+											<option value="prohibit">prohibit</option>
+											<option value="blackhole">blackhole</option>
+											<option value="anycast">anycast</option>
+										</select>
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button class="action-btn" id="cancel-route-btn">CANCEL</button>
+									<button class="action-btn" id="save-route-btn">SAVE CHANGES</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="modal hidden" id="dhcp-pool-modal">
+							<div class="modal-backdrop"></div>
+							<div class="modal-content">
+								<div class="modal-header">
+									<h3 class="modal-title">DHCP POOL</h3>
+									<button class="modal-close" id="close-dhcp-pool-modal">&times;</button>
+								</div>
+								<div class="modal-body">
+									<input type="hidden" id="edit-pool-section" />
+									<div class="form-group">
+										<label class="form-label">POOL NAME</label>
+										<input type="text" id="edit-pool-name" class="form-input" placeholder="lan" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">INTERFACE</label>
+										<select id="edit-pool-interface" class="form-input"></select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">START ADDRESS OFFSET</label>
+										<input type="text" id="edit-pool-start" class="form-input" placeholder="100" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">ADDRESS LIMIT</label>
+										<input type="text" id="edit-pool-limit" class="form-input" placeholder="150" />
+									</div>
+									<div class="form-group">
+										<label class="form-label">LEASE TIME</label>
+										<input
+											type="text"
+											id="edit-pool-leasetime"
+											class="form-input"
+											placeholder="12h"
+										/>
+									</div>
+									<div class="form-group">
+										<label class="form-label">IGNORE POOL</label>
+										<select id="edit-pool-ignore" class="form-input">
+											<option value="0">No (pool active)</option>
+											<option value="1">Yes (DHCP disabled)</option>
+										</select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">DHCPV6 MODE</label>
+										<select id="edit-pool-dhcpv6" class="form-input">
+											<option value="">Not set</option>
+											<option value="server">server</option>
+											<option value="relay">relay</option>
+											<option value="disabled">disabled</option>
+										</select>
+									</div>
+									<div class="form-group">
+										<label class="form-label">ROUTER ADVERTISEMENT</label>
+										<select id="edit-pool-ra" class="form-input">
+											<option value="">Not set</option>
+											<option value="server">server</option>
+											<option value="relay">relay</option>
+											<option value="disabled">disabled</option>
+										</select>
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button class="action-btn" id="cancel-dhcp-pool-btn">CANCEL</button>
+									<button class="action-btn" id="save-dhcp-pool-btn">SAVE CHANGES</button>
 								</div>
 							</div>
 						</div>
@@ -991,6 +1129,59 @@
 							</div>
 						</div>
 
+						<div class="tab-content hidden" id="tab-routes">
+							<div class="stat-card">
+								<div class="section-title">IPV4 STATIC ROUTES</div>
+								<button class="action-btn" id="add-route-btn" style="margin-bottom: 16px">
+									ADD ROUTE
+								</button>
+								<table class="data-table" id="routes-table">
+									<thead>
+										<tr>
+											<th>TARGET</th>
+											<th>GATEWAY</th>
+											<th>INTERFACE</th>
+											<th>METRIC</th>
+											<th>TYPE</th>
+											<th>ACTIONS</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td colspan="6" style="text-align: center; color: var(--steel-muted)">
+												Loading...
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+							<div class="stat-card" style="margin-top: 24px">
+								<div class="section-title">IPV6 STATIC ROUTES</div>
+								<button class="action-btn" id="add-route6-btn" style="margin-bottom: 16px">
+									ADD ROUTE
+								</button>
+								<table class="data-table" id="routes6-table">
+									<thead>
+										<tr>
+											<th>TARGET</th>
+											<th>GATEWAY</th>
+											<th>INTERFACE</th>
+											<th>METRIC</th>
+											<th>TYPE</th>
+											<th>ACTIONS</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td colspan="6" style="text-align: center; color: var(--steel-muted)">
+												Loading...
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+
 						<div class="tab-content hidden" id="tab-dhcp" data-feature="dhcp">
 							<div class="stat-card">
 								<div class="section-title">DHCP LEASES</div>
@@ -1036,10 +1227,80 @@
 									</tbody>
 								</table>
 							</div>
+
+							<div class="stat-card" style="margin-top: 24px">
+								<div class="section-title">DHCP POOLS</div>
+								<button class="action-btn" id="add-dhcp-pool-btn" style="margin-bottom: 16px">
+									ADD POOL
+								</button>
+								<table class="data-table" id="dhcp-pools-table">
+									<thead>
+										<tr>
+											<th>POOL</th>
+											<th>INTERFACE</th>
+											<th>START</th>
+											<th>LIMIT</th>
+											<th>LEASE TIME</th>
+											<th>STATUS</th>
+											<th>ACTIONS</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td colspan="7" style="text-align: center; color: var(--steel-muted)">
+												Loading...
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
 						</div>
 
 						<div class="tab-content hidden" id="tab-dns">
 							<div class="stat-card">
+								<div class="section-title">DNS SERVER SETTINGS</div>
+								<div class="form-group">
+									<label class="form-label">AUTHORITATIVE DHCP/DNS</label>
+									<select id="dns-authoritative" class="form-input">
+										<option value="1">Yes</option>
+										<option value="0">No</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label class="form-label">LOCAL DOMAIN</label>
+									<input type="text" id="dns-domain" class="form-input" placeholder="lan" />
+								</div>
+								<div class="form-group">
+									<label class="form-label">LOCAL SERVER</label>
+									<input type="text" id="dns-local" class="form-input" placeholder="/lan/" />
+								</div>
+								<div class="form-group">
+									<label class="form-label">DNS REBIND PROTECTION</label>
+									<select id="dns-rebind" class="form-input">
+										<option value="1">Enabled</option>
+										<option value="0">Disabled</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label class="form-label">LOG DNS QUERIES</label>
+									<select id="dns-logqueries" class="form-input">
+										<option value="0">Disabled</option>
+										<option value="1">Enabled</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label class="form-label">UPSTREAM DNS SERVERS</label>
+									<input
+										type="text"
+										id="dns-servers"
+										class="form-input"
+										placeholder="8.8.8.8 1.1.1.1 (space separated)"
+									/>
+								</div>
+								<button class="action-btn" id="save-dns-config-btn">SAVE SETTINGS</button>
+							</div>
+
+							<div class="stat-card" style="margin-top: 24px">
 								<div class="section-title">CUSTOM DNS ENTRIES</div>
 								<button class="action-btn" id="add-dns-entry-btn" style="margin-bottom: 16px">
 									ADD DNS ENTRY
@@ -1675,6 +1936,10 @@
 										placeholder="Enter hostname or IP"
 										class="diag-input"
 									/>
+									<select id="ping-family" class="form-input" style="max-width: 110px">
+										<option value="">IPv4</option>
+										<option value="6">IPv6</option>
+									</select>
 									<button class="action-btn" id="ping-btn">RUN PING</button>
 								</div>
 								<div class="log-viewer" id="ping-output" style="min-height: 200px">
@@ -1693,11 +1958,33 @@
 										placeholder="Enter hostname or IP"
 										class="diag-input"
 									/>
+									<select id="traceroute-family" class="form-input" style="max-width: 110px">
+										<option value="">IPv4</option>
+										<option value="6">IPv6</option>
+									</select>
 									<button class="action-btn" id="traceroute-btn">RUN TRACEROUTE</button>
 								</div>
 								<div class="log-viewer" id="traceroute-output" style="min-height: 200px">
 									<div class="log-line" style="color: var(--steel-muted)">
 										Enter a hostname or IP address and click Run Traceroute
+									</div>
+								</div>
+							</div>
+
+							<div class="stat-card" style="margin-top: 24px">
+								<div class="section-title">NSLOOKUP</div>
+								<div class="diagnostic-form">
+									<input
+										type="text"
+										id="nslookup-host"
+										placeholder="Enter hostname or IP"
+										class="diag-input"
+									/>
+									<button class="action-btn" id="nslookup-btn">RUN NSLOOKUP</button>
+								</div>
+								<div class="log-viewer" id="nslookup-output" style="min-height: 200px">
+									<div class="log-line" style="color: var(--steel-muted)">
+										Enter a hostname or IP address and click Run Nslookup
 									</div>
 								</div>
 							</div>
