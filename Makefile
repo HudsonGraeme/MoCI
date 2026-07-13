@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=moci
-PKG_VERSION:=0.1.0
+PKG_VERSION:=0.1.1
 PKG_RELEASE:=1
 
 PKG_MAINTAINER:=HudsonGraeme
@@ -51,6 +51,9 @@ define Package/moci/install
 	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/moci-pkg-call $(1)/usr/libexec/moci-pkg-call
 
+	$(INSTALL_DIR) $(1)/usr/libexec/rpcd
+	$(INSTALL_BIN) ./files/rpcd-moci $(1)/usr/libexec/rpcd/moci
+
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
 	$(INSTALL_DATA) ./rpcd-acl.json $(1)/usr/share/rpcd/acl.d/moci.json
 
@@ -60,10 +63,19 @@ define Package/moci/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/moci.config $(1)/etc/config/moci
 
+	$(INSTALL_DIR) $(1)/etc/opkg/keys
+	$(INSTALL_DATA) ./files/moci-feed.pub $(1)/etc/opkg/keys/bc0c5f67deb5edb8
+	$(INSTALL_CONF) ./files/moci-apps.conf $(1)/etc/opkg/moci-apps.conf
+
 	$(INSTALL_BIN) ./files/ubus.cgi $(1)/www/moci/ubus.cgi
 
 	$(INSTALL_DIR) $(1)/etc/lighttpd/conf.d
 	$(INSTALL_DATA) ./files/lighttpd-moci.conf $(1)/etc/lighttpd/conf.d/50-moci.conf
+endef
+
+define Package/moci/conffiles
+/etc/config/moci
+/etc/opkg/moci-apps.conf
 endef
 
 define Package/moci/postinst

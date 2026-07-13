@@ -15,6 +15,7 @@ export default class SystemModule {
 				this.subTabs = this.core.setupSubTabs('system-page', {
 					general: () => this.loadGeneral(),
 					admin: () => this.loadAdmin(),
+					logs: () => this.loadLogs(),
 					backup: () => this.loadBackup(),
 					software: () => this.loadPackages(),
 					startup: () => this.loadStartup(),
@@ -52,11 +53,17 @@ export default class SystemModule {
 				document.getElementById('save-ssh-keys-btn').style.display = 'none';
 				this.core.openModal('ssh-key-modal');
 			},
-			'parse-keys-btn': () => this.parseSSHKeyInput()
+			'parse-keys-btn': () => this.parseSSHKeyInput(),
+			'refresh-syslog-btn': () => this.loadLog('syslog'),
+			'refresh-klog-btn': () => this.loadLog('klog')
 		};
 
 		for (const [id, handler] of Object.entries(buttons)) {
 			document.getElementById(id)?.addEventListener('click', handler);
+		}
+
+		for (const kind of ['syslog', 'klog']) {
+			document.getElementById(`${kind}-filter`)?.addEventListener('input', () => this.renderLog(kind));
 		}
 
 		this.core.setupModal({
@@ -132,6 +139,38 @@ export default class SystemModule {
 
 	async loadAdmin() {}
 
+	async loadLogs() {
+		await Promise.all([this.loadLog('syslog'), this.loadLog('klog')]);
+	}
+
+	async loadLog(kind) {
+		const commands = {
+			syslog: { command: '/sbin/logread', params: [] },
+			klog: { command: '/bin/dmesg', params: [] }
+		};
+		const output = document.getElementById(`${kind}-output`);
+		if (!output) return;
+		output.innerHTML = '<div class="log-line">Loading...</div>';
+		try {
+			const [s, r] = await this.core.ubusCall('file', 'exec', commands[kind], { timeout: 15000 });
+			if (s !== 0 || !r || (r.code && r.code !== 0)) throw new Error('Command failed');
+			if (!this._logLines) this._logLines = {};
+			this._logLines[kind] = (r.stdout || '').split('\n').filter(l => l.trim());
+			this.renderLog(kind);
+			output.scrollTop = output.scrollHeight;
+		} catch {
+			output.innerHTML = '<div class="log-line error">Failed to load log</div>';
+		}
+	}
+
+	renderLog(kind) {
+		const output = document.getElementById(`${kind}-output`);
+		if (!output || !this._logLines?.[kind]) return;
+		const query = (document.getElementById(`${kind}-filter`)?.value || '').toLowerCase();
+		const lines = this._logLines[kind].filter(l => !query || l.toLowerCase().includes(query));
+		this.core.renderLogLines(output, lines, query ? 'No matching log entries' : 'No logs available');
+	}
+
 	async changePassword() {
 		const newPw = document.getElementById('new-password').value;
 		const confirmPw = document.getElementById('confirm-password').value;
@@ -143,29 +182,17 @@ export default class SystemModule {
 			this.core.showToast('Passwords do not match', 'error');
 			return;
 		}
-		const forbidden = /[`$"'\\;&|<>(){}[\]\n\r]/;
-		if (forbidden.test(newPw)) {
-			this.core.showToast('Password contains invalid characters', 'error');
-			return;
-		}
 		try {
-			await this.core.ubusCall('file', 'write', {
-				path: '/tmp/.passwd_input',
-				data: `${newPw}\n${newPw}\n`
+			const [status, result] = await this.core.ubusCall('moci', 'setPassword', {
+				username: 'root',
+				password: newPw
 			});
-			await this.core.ubusCall('file', 'exec', {
-				command: '/bin/sh',
-				params: ['-c', 'cat /tmp/.passwd_input | passwd root']
-			});
+			if (status !== 0 || !result?.result) throw new Error('setPassword failed');
 			document.getElementById('new-password').value = '';
 			document.getElementById('confirm-password').value = '';
 			this.core.showToast('Password changed', 'success');
 		} catch {
 			this.core.showToast('Failed to change password', 'error');
-		} finally {
-			try {
-				await this.core.ubusCall('file', 'exec', { command: '/bin/rm', params: ['-f', '/tmp/.passwd_input'] });
-			} catch {}
 		}
 	}
 

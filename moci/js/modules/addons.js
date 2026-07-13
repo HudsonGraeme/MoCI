@@ -25,11 +25,11 @@ export default class AddonsModule {
 	}
 
 	pkgName(id) {
-		return `moci-addon-${id}`;
+		return `moci-app-${id}`;
 	}
 
 	addonId(pkgName) {
-		return pkgName.replace(/^moci-addon-/, '');
+		return pkgName.replace(/^moci-app-/, '');
 	}
 
 	setupInstallModal() {
@@ -61,6 +61,115 @@ export default class AddonsModule {
 			urlInput.addEventListener('keydown', handler);
 			this.cleanups.push(() => urlInput.removeEventListener('keydown', handler));
 		}
+
+		const feedAddBtn = document.getElementById('feed-add-btn');
+		if (feedAddBtn) {
+			const handler = () => this.addFeed();
+			feedAddBtn.addEventListener('click', handler);
+			this.cleanups.push(() => feedAddBtn.removeEventListener('click', handler));
+		}
+
+		const feedUrlInput = document.getElementById('feed-url-input');
+		if (feedUrlInput) {
+			const handler = e => {
+				if (e.key === 'Enter') this.addFeed();
+			};
+			feedUrlInput.addEventListener('keydown', handler);
+			this.cleanups.push(() => feedUrlInput.removeEventListener('keydown', handler));
+		}
+	}
+
+	async renderFeeds() {
+		const el = document.getElementById('addon-feeds-list');
+		if (!el) return;
+
+		let out;
+		try {
+			out = await this.core.pkgCall('feeds');
+		} catch (err) {
+			el.innerHTML = `<div style="color: var(--steel-muted)">Could not read feeds. ${this.core.escapeHtml(err.message)}</div>`;
+			return;
+		}
+
+		const feeds = out
+			.split('\n')
+			.map(l => l.trim())
+			.filter(Boolean)
+			.map(line => {
+				const m = line.match(/^src\/gz\s+(\S+)\s+(\S+)$/);
+				return m ? { id: m[1], name: m[1], url: m[2] } : { id: line, name: '', url: line };
+			});
+
+		if (feeds.length === 0) {
+			el.innerHTML = '<div style="color: var(--steel-muted)">No feeds configured</div>';
+			return;
+		}
+
+		el.innerHTML = feeds
+			.map(
+				f => `<div class="addon-card">
+				<div class="addon-card-info">
+					${f.name ? `<div class="addon-card-name">${this.core.escapeHtml(f.name)}</div>` : ''}
+					<div class="addon-card-desc">${this.core.escapeHtml(f.url)}</div>
+				</div>
+				<div class="addon-card-actions">
+					<button class="action-btn danger" data-action="remove" data-id="${this.core.escapeHtml(f.id)}">REMOVE</button>
+				</div>
+			</div>`
+			)
+			.join('');
+
+		if (this._feedsCleanup) {
+			this._feedsCleanup();
+			const idx = this.cleanups.indexOf(this._feedsCleanup);
+			if (idx >= 0) this.cleanups.splice(idx, 1);
+		}
+		const cleanup = this.core.delegateActions('addon-feeds-list', {
+			remove: id => this.removeFeed(id)
+		});
+		if (cleanup) {
+			this._feedsCleanup = cleanup;
+			this.cleanups.push(cleanup);
+		}
+	}
+
+	async addFeed() {
+		const nameInput = document.getElementById('feed-name-input');
+		const urlInput = document.getElementById('feed-url-input');
+		const name = nameInput?.value.trim() || '';
+		const url = urlInput?.value.trim() || '';
+
+		if (!/^[a-z0-9][a-z0-9_-]*$/.test(name)) {
+			this.core.showToast('Feed name: lowercase letters, digits, - and _ only', 'error');
+			return;
+		}
+		if (!/^https:\/\/\S+$/.test(url)) {
+			this.core.showToast('Feed URL must be https://', 'error');
+			return;
+		}
+
+		try {
+			await this.core.pkgCall('feed-add', name, url);
+		} catch (err) {
+			this.core.showToast('Could not add feed: ' + err.message, 'error');
+			return;
+		}
+
+		if (nameInput) nameInput.value = '';
+		if (urlInput) urlInput.value = '';
+		this.core.showToast(`Feed ${name} added`, 'success');
+		this.renderBrowse();
+	}
+
+	async removeFeed(id) {
+		try {
+			await this.core.pkgCall('feed-remove', id);
+		} catch (err) {
+			this.core.showToast('Could not remove feed: ' + err.message, 'error');
+			return;
+		}
+		this.core.showToast('Feed removed', 'success');
+		this.renderBrowse();
 	}
 
 	async renderInstalled() {
@@ -116,13 +225,15 @@ export default class AddonsModule {
 	async renderBrowse() {
 		const listEl = document.getElementById('registry-addons-list');
 		if (!listEl) return;
+
+		this.renderFeeds();
 		listEl.innerHTML = '<div style="text-align: center; color: var(--steel-muted)">Refreshing feed…</div>';
 
+		let updateWarning = '';
 		try {
 			await this.core.pkgCall('update');
 		} catch (err) {
-			listEl.innerHTML = `<div style="text-align: center; color: var(--steel-muted)">Feed unavailable. ${this.core.escapeHtml(err.message)}</div>`;
-			return;
+			updateWarning = `Feed update failed: ${err.message}. Showing cached package lists.`;
 		}
 
 		let packages;
@@ -142,22 +253,28 @@ export default class AddonsModule {
 		}
 
 		this.installedPackages = await this.core.listInstalledPackages();
-		this.renderRegistry(packages);
+		this.renderRegistry(packages, updateWarning);
 	}
 
-	renderRegistry(packages) {
+	renderRegistry(packages, warning) {
 		const listEl = document.getElementById('registry-addons-list');
 		if (!listEl) return;
 
+		const warningHtml = warning
+			? `<div class="addon-permission-warning" style="margin-bottom: 12px">${this.core.escapeHtml(warning)}</div>`
+			: '';
+
 		if (packages.length === 0) {
-			listEl.innerHTML = '<div style="text-align: center; color: var(--steel-muted)">No add-ons in feed</div>';
+			listEl.innerHTML = `${warningHtml}<div style="text-align: center; color: var(--steel-muted)">No add-ons in feed</div>`;
 			return;
 		}
 
-		listEl.innerHTML = packages
-			.map(p => {
-				const installed = this.installedPackages.has(p.name);
-				return `<div class="addon-card">
+		listEl.innerHTML =
+			warningHtml +
+			packages
+				.map(p => {
+					const installed = this.installedPackages.has(p.name);
+					return `<div class="addon-card">
 				<div class="addon-card-info">
 					<div class="addon-card-name">${this.core.escapeHtml(this.addonId(p.name))}</div>
 					<div class="addon-card-desc">${this.core.escapeHtml(p.description || '')}</div>
@@ -171,8 +288,8 @@ export default class AddonsModule {
 					}
 				</div>
 			</div>`;
-			})
-			.join('');
+				})
+				.join('');
 
 		if (this._registryCleanup) {
 			this._registryCleanup();
@@ -189,7 +306,7 @@ export default class AddonsModule {
 	}
 
 	async confirmInstall(pkgName) {
-		if (!/^moci-addon-[a-z0-9][a-z0-9-]*$/.test(pkgName)) {
+		if (!/^moci-app-[a-z0-9][a-z0-9-]*$/.test(pkgName)) {
 			this.core.showToast('Invalid package name', 'error');
 			return;
 		}

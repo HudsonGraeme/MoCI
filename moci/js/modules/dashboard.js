@@ -230,9 +230,11 @@ export default class DashboardModule {
 	}
 
 	async updateSystemLog() {
+		const logEl = document.getElementById('system-log');
+		if (!logEl) return;
 		try {
 			const [status, result] = await this.core.ubusCall('file', 'exec', {
-				command: '/usr/libexec/syslog-wrapper',
+				command: '/sbin/logread',
 				params: []
 			});
 			if (status !== 0 || !result?.stdout) throw new Error('Failed');
@@ -241,27 +243,10 @@ export default class DashboardModule {
 				.split('\n')
 				.filter(l => l.trim())
 				.slice(-20);
-			const logEl = document.getElementById('system-log');
-			if (!logEl) return;
-
-			if (lines.length === 0) {
-				logEl.innerHTML = '<div class="log-line">No logs available</div>';
-				return;
-			}
-
-			logEl.innerHTML = lines
-				.map(line => {
-					let className = 'log-line';
-					const lower = line.toLowerCase();
-					if (lower.includes('error') || lower.includes('fail')) className += ' error';
-					else if (lower.includes('warn')) className += ' warn';
-					return `<div class="${className}">${this.core.escapeHtml(line)}</div>`;
-				})
-				.join('');
+			this.core.renderLogLines(logEl, lines);
 		} catch (err) {
 			console.error('Failed to load system log:', err);
-			const logEl = document.getElementById('system-log');
-			if (logEl) logEl.innerHTML = '<div class="log-line">No logs available</div>';
+			this.core.renderLogLines(logEl, []);
 		}
 	}
 
@@ -287,7 +272,7 @@ export default class DashboardModule {
 
 			let leases = [];
 			try {
-				const [s, r] = await this.core.ubusCall('luci-rpc', 'getDHCPLeases', {});
+				const [s, r] = await this.core.ubusCall('moci', 'getDHCPLeases', {});
 				if (s === 0 && r?.dhcp_leases) leases = r.dhcp_leases;
 			} catch {}
 

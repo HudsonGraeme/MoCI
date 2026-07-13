@@ -17,6 +17,20 @@ const FW_RULE_FIELDS = {
 	'edit-fw-rule-src-ip': 'src_ip'
 };
 
+const NAT_FIELDS = {
+	'edit-nat-name': 'name',
+	'edit-nat-src': 'src',
+	'edit-nat-proto': 'proto',
+	'edit-nat-target': 'target',
+	'edit-nat-src-ip': 'src_ip',
+	'edit-nat-dest-ip': 'dest_ip',
+	'edit-nat-snat-ip': 'snat_ip',
+	'edit-nat-snat-port': 'snat_port',
+	'edit-nat-enabled': 'enabled'
+};
+
+const ZONE_POLICY_BADGES = { ACCEPT: 'success', REJECT: 'warning', DROP: 'error' };
+
 const STATIC_LEASE_FIELDS = {
 	'edit-static-lease-name': 'name',
 	'edit-static-lease-mac': 'mac',
@@ -58,6 +72,8 @@ export default class NetworkModule {
 			if (!this.subTabs) {
 				const loadHandlers = {
 					interfaces: () => this.loadInterfaces(),
+					devices: () => this.loadDevices(),
+					routes: () => this.loadRoutes(),
 					wireless: () => this.loadWireless(),
 					firewall: () => this.loadFirewall(),
 					dhcp: () => this.loadDHCP(),
@@ -82,9 +98,15 @@ export default class NetworkModule {
 	setupModals() {
 		const modals = [
 			{ prefix: 'interface', save: () => this.saveInterface() },
+			{ prefix: 'device', save: () => this.saveDevice() },
+			{ prefix: 'bridge-vlan', save: () => this.saveBridgeVlan() },
 			{ prefix: 'wireless', save: () => this.saveWireless() },
 			{ prefix: 'forward', save: () => this.saveForward() },
 			{ prefix: 'fw-rule', save: () => this.saveFirewallRule() },
+			{ prefix: 'zone', save: () => this.saveZone() },
+			{ prefix: 'nat', save: () => this.saveNat() },
+			{ prefix: 'route', save: () => this.saveRoute() },
+			{ prefix: 'dhcp-pool', save: () => this.saveDhcpPool() },
 			{ prefix: 'static-lease', save: () => this.saveStaticLease() },
 			{ prefix: 'dns-entry', save: () => this.saveDnsEntry() },
 			{ prefix: 'host-entry', save: () => this.saveHostEntry() },
@@ -121,11 +143,68 @@ export default class NetworkModule {
 			});
 		});
 
+		document.getElementById('add-route-btn')?.addEventListener('click', () => this.openRouteModal('route'));
+		document.getElementById('add-route6-btn')?.addEventListener('click', () => this.openRouteModal('route6'));
+
+		document.getElementById('add-dhcp-pool-btn')?.addEventListener('click', async () => {
+			this.core.resetModal('dhcp-pool-modal');
+			const nameInput = document.getElementById('edit-pool-name');
+			nameInput.disabled = false;
+			nameInput.value = '';
+			await this.loadNetworkNames();
+			this.populateIfaceSelect('edit-pool-interface', '');
+			this.core.openModal('dhcp-pool-modal');
+		});
+
+		document.getElementById('add-zone-btn')?.addEventListener('click', async () => {
+			this.core.resetModal('zone-modal');
+			await this.loadNetworkNames();
+			this.zoneNetworksCombo().setOptions(this._networkNames);
+			this.zoneNetworksCombo().setSelected([]);
+			this.zoneForwardCombo().setOptions(this.zoneNames());
+			this.zoneForwardCombo().setSelected([]);
+			this.core.openModal('zone-modal');
+		});
+
+		document.getElementById('add-nat-btn')?.addEventListener('click', () => {
+			this.core.resetModal('nat-modal');
+			this.populateNatZoneSelect('');
+			this.core.openModal('nat-modal');
+		});
+
+		document.getElementById('add-bridge-vlan-btn')?.addEventListener('click', () => {
+			this.core.resetModal('bridge-vlan-modal');
+			document.getElementById('edit-bridge-vlan-section').value = '';
+			const first = this.bridgeDevices()[0]?.name;
+			this.populateVlanDeviceSelect(first);
+			this.renderVlanPortGrid(first);
+			this.core.openModal('bridge-vlan-modal');
+		});
+
+		document.getElementById('add-device-btn')?.addEventListener('click', async () => {
+			this.core.resetModal('device-modal');
+			document.getElementById('edit-device-section').value = '';
+			document.getElementById('edit-device-name').value = '';
+			document.getElementById('edit-device-mtu').value = '';
+			await this.loadAvailablePorts();
+			this.devicePortsCombo().setOptions(this._availablePorts);
+			this.devicePortsCombo().setSelected([]);
+			this.renderDeviceWireless(null);
+			this.core.openModal('device-modal');
+		});
+
 		const tables = {
 			'interfaces-table': { edit: id => this.editInterface(id), delete: id => this.deleteInterface(id) },
+			'devices-table': { edit: id => this.editDevice(id), delete: id => this.deleteDevice(id) },
+			'bridge-vlans-table': { edit: id => this.editBridgeVlan(id), delete: id => this.deleteBridgeVlan(id) },
 			'wireless-table': { edit: id => this.editWireless(id), delete: id => this.deleteWireless(id) },
 			'firewall-table': { edit: id => this.editForward(id), delete: id => this.deleteForward(id) },
 			'fw-rules-table': { edit: id => this.editFirewallRule(id), delete: id => this.deleteFirewallRule(id) },
+			'zones-table': { edit: id => this.editZone(id), delete: id => this.deleteZone(id) },
+			'nat-table': { edit: id => this.editNat(id), delete: id => this.deleteNat(id) },
+			'routes-table': { edit: id => this.editRoute(id), delete: id => this.deleteRoute(id) },
+			'routes6-table': { edit: id => this.editRoute(id), delete: id => this.deleteRoute(id) },
+			'dhcp-pools-table': { edit: id => this.editDhcpPool(id), delete: id => this.deleteDhcpPool(id) },
 			'dhcp-static-table': { edit: id => this.editStaticLease(id), delete: id => this.deleteStaticLease(id) },
 			'dns-entries-table': { edit: id => this.editDnsEntry(id), delete: id => this.deleteDnsEntry(id) },
 			'hosts-table': { edit: id => this.editHostEntry(id), delete: id => this.deleteHostEntry(id) },
@@ -139,6 +218,8 @@ export default class NetworkModule {
 			if (cleanup) this.cleanups.push(cleanup);
 		}
 
+		document.getElementById('save-fw-defaults-btn')?.addEventListener('click', () => this.saveFwDefaults());
+		document.getElementById('save-dns-config-btn')?.addEventListener('click', () => this.saveDnsConfig());
 		document.getElementById('save-qos-config-btn')?.addEventListener('click', () => this.saveQoSConfig());
 		document.getElementById('save-wg-config-btn')?.addEventListener('click', () => this.saveWgConfig());
 		document.getElementById('generate-wg-keys-btn')?.addEventListener('click', () => this.generateWgKeys());
@@ -148,6 +229,7 @@ export default class NetworkModule {
 		document.getElementById('ping-btn')?.addEventListener('click', () => this.runDiagnostic('ping'));
 		document.getElementById('traceroute-btn')?.addEventListener('click', () => this.runDiagnostic('traceroute'));
 		document.getElementById('wol-btn')?.addEventListener('click', () => this.runWoL());
+		document.getElementById('nslookup-btn')?.addEventListener('click', () => this.runDiagnostic('nslookup'));
 	}
 
 	cleanup() {
@@ -225,6 +307,421 @@ export default class NetworkModule {
 
 	async deleteInterface(id) {
 		await this.core.uciDeleteEntry('network', id, `Delete interface "${id}"?`, () => this.loadInterfaces());
+	}
+
+	parsePortSpec(spec) {
+		const [port, flags = ''] = spec.split(':');
+		return { port, tagged: flags.includes('t'), pvid: flags.includes('*') };
+	}
+
+	buildPortSpec(port, state, pvid) {
+		if (state === 'off') return null;
+		const flag = state === 'tagged' ? 't' : 'u';
+		return pvid ? `${port}:${flag}*` : state === 'tagged' ? `${port}:t` : port;
+	}
+
+	bridgeDevices() {
+		if (!this._netCfg) return [];
+		return this.core.filterUciSections(this._netCfg, 'device').filter(d => d.type === 'bridge');
+	}
+
+	renderMembersCell(d, bridges) {
+		const members = bridges[d.name];
+		if (members && members.length) {
+			return members
+				.map(m =>
+					m.wireless
+						? `${this.core.escapeHtml(m.name)} <span style="font-size:11px;color:var(--steel-muted);border:1px solid var(--glass-border);border-radius:8px;padding:0 6px">wifi</span>`
+						: this.core.escapeHtml(m.name)
+				)
+				.join(', ');
+		}
+		const ports = Array.isArray(d.ports) ? d.ports.join(', ') : d.ports || '---';
+		return this.core.escapeHtml(ports);
+	}
+
+	async loadDevices() {
+		await this.core.loadResource('devices-table', 5, 'network', async () => {
+			const [status, result] = await this.core.uciGet('network');
+			if (status !== 0 || !result?.values) throw new Error('No data');
+			this._netCfg = result.values;
+
+			let bridges = {};
+			try {
+				const [bs, br] = await this.core.ubusCall('moci', 'getBridges', {});
+				if (bs === 0 && br?.bridges) bridges = br.bridges;
+			} catch {}
+			this._bridges = bridges;
+
+			const devices = this.bridgeDevices();
+			this.core.renderTable('#devices-table', devices, 5, 'No bridges configured', d => {
+				return `<tr>
+					<td>${this.core.escapeHtml(d.name || d.section)}</td>
+					<td>${this.core.escapeHtml((d.type || 'device').toUpperCase())}</td>
+					<td>${this.renderMembersCell(d, bridges)}</td>
+					<td>${this.core.escapeHtml(d.mtu || 'auto')}</td>
+					<td>${this.core.renderActionButtons(d.section)}</td>
+				</tr>`;
+			});
+
+			const vlans = this.core.filterUciSections(this._netCfg, 'bridge-vlan');
+			this.core.renderTable('#bridge-vlans-table', vlans, 4, 'No bridge VLANs configured', v => {
+				const ports = Array.isArray(v.ports) ? v.ports : v.ports ? [v.ports] : [];
+				const summary =
+					ports
+						.map(spec => {
+							const p = this.parsePortSpec(spec);
+							return `${p.port}${p.tagged ? ' (T)' : ''}${p.pvid ? '*' : ''}`;
+						})
+						.join(', ') || '---';
+				return `<tr>
+					<td>${this.core.escapeHtml(v.device || '---')}</td>
+					<td>${this.core.escapeHtml(v.vlan || '---')}</td>
+					<td>${this.core.escapeHtml(summary)}</td>
+					<td>${this.core.renderActionButtons(v.section)}</td>
+				</tr>`;
+			});
+		});
+	}
+
+	async loadAvailablePorts() {
+		this._availablePorts = [];
+		try {
+			const [s, r] = await this.core.ubusCall('moci', 'getPorts', {});
+			if (s === 0 && Array.isArray(r?.ports)) this._availablePorts = r.ports;
+		} catch {}
+	}
+
+	renderDeviceWireless(name) {
+		const group = document.getElementById('device-wireless-group');
+		const list = document.getElementById('device-wireless-list');
+		if (!group || !list) return;
+		const wifi = (this._bridges?.[name] || []).filter(m => m.wireless);
+		if (!wifi.length) {
+			group.style.display = 'none';
+			list.innerHTML = '';
+			return;
+		}
+		group.style.display = '';
+		list.innerHTML = wifi
+			.map(
+				m =>
+					`<span style="display:inline-flex;align-items:center;padding:2px 8px;background:rgba(226,226,229,0.05);border-radius:12px;color:var(--steel-muted);font-size:13px">${this.core.escapeHtml(m.name)}</span>`
+			)
+			.join('');
+	}
+
+	devicePortsCombo() {
+		if (!this._devicePortsCombo) {
+			this._devicePortsCombo = this.core.createCombobox('device-ports-combo', {
+				placeholder: 'Select ports...'
+			});
+		}
+		return this._devicePortsCombo;
+	}
+
+	async editDevice(id) {
+		const d = this._netCfg?.[id];
+		if (!d) {
+			this.core.showToast('Failed to load device config', 'error');
+			return;
+		}
+		if (d.type !== 'bridge') {
+			this.core.showToast('Only bridge devices can be edited here', 'error');
+			return;
+		}
+		document.getElementById('edit-device-section').value = id;
+		document.getElementById('edit-device-name').value = d.name || '';
+		document.getElementById('edit-device-mtu').value = d.mtu || '';
+		const ports = Array.isArray(d.ports) ? [...d.ports] : d.ports ? [d.ports] : [];
+		await this.loadAvailablePorts();
+		this.devicePortsCombo().setOptions(this._availablePorts);
+		this.devicePortsCombo().setSelected(ports);
+		this.renderDeviceWireless(d.name);
+		this.core.openModal('device-modal');
+	}
+
+	async saveDevice() {
+		const section = document.getElementById('edit-device-section').value;
+		const name = document.getElementById('edit-device-name').value.trim();
+		const mtu = document.getElementById('edit-device-mtu').value.trim();
+		if (!name) {
+			this.core.showToast('Device name is required', 'error');
+			return;
+		}
+		if (mtu && !/^\d+$/.test(mtu)) {
+			this.core.showToast('MTU must be a number', 'error');
+			return;
+		}
+		const ports = this.devicePortsCombo().getSelected();
+		const values = { name, type: 'bridge' };
+		if (mtu) values.mtu = mtu;
+		const oldName = section ? this._netCfg?.[section]?.name : null;
+		try {
+			let target = section;
+			if (!target) {
+				const [, res] = await this.core.uciAdd('network', 'device');
+				target = res.section;
+			}
+			await this.core.uciSet('network', target, values);
+			await this.setListOption('network', target, 'ports', ports, !!this._netCfg?.[target]?.ports);
+			if (oldName && oldName !== name) {
+				for (const v of this.core.filterUciSections(this._netCfg, 'bridge-vlan')) {
+					if (v.device === oldName) await this.core.uciSet('network', v.section, { device: name });
+				}
+			}
+			await this.core.uciCommit('network');
+			this.core.closeModal('device-modal');
+			this.core.showToast('Device saved', 'success');
+			this.loadDevices();
+		} catch {
+			this.core.showToast('Failed to save device', 'error');
+		}
+	}
+
+	async deleteDevice(id) {
+		const name = this._netCfg?.[id]?.name;
+		const vlans = this.core.filterUciSections(this._netCfg || {}, 'bridge-vlan').filter(v => v.device === name);
+		const msg = vlans.length
+			? `Delete bridge "${name}" and its ${vlans.length} bridge VLAN(s)?`
+			: 'Delete this device?';
+		if (!confirm(msg)) return;
+		try {
+			for (const v of vlans) await this.core.uciDelete('network', v.section);
+			await this.core.uciDelete('network', id);
+			await this.core.uciCommit('network');
+			this.core.showToast('Deleted', 'success');
+			this.loadDevices();
+		} catch {
+			this.core.showToast('Failed to delete device', 'error');
+		}
+	}
+
+	renderVlanPortGrid(deviceName, existing = []) {
+		const grid = document.getElementById('bridge-vlan-ports');
+		if (!grid) return;
+		const device = this.bridgeDevices().find(d => d.name === deviceName);
+		const ports = device ? (Array.isArray(device.ports) ? device.ports : [device.ports]) : [];
+		const existingByPort = {};
+		existing.forEach(spec => {
+			const p = this.parsePortSpec(spec);
+			existingByPort[p.port] = p;
+		});
+		grid.innerHTML =
+			ports
+				.filter(Boolean)
+				.map(port => {
+					const cur = existingByPort[port];
+					const state = !cur ? 'off' : cur.tagged ? 'tagged' : 'untagged';
+					const pvid = cur?.pvid ? 'checked' : '';
+					const opt = (val, label) =>
+						`<option value="${val}"${state === val ? ' selected' : ''}>${label}</option>`;
+					return `<div class="form-group" style="display:flex;align-items:center;gap:12px">
+					<span style="flex:1">${this.core.escapeHtml(port)}</span>
+					<select class="form-input vlan-port-state" data-port="${this.core.escapeHtml(port)}" style="flex:1">
+						${opt('off', 'Excluded')}${opt('untagged', 'Untagged')}${opt('tagged', 'Tagged')}
+					</select>
+					<label style="display:flex;align-items:center;gap:4px">
+						<input type="checkbox" class="vlan-port-pvid" data-port="${this.core.escapeHtml(port)}" ${pvid} /> PVID
+					</label>
+				</div>`;
+				})
+				.join('') || '<p style="color:var(--steel-muted)">Selected device has no ports.</p>';
+	}
+
+	populateVlanDeviceSelect(selected) {
+		const sel = document.getElementById('edit-bridge-vlan-device');
+		if (!sel) return;
+		this.populateSelect(
+			'edit-bridge-vlan-device',
+			this.bridgeDevices().map(d => d.name),
+			selected
+		);
+		sel.onchange = () => this.renderVlanPortGrid(sel.value);
+	}
+
+	editBridgeVlan(id) {
+		const v = this._netCfg?.[id];
+		if (!v) {
+			this.core.showToast('Failed to load VLAN config', 'error');
+			return;
+		}
+		const ports = Array.isArray(v.ports) ? v.ports : v.ports ? [v.ports] : [];
+		document.getElementById('edit-bridge-vlan-section').value = id;
+		document.getElementById('edit-bridge-vlan-vlan').value = v.vlan || '';
+		this.populateVlanDeviceSelect(v.device);
+		this.renderVlanPortGrid(v.device, ports);
+		this.core.openModal('bridge-vlan-modal');
+	}
+
+	async saveBridgeVlan() {
+		const section = document.getElementById('edit-bridge-vlan-section').value;
+		const device = document.getElementById('edit-bridge-vlan-device').value;
+		const vlan = document.getElementById('edit-bridge-vlan-vlan').value.trim();
+		if (!device || !/^\d+$/.test(vlan)) {
+			this.core.showToast('A device and numeric VLAN ID are required', 'error');
+			return;
+		}
+		const ports = [];
+		document.querySelectorAll('.vlan-port-state').forEach(sel => {
+			const port = sel.dataset.port;
+			const pvid = document.querySelector(`.vlan-port-pvid[data-port="${port}"]`)?.checked;
+			const spec = this.buildPortSpec(port, sel.value, pvid);
+			if (spec) ports.push(spec);
+		});
+		const values = { device, vlan, ports };
+		try {
+			let target = section;
+			if (!target) {
+				const [, res] = await this.core.uciAdd('network', 'bridge-vlan');
+				target = res.section;
+			}
+			await this.core.uciSet('network', target, values);
+			await this.core.uciCommit('network');
+			this.core.closeModal('bridge-vlan-modal');
+			this.core.showToast('Bridge VLAN saved', 'success');
+			this.loadDevices();
+		} catch {
+			this.core.showToast('Failed to save bridge VLAN', 'error');
+		}
+	}
+
+	deleteBridgeVlan(id) {
+		this.core.uciDeleteEntry('network', id, 'Delete this bridge VLAN?', () => this.loadDevices());
+	}
+
+	populateSelect(id, names, selected) {
+		const sel = document.getElementById(id);
+		if (!sel) return;
+		sel.innerHTML = names
+			.map(
+				n =>
+					`<option value="${this.core.escapeHtml(n)}"${n === selected ? ' selected' : ''}>${this.core.escapeHtml(n)}</option>`
+			)
+			.join('');
+	}
+
+	populateIfaceSelect(id, selected) {
+		this.populateSelect(id, this._networkNames || [], selected);
+	}
+
+	async setListOption(config, section, option, list, hadValue) {
+		if (list.length) {
+			await this.core.uciSet(config, section, { [option]: list });
+		} else if (hadValue) {
+			await this.core.uciDelete(config, section, option);
+		}
+	}
+
+	async loadRoutes() {
+		await this.core.loadResource('routes-table', 6, 'network', async () => {
+			const [status, result] = await this.core.uciGet('network');
+			if (status !== 0 || !result?.values) throw new Error('No data');
+			this._netCfg = result.values;
+			for (const [type, tableId] of [
+				['route', '#routes-table'],
+				['route6', '#routes6-table']
+			]) {
+				const routes = this.core.filterUciSections(this._netCfg, type);
+				this.core.renderTable(tableId, routes, 6, 'No static routes configured', r => {
+					const target = r.netmask ? `${r.target || '---'} / ${r.netmask}` : r.target || '---';
+					return `<tr>
+					<td>${this.core.escapeHtml(target)}</td>
+					<td>${this.core.escapeHtml(r.gateway || '---')}</td>
+					<td>${this.core.escapeHtml(r.interface || '---')}</td>
+					<td>${this.core.escapeHtml(r.metric || '0')}</td>
+					<td>${this.core.escapeHtml(r.type || 'unicast')}</td>
+					<td>${this.core.renderActionButtons(r.section)}</td>
+				</tr>`;
+				});
+			}
+		});
+	}
+
+	async openRouteModal(family) {
+		this.core.resetModal('route-modal');
+		document.getElementById('edit-route-family').value = family;
+		document.getElementById('route-netmask-group').style.display = family === 'route6' ? 'none' : '';
+		await this.loadNetworkNames();
+		this.populateIfaceSelect('edit-route-iface', '');
+		this.core.openModal('route-modal');
+	}
+
+	async editRoute(id) {
+		const r = this._netCfg?.[id];
+		if (!r) {
+			this.core.showToast('Failed to load route config', 'error');
+			return;
+		}
+		const family = r['.type'];
+		this.core.resetModal('route-modal');
+		document.getElementById('edit-route-section').value = id;
+		document.getElementById('edit-route-family').value = family;
+		document.getElementById('route-netmask-group').style.display = family === 'route6' ? 'none' : '';
+		await this.loadNetworkNames();
+		this.populateIfaceSelect('edit-route-iface', r.interface || '');
+		document.getElementById('edit-route-target').value = r.target || '';
+		document.getElementById('edit-route-netmask').value = r.netmask || '';
+		document.getElementById('edit-route-gateway').value = r.gateway || '';
+		document.getElementById('edit-route-metric').value = r.metric || '';
+		document.getElementById('edit-route-mtu').value = r.mtu || '';
+		document.getElementById('edit-route-type').value = r.type || 'unicast';
+		this.core.openModal('route-modal');
+	}
+
+	async saveRoute() {
+		const section = document.getElementById('edit-route-section').value;
+		const family = document.getElementById('edit-route-family').value || 'route';
+		const target = document.getElementById('edit-route-target').value.trim();
+		if (!target) {
+			this.core.showToast('Route target is required', 'error');
+			return;
+		}
+		const optionals = {
+			netmask: family === 'route6' ? '' : document.getElementById('edit-route-netmask').value.trim(),
+			gateway: document.getElementById('edit-route-gateway').value.trim(),
+			metric: document.getElementById('edit-route-metric').value.trim(),
+			mtu: document.getElementById('edit-route-mtu').value.trim()
+		};
+		for (const key of ['metric', 'mtu']) {
+			if (optionals[key] && !/^\d+$/.test(optionals[key])) {
+				this.core.showToast(`${key.toUpperCase()} must be a number`, 'error');
+				return;
+			}
+		}
+		const values = {
+			interface: document.getElementById('edit-route-iface').value,
+			target,
+			type: document.getElementById('edit-route-type').value
+		};
+		for (const [key, val] of Object.entries(optionals)) {
+			if (val) values[key] = val;
+		}
+		try {
+			let sectionTarget = section;
+			if (!sectionTarget) {
+				const [, res] = await this.core.uciAdd('network', family);
+				sectionTarget = res.section;
+			}
+			await this.core.uciSet('network', sectionTarget, values);
+			if (section) {
+				for (const [key, val] of Object.entries(optionals)) {
+					if (!val && this._netCfg?.[section]?.[key]) {
+						await this.core.uciDelete('network', section, key);
+					}
+				}
+			}
+			await this.core.uciCommit('network');
+			this.core.closeModal('route-modal');
+			this.core.showToast('Route saved', 'success');
+			this.loadRoutes();
+		} catch {
+			this.core.showToast('Failed to save route', 'error');
+		}
+	}
+
+	deleteRoute(id) {
+		this.core.uciDeleteEntry('network', id, 'Delete this static route?', () => this.loadRoutes());
 	}
 
 	async loadWireless() {
@@ -322,6 +819,11 @@ export default class NetworkModule {
 		await this.core.loadResource('firewall-table', 7, 'firewall', async () => {
 			const [status, result] = await this.core.uciGet('firewall');
 			if (status !== 0 || !result?.values) throw new Error('No data');
+			this._fwCfg = result.values;
+
+			this.renderFwDefaults();
+			this.renderZones();
+			this.renderNatRules();
 
 			const forwards = this.core.filterUciSections(result.values, 'redirect');
 			const rules = this.core.filterUciSections(result.values, 'rule');
@@ -401,11 +903,270 @@ export default class NetworkModule {
 		this.core.uciDeleteEntry('firewall', id, 'Delete this firewall rule?', () => this.loadFirewall());
 	}
 
+	toList(value) {
+		return Array.isArray(value) ? value : value ? [value] : [];
+	}
+
+	zoneNames(exclude) {
+		return this.core
+			.filterUciSections(this._fwCfg || {}, 'zone')
+			.map(z => z.name)
+			.filter(n => n && n !== exclude);
+	}
+
+	zoneForwardings(zoneName) {
+		return this.core.filterUciSections(this._fwCfg || {}, 'forwarding').filter(f => f.src === zoneName);
+	}
+
+	renderPolicyBadge(policy) {
+		const p = (policy || 'REJECT').toUpperCase();
+		return this.core.renderBadge(ZONE_POLICY_BADGES[p] || 'info', p);
+	}
+
+	renderFwDefaults() {
+		const defaults = this.core.filterUciSections(this._fwCfg, 'defaults')[0];
+		this._fwDefaultsSection = defaults?.section || null;
+		const el = id => document.getElementById(id);
+		el('fw-synflood').value = (defaults?.synflood_protect ?? defaults?.syn_flood) === '0' ? '0' : '1';
+		el('fw-drop-invalid').value = defaults?.drop_invalid === '1' ? '1' : '0';
+		el('fw-default-input').value = defaults?.input || 'ACCEPT';
+		el('fw-default-output').value = defaults?.output || 'ACCEPT';
+		el('fw-default-forward').value = defaults?.forward || 'REJECT';
+	}
+
+	async saveFwDefaults() {
+		try {
+			let target = this._fwDefaultsSection;
+			if (!target) {
+				const [, res] = await this.core.uciAdd('firewall', 'defaults');
+				target = res.section;
+			}
+			await this.core.uciSet('firewall', target, {
+				synflood_protect: document.getElementById('fw-synflood').value,
+				drop_invalid: document.getElementById('fw-drop-invalid').value,
+				input: document.getElementById('fw-default-input').value,
+				output: document.getElementById('fw-default-output').value,
+				forward: document.getElementById('fw-default-forward').value
+			});
+			await this.core.uciCommit('firewall');
+			this.core.showToast('Firewall settings saved', 'success');
+			this.loadFirewall();
+		} catch {
+			this.core.showToast('Failed to save firewall settings', 'error');
+		}
+	}
+
+	renderZones() {
+		const zones = this.core.filterUciSections(this._fwCfg, 'zone');
+		this.core.renderTable('#zones-table', zones, 7, 'No zones configured', z => {
+			const dests = this.zoneForwardings(z.name)
+				.map(f => f.dest)
+				.filter(Boolean);
+			const label = dests.length
+				? `${this.core.escapeHtml(z.name || z.section)} &rArr; ${this.core.escapeHtml(dests.join(', '))}`
+				: this.core.escapeHtml(z.name || z.section);
+			const nets = this.toList(z.network).join(', ') || '---';
+			return `<tr>
+				<td>${label}</td>
+				<td>${this.renderPolicyBadge(z.input)}</td>
+				<td>${this.renderPolicyBadge(z.output)}</td>
+				<td>${this.renderPolicyBadge(z.forward)}</td>
+				<td>${this.core.renderStatusBadge(z.masq === '1', 'ON', 'OFF')}</td>
+				<td>${this.core.escapeHtml(nets)}</td>
+				<td>${this.core.renderActionButtons(z.section)}</td>
+			</tr>`;
+		});
+	}
+
+	async loadNetworkNames() {
+		this._networkNames = [];
+		try {
+			const [s, r] = await this.core.uciGet('network');
+			if (s === 0 && r?.values) {
+				this._networkNames = this.core
+					.filterUciSections(r.values, 'interface')
+					.map(i => i.section)
+					.filter(n => n !== 'loopback');
+			}
+		} catch {}
+	}
+
+	zoneNetworksCombo() {
+		if (!this._zoneNetworksCombo) {
+			this._zoneNetworksCombo = this.core.createCombobox('zone-networks-combo', {
+				placeholder: 'Select networks...'
+			});
+		}
+		return this._zoneNetworksCombo;
+	}
+
+	zoneForwardCombo() {
+		if (!this._zoneForwardCombo) {
+			this._zoneForwardCombo = this.core.createCombobox('zone-forward-combo', {
+				placeholder: 'Select destination zones...'
+			});
+		}
+		return this._zoneForwardCombo;
+	}
+
+	async editZone(id) {
+		const z = this._fwCfg?.[id];
+		if (!z) {
+			this.core.showToast('Failed to load zone config', 'error');
+			return;
+		}
+		document.getElementById('edit-zone-section').value = id;
+		document.getElementById('edit-zone-name').value = z.name || '';
+		document.getElementById('edit-zone-input').value = z.input || 'ACCEPT';
+		document.getElementById('edit-zone-output').value = z.output || 'ACCEPT';
+		document.getElementById('edit-zone-forward').value = z.forward || 'REJECT';
+		document.getElementById('edit-zone-masq').value = z.masq === '1' ? '1' : '0';
+		document.getElementById('edit-zone-mtu-fix').value = z.mtu_fix === '1' ? '1' : '0';
+		await this.loadNetworkNames();
+		this.zoneNetworksCombo().setOptions(this._networkNames);
+		this.zoneNetworksCombo().setSelected(this.toList(z.network));
+		this.zoneForwardCombo().setOptions(this.zoneNames(z.name));
+		this.zoneForwardCombo().setSelected(
+			this.zoneForwardings(z.name)
+				.map(f => f.dest)
+				.filter(Boolean)
+		);
+		this.core.openModal('zone-modal');
+	}
+
+	async saveZone() {
+		const section = document.getElementById('edit-zone-section').value;
+		const name = document.getElementById('edit-zone-name').value.trim();
+		if (!/^[a-zA-Z0-9_]{1,11}$/.test(name)) {
+			this.core.showToast('Zone name must be 1-11 alphanumeric or underscore characters', 'error');
+			return;
+		}
+		const networks = this.zoneNetworksCombo().getSelected();
+		const values = {
+			name,
+			input: document.getElementById('edit-zone-input').value,
+			output: document.getElementById('edit-zone-output').value,
+			forward: document.getElementById('edit-zone-forward').value,
+			masq: document.getElementById('edit-zone-masq').value,
+			mtu_fix: document.getElementById('edit-zone-mtu-fix').value
+		};
+		const oldName = section ? this._fwCfg?.[section]?.name : null;
+		try {
+			let target = section;
+			if (!target) {
+				const [, res] = await this.core.uciAdd('firewall', 'zone');
+				target = res.section;
+			}
+			await this.core.uciSet('firewall', target, values);
+			await this.setListOption('firewall', target, 'network', networks, !!this._fwCfg?.[target]?.network);
+
+			const allForwardings = this.core.filterUciSections(this._fwCfg || {}, 'forwarding');
+			if (oldName && oldName !== name) {
+				for (const type of ['forwarding', 'rule', 'redirect', 'nat']) {
+					for (const ref of this.core.filterUciSections(this._fwCfg || {}, type)) {
+						const upd = {};
+						if (ref.src === oldName) upd.src = name;
+						if (ref.dest === oldName) upd.dest = name;
+						if (Object.keys(upd).length) await this.core.uciSet('firewall', ref.section, upd);
+					}
+				}
+			}
+
+			const desired = this.zoneForwardCombo().getSelected();
+			const current = allForwardings.filter(f => f.src === (oldName || name));
+			for (const f of current) {
+				if (!desired.includes(f.dest)) await this.core.uciDelete('firewall', f.section);
+			}
+			const existingDests = current.map(f => f.dest);
+			for (const dest of desired) {
+				if (existingDests.includes(dest)) continue;
+				const [, res] = await this.core.uciAdd('firewall', 'forwarding');
+				await this.core.uciSet('firewall', res.section, { src: name, dest });
+			}
+
+			await this.core.uciCommit('firewall');
+			this.core.closeModal('zone-modal');
+			this.core.showToast('Zone saved', 'success');
+			this.loadFirewall();
+		} catch {
+			this.core.showToast('Failed to save zone', 'error');
+		}
+	}
+
+	async deleteZone(id) {
+		const name = this._fwCfg?.[id]?.name;
+		if (!confirm(`Delete zone "${name || id}" and its forwardings?`)) return;
+		try {
+			const stale = this.core
+				.filterUciSections(this._fwCfg || {}, 'forwarding')
+				.filter(f => f.src === name || f.dest === name);
+			for (const f of stale) await this.core.uciDelete('firewall', f.section);
+			await this.core.uciDelete('firewall', id);
+			await this.core.uciCommit('firewall');
+			this.core.showToast('Zone deleted', 'success');
+			this.loadFirewall();
+		} catch {
+			this.core.showToast('Failed to delete zone', 'error');
+		}
+	}
+
+	renderNatRules() {
+		const rules = this.core.filterUciSections(this._fwCfg, 'nat');
+		this.core.renderTable(
+			'#nat-table',
+			rules,
+			7,
+			'No NAT rules configured',
+			r => `<tr>
+			<td>${this.core.escapeHtml(r.name || r.section)}</td>
+			<td>${this.core.escapeHtml(r.src || 'Any')}</td>
+			<td>${this.core.escapeHtml(r.proto || 'all')}</td>
+			<td>${this.core.renderBadge(r.target === 'ACCEPT' ? 'info' : 'success', r.target || 'MASQUERADE')}</td>
+			<td>${this.core.escapeHtml(r.snat_ip || '---')}</td>
+			<td>${this.core.renderStatusBadge(r.enabled !== '0')}</td>
+			<td>${this.core.renderActionButtons(r.section)}</td>
+		</tr>`
+		);
+	}
+
+	populateNatZoneSelect(selected) {
+		const names = this.zoneNames();
+		if (selected && !names.includes(selected)) names.push(selected);
+		this.populateSelect('edit-nat-src', names, selected);
+	}
+
+	editNat(id) {
+		this.populateNatZoneSelect(this._fwCfg?.[id]?.src || '');
+		this.core.uciEdit('firewall', id, NAT_FIELDS, 'nat-modal', 'edit-nat-section');
+	}
+
+	saveNat() {
+		const target = document.getElementById('edit-nat-target').value;
+		const snatIp = document.getElementById('edit-nat-snat-ip').value.trim();
+		if (target === 'SNAT' && !snatIp) {
+			this.core.showToast('SNAT requires a rewrite IP address', 'error');
+			return;
+		}
+		this.core.uciSave({
+			config: 'firewall',
+			uciType: 'nat',
+			modalId: 'nat-modal',
+			sectionIdField: 'edit-nat-section',
+			fieldMap: NAT_FIELDS,
+			reloadFn: () => this.loadFirewall(),
+			successMsg: 'NAT rule saved'
+		});
+	}
+
+	deleteNat(id) {
+		this.core.uciDeleteEntry('firewall', id, 'Delete this NAT rule?', () => this.loadFirewall());
+	}
+
 	async loadDHCP() {
 		await this.core.loadResource('dhcp-leases-table', 4, 'dhcp', async () => {
 			let leases = [];
 			try {
-				const [s, r] = await this.core.ubusCall('luci-rpc', 'getDHCPLeases', {});
+				const [s, r] = await this.core.ubusCall('moci', 'getDHCPLeases', {});
 				if (s === 0 && r?.dhcp_leases) leases = r.dhcp_leases;
 			} catch {}
 
@@ -424,6 +1185,24 @@ export default class NetworkModule {
 
 			const [status, result] = await this.core.uciGet('dhcp');
 			if (status !== 0 || !result?.values) return;
+			this._dhcpCfg = result.values;
+
+			const pools = this.core.filterUciSections(result.values, 'dhcp');
+			this.core.renderTable(
+				'#dhcp-pools-table',
+				pools,
+				7,
+				'No DHCP pools configured',
+				p => `<tr>
+				<td>${this.core.escapeHtml(p.section)}</td>
+				<td>${this.core.escapeHtml(p.interface || '---')}</td>
+				<td>${this.core.escapeHtml(p.start || '---')}</td>
+				<td>${this.core.escapeHtml(p.limit || '---')}</td>
+				<td>${this.core.escapeHtml(p.leasetime || '---')}</td>
+				<td>${this.core.renderStatusBadge(p.ignore !== '1', 'ACTIVE', 'IGNORED')}</td>
+				<td>${this.core.renderActionButtons(p.section)}</td>
+			</tr>`
+			);
 
 			const statics = this.core.filterUciSections(result.values, 'host');
 			this.core.renderTable(
@@ -461,10 +1240,81 @@ export default class NetworkModule {
 		this.core.uciDeleteEntry('dhcp', id, 'Delete this static lease?', () => this.loadDHCP());
 	}
 
+	async editDhcpPool(id) {
+		const c = this._dhcpCfg?.[id];
+		if (!c) {
+			this.core.showToast('Failed to load pool config', 'error');
+			return;
+		}
+		this.core.resetModal('dhcp-pool-modal');
+		const nameInput = document.getElementById('edit-pool-name');
+		nameInput.value = id;
+		nameInput.disabled = true;
+		document.getElementById('edit-pool-section').value = id;
+		await this.loadNetworkNames();
+		this.populateIfaceSelect('edit-pool-interface', c.interface || '');
+		document.getElementById('edit-pool-start').value = c.start || '';
+		document.getElementById('edit-pool-limit').value = c.limit || '';
+		document.getElementById('edit-pool-leasetime').value = c.leasetime || '';
+		document.getElementById('edit-pool-ignore').value = c.ignore === '1' ? '1' : '0';
+		document.getElementById('edit-pool-dhcpv6').value = c.dhcpv6 || '';
+		document.getElementById('edit-pool-ra').value = c.ra || '';
+		this.core.openModal('dhcp-pool-modal');
+	}
+
+	async saveDhcpPool() {
+		const section = document.getElementById('edit-pool-section').value;
+		const optionals = {
+			start: document.getElementById('edit-pool-start').value.trim(),
+			limit: document.getElementById('edit-pool-limit').value.trim(),
+			leasetime: document.getElementById('edit-pool-leasetime').value.trim(),
+			dhcpv6: document.getElementById('edit-pool-dhcpv6').value,
+			ra: document.getElementById('edit-pool-ra').value
+		};
+		const values = {
+			interface: document.getElementById('edit-pool-interface').value,
+			ignore: document.getElementById('edit-pool-ignore').value
+		};
+		for (const [key, val] of Object.entries(optionals)) {
+			if (val) values[key] = val;
+		}
+		try {
+			let target = section;
+			if (!target) {
+				const name = document.getElementById('edit-pool-name').value.trim();
+				if (!/^[a-zA-Z0-9_]+$/.test(name)) {
+					this.core.showToast('Pool name must be alphanumeric or underscore', 'error');
+					return;
+				}
+				const [, res] = await this.core.uciAdd('dhcp', 'dhcp', name);
+				target = res?.section || name;
+			}
+			await this.core.uciSet('dhcp', target, values);
+			if (section) {
+				for (const [key, val] of Object.entries(optionals)) {
+					if (!val && this._dhcpCfg?.[section]?.[key]) {
+						await this.core.uciDelete('dhcp', section, key);
+					}
+				}
+			}
+			await this.core.uciCommit('dhcp');
+			this.core.closeModal('dhcp-pool-modal');
+			this.core.showToast('DHCP pool saved', 'success');
+			this.loadDHCP();
+		} catch {
+			this.core.showToast('Failed to save DHCP pool', 'error');
+		}
+	}
+
+	deleteDhcpPool(id) {
+		this.core.uciDeleteEntry('dhcp', id, `Delete DHCP pool "${id}"?`, () => this.loadDHCP());
+	}
+
 	async loadDNS() {
 		await this.core.loadResource('dns-entries-table', 3, 'dns', async () => {
 			const [status, result] = await this.core.uciGet('dhcp');
 			if (status === 0 && result?.values) {
+				this.renderDnsConfig(result.values);
 				const domains = this.core.filterUciSections(result.values, 'domain');
 				this.core.renderTable(
 					'#dns-entries-table',
@@ -509,6 +1359,46 @@ export default class NetworkModule {
 				return { ip: parts[0], names: parts.slice(1).join(' ') };
 			})
 			.filter(e => e.ip && e.names);
+	}
+
+	renderDnsConfig(cfg) {
+		const dnsmasq = this.core.filterUciSections(cfg, 'dnsmasq')[0];
+		this._dnsmasqSection = dnsmasq?.section || null;
+		this._dnsmasqHadServers = !!dnsmasq?.server;
+		const el = id => document.getElementById(id);
+		el('dns-authoritative').value = dnsmasq?.authoritative === '0' ? '0' : '1';
+		el('dns-domain').value = dnsmasq?.domain || '';
+		el('dns-local').value = dnsmasq?.local || '';
+		el('dns-rebind').value = dnsmasq?.rebind_protection === '0' ? '0' : '1';
+		el('dns-logqueries').value = dnsmasq?.logqueries === '1' ? '1' : '0';
+		el('dns-servers').value = this.toList(dnsmasq?.server).join(' ');
+	}
+
+	async saveDnsConfig() {
+		const servers = document
+			.getElementById('dns-servers')
+			.value.split(/[\s,]+/)
+			.filter(Boolean);
+		try {
+			let target = this._dnsmasqSection;
+			if (!target) {
+				const [, res] = await this.core.uciAdd('dhcp', 'dnsmasq');
+				target = res.section;
+			}
+			await this.core.uciSet('dhcp', target, {
+				authoritative: document.getElementById('dns-authoritative').value,
+				domain: document.getElementById('dns-domain').value.trim(),
+				local: document.getElementById('dns-local').value.trim(),
+				rebind_protection: document.getElementById('dns-rebind').value,
+				logqueries: document.getElementById('dns-logqueries').value
+			});
+			await this.setListOption('dhcp', target, 'server', servers, this._dnsmasqHadServers);
+			await this.core.uciCommit('dhcp');
+			this.core.showToast('DNS settings saved', 'success');
+			this.loadDNS();
+		} catch {
+			this.core.showToast('Failed to save DNS settings', 'error');
+		}
 	}
 
 	editDnsEntry(id) {
@@ -785,44 +1675,19 @@ export default class NetworkModule {
 	}
 
 	async generateWgKeys() {
-		let wroteKeyFile = false;
 		try {
-			const [s, r] = await this.core.ubusCall('file', 'exec', {
-				command: '/usr/bin/wg',
-				params: ['genkey']
-			});
-			if (s !== 0 || !r?.stdout) throw new Error('Key generation failed');
-			const privateKey = r.stdout.trim();
-			if (!/^[A-Za-z0-9+/]{43}=$/.test(privateKey)) {
+			const [s, r] = await this.core.ubusCall('moci', 'wgGenKey', {});
+			if (s !== 0 || !r?.private_key) throw new Error(r?.error || 'Key generation failed');
+			if (!/^[A-Za-z0-9+/]{43}=$/.test(r.private_key)) {
 				throw new Error('Invalid key format');
 			}
-			document.getElementById('wg-private-key').value = privateKey;
-
-			await this.core.ubusCall('file', 'write', {
-				path: '/tmp/.wg_priv.key',
-				data: privateKey + '\n'
-			});
-			wroteKeyFile = true;
-
-			const [s2, r2] = await this.core.ubusCall('file', 'exec', {
-				command: '/bin/sh',
-				params: ['-c', 'cat /tmp/.wg_priv.key | /usr/bin/wg pubkey']
-			});
-			if (s2 === 0 && r2?.stdout) {
-				document.getElementById('wg-public-key').value = r2.stdout.trim();
+			document.getElementById('wg-private-key').value = r.private_key;
+			if (r.public_key) {
+				document.getElementById('wg-public-key').value = r.public_key;
 			}
 			this.core.showToast('Keys generated', 'success');
 		} catch {
 			this.core.showToast('Failed to generate keys', 'error');
-		} finally {
-			if (wroteKeyFile) {
-				try {
-					await this.core.ubusCall('file', 'exec', {
-						command: '/bin/rm',
-						params: ['-f', '/tmp/.wg_priv.key']
-					});
-				} catch {}
-			}
 		}
 	}
 
@@ -875,7 +1740,7 @@ export default class NetworkModule {
 		await this.core.loadResource('dhcp-clients-table', 4, null, async () => {
 			let leases = [];
 			try {
-				const [s, r] = await this.core.ubusCall('luci-rpc', 'getDHCPLeases', {});
+				const [s, r] = await this.core.ubusCall('moci', 'getDHCPLeases', {});
 				if (s === 0 && r?.dhcp_leases) leases = r.dhcp_leases;
 			} catch {}
 
@@ -912,9 +1777,14 @@ export default class NetworkModule {
 
 		output.innerHTML = '<div class="log-line">Running...</div>';
 
+		const family = document.getElementById(`${type}-family`)?.value || '';
 		const commands = {
-			ping: { command: '/bin/ping', params: ['-c', '5', '-W', '3', host] },
-			traceroute: { command: '/usr/bin/traceroute', params: ['-w', '3', '-m', '15', host] }
+			ping: { command: family ? '/bin/ping6' : '/bin/ping', params: ['-c', '5', '-W', '3', host] },
+			traceroute: {
+				command: family ? '/usr/bin/traceroute6' : '/usr/bin/traceroute',
+				params: ['-w', '3', '-m', '15', host]
+			},
+			nslookup: { command: '/usr/bin/nslookup', params: [host] }
 		};
 
 		try {

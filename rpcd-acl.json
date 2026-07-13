@@ -16,7 +16,16 @@
 				"/usr/libexec/moci-pkg-call list-present": ["exec"],
 				"/usr/libexec/moci-pkg-call list-installed": ["exec"],
 				"/usr/libexec/moci-pkg-call list-available": ["exec"],
-				"/usr/libexec/moci-pkg-call inspect *": ["exec"]
+				"/usr/libexec/moci-pkg-call inspect *": ["exec"],
+				"/usr/libexec/moci-pkg-call feeds": ["exec"],
+				"/sbin/logread": ["exec"],
+				"/bin/dmesg": ["exec"],
+				"/bin/ping": ["exec"],
+				"/bin/ping6": ["exec"],
+				"/usr/bin/traceroute": ["exec"],
+				"/usr/bin/traceroute6": ["exec"],
+				"/usr/bin/nslookup": ["exec"],
+				"/bin/df -h": ["exec"]
 			},
 			"ubus": {
 				"network.interface": ["dump"],
@@ -24,7 +33,7 @@
 				"uci": ["get"],
 				"file": ["read"],
 				"system": ["info", "board"],
-				"luci-rpc": ["getDHCPLeases"],
+				"moci": ["getDHCPLeases", "getPorts", "getBridges"],
 				"service": ["list"]
 			},
 			"uci": ["moci"]
@@ -34,13 +43,30 @@
 				"/usr/libexec/moci-pkg-call install *": ["exec"],
 				"/usr/libexec/moci-pkg-call remove *": ["exec"],
 				"/usr/libexec/moci-pkg-call update": ["exec"],
-				"/etc/opkg/moci-addons.conf": ["write"]
+				"/usr/libexec/moci-pkg-call feed-add *": ["exec"],
+				"/usr/libexec/moci-pkg-call feed-remove *": ["exec"],
+				"/usr/bin/etherwake": ["exec"],
+				"/etc/hosts": ["write"],
+				"/etc/crontabs/root": ["write"],
+				"/etc/dropbear/authorized_keys": ["write"],
+				"/tmp/firmware.bin": ["write"],
+				"/etc/init.d/* reload": ["exec"],
+				"/etc/init.d/* start": ["exec"],
+				"/etc/init.d/* stop": ["exec"],
+				"/sbin/sysupgrade --create-backup /tmp/backup.tar.gz": ["exec"],
+				"/sbin/sysupgrade --test /tmp/firmware.bin": ["exec"],
+				"/sbin/sysupgrade /tmp/firmware.bin": ["exec"],
+				"/sbin/sysupgrade -n /tmp/firmware.bin": ["exec"],
+				"/sbin/firstboot -y": ["exec"],
+				"/bin/rm -f /tmp/backup.tar.gz": ["exec"],
+				"/bin/rm -f /tmp/firmware.bin": ["exec"]
 			},
 			"ubus": {
 				"uci": ["set", "add", "delete", "commit"],
 				"file": ["write", "exec"],
 				"system": ["reboot"],
-				"network.interface": ["up", "down"]
+				"network.interface": ["up", "down"],
+				"moci": ["setPassword", "wgGenKey"]
 			},
 			"uci": [
 				"network",

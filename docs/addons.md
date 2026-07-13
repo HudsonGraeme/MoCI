@@ -17,7 +17,7 @@ by a daemon and an rpcd ACL. Two distribution paths:
 ## Anatomy
 
 ```
-moci-addon-<id>/
+moci-app-<id>/
   manifest.json          required
   addon.js               required (the module; field "entry")
   style.css              optional (field "css")
@@ -27,7 +27,7 @@ moci-addon-<id>/
   Makefile               required to build a package
 ```
 
-Package name convention: `moci-addon-<id>`, installed to
+Package name convention: `moci-app-<id>`, installed to
 `/www/moci/js/addons/<id>/`.
 
 ## manifest.json
@@ -113,11 +113,11 @@ Return contributions from `getExtensions()`:
 
 If the add-on calls ubus/uci/file operations beyond what core exposes, ship an
 rpcd ACL fragment as `files/acl.json`, installed to
-`/usr/share/rpcd/acl.d/moci-addon-<id>.json`:
+`/usr/share/rpcd/acl.d/moci-app-<id>.json`:
 
 ```json
 {
-  "moci-addon-pinglog": {
+  "moci-app-pinglog": {
     "description": "MoCI add-on Ping Log: read latency history",
     "read": { "file": { "/tmp/moci-pinglog.log": ["read"] } }
   }
@@ -130,16 +130,16 @@ is least-privilege documentation, not a sandbox: see `docs/security.md`.)
 
 ## Packaging
 
-Minimal client-only package: see `examples/moci-addon-speedtest/`:
+Minimal client-only package: see `examples/moci-app-speedtest/`:
 
 ```make
 include $(TOPDIR)/rules.mk
-PKG_NAME:=moci-addon-speedtest
+PKG_NAME:=moci-app-speedtest
 PKG_VERSION:=1.0.0
 PKG_RELEASE:=1
 include $(INCLUDE_DIR)/package.mk
 
-define Package/moci-addon-speedtest
+define Package/moci-app-speedtest
   SECTION:=admin
   CATEGORY:=Administration
   SUBMENU:=MoCI Add-ons
@@ -151,38 +151,55 @@ endef
 define Build/Compile
 endef
 
-define Package/moci-addon-speedtest/install
+define Package/moci-app-speedtest/install
 	$(INSTALL_DIR) $(1)/www/moci/js/addons/speedtest
 	$(INSTALL_DATA) ./files/manifest.json $(1)/www/moci/js/addons/speedtest/manifest.json
 	$(INSTALL_DATA) ./files/addon.js $(1)/www/moci/js/addons/speedtest/addon.js
 	$(INSTALL_DATA) ./files/style.css $(1)/www/moci/js/addons/speedtest/style.css
 endef
 
-$(eval $(call BuildPackage,moci-addon-speedtest))
+$(eval $(call BuildPackage,moci-app-speedtest))
 ```
 
 For a daemon + ACL package (init script, ACL fragment, and a `postinst` that
 runs `/etc/init.d/rpcd reload` so the new ACL takes effect), see
-`examples/moci-addon-pinglog/`. The package reloads rpcd itself; MoCI core never
+`examples/moci-app-pinglog/`. The package reloads rpcd itself; MoCI core never
 holds that privilege.
+
+## Feeds
+
+The official add-on feed lives at
+`https://hudsongraeme.github.io/moci-feed` (the
+[moci-feed](https://github.com/HudsonGraeme/moci-feed) repository, served by
+GitHub Pages, updated independently of MoCI releases). The `moci` package
+ships its usign public key (`files/moci-feed.pub` →
+`/etc/opkg/keys/bc0c5f67deb5edb8`) and a default `/etc/opkg/moci-apps.conf`
+pointing at it, so Browse works out of the box.
+
+Feeds are managed from Add-ons → Browse → Feeds, or via
+`moci-pkg-call feeds | feed-add <name> <url> | feed-remove <name>`. URLs must
+be HTTPS. A third-party feed's usign public key must be installed as
+`/etc/opkg/keys/<fingerprint>` over SSH before its packages pass signature
+verification — MoCI deliberately has no ACL to write trust roots from the web
+UI.
 
 ## Publishing to a feed
 
-`scripts/build-addon-feed.sh` builds the example packages and an `opkg` index
-into `feed/` without an SDK. For a real feed:
+`scripts/build-app-feed.sh` builds the example add-on packages and an `opkg`
+index into `feed/` without an SDK, then signs the index with
+`$MOCI_FEED_KEY` (default `~/.usign/moci-feed.sec`). For your own feed:
 
 1. Build the `.ipk`/`.apk` (SDK or the script).
 2. Generate the `Packages` index and **sign it with `usign`**; serve `Packages`,
    `Packages.gz`, `Packages.sig` plus the `.ipk`s over HTTPS.
 3. Install the public key on devices as `/etc/opkg/keys/<fingerprint>`.
-4. MoCI registers the feed by writing `/etc/opkg/moci-addons.conf`:
-   `src/gz moci_addons https://feed.example/<arch>`.
+4. Register the feed in Add-ons → Browse → Feeds.
 
 ## Installing
 
 - **UI (trusted):** Add-ons → Browse → Install. The install screen shows the
   add-on's real ACL before you confirm.
-- **CLI:** `opkg install moci-addon-<id>` (or `apk add`).
+- **CLI:** `opkg install moci-app-<id>` (or `apk add`).
 - **Dev sideload (untrusted):** install `files/moci-dev-sideload.json` into
   `/usr/share/rpcd/acl.d/` and `/etc/init.d/rpcd reload`, then Add-ons →
   Install from URL. The add-on gets zero router permissions.
