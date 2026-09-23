@@ -20,7 +20,8 @@ A complete standalone web interface for OpenWrt routers. Not a LuCI theme—pure
 
 ```bash
 scp -r moci/* root@192.168.1.1:/www/moci/
-# Access at http://192.168.1.1/moci/
+# Configure HTTPS as described under Installation before logging in.
+# Access at https://192.168.1.1/moci/
 ```
 
 ---
@@ -118,7 +119,34 @@ uci commit uhttpd
 - Device count
 - Package list viewing in Software tab
 
-Access at `http://192.168.1.1/moci/` and login with your root credentials.
+### Secure web access
+
+MoCI uses the router's existing web server; installing MoCI does not enable TLS
+or disable HTTP. Configure HTTPS before entering root credentials.
+
+On OpenWrt with uhttpd, install `luci-ssl` using your release's package manager
+if HTTPS is not already available. Keep an SSH session open and first verify
+that `https://192.168.1.1/moci/` loads. A self-signed certificate encrypts the
+connection but is not automatically trusted by browsers: verify the certificate
+through a trusted channel before accepting it, or install a certificate your
+devices trust.
+
+Once HTTPS works, disable the standard uhttpd HTTP listener over SSH:
+
+```sh
+cp -p /etc/config/uhttpd /etc/config/uhttpd.before-https-only
+uci -q delete uhttpd.main.listen_http
+uci commit uhttpd
+/etc/init.d/uhttpd restart
+```
+
+Confirm HTTPS still loads and HTTP connections are refused. This affects every
+application served by that uhttpd instance, including LuCI. Custom uhttpd
+instances may have additional HTTP listeners that need to be disabled. For
+lighttpd/TurrisOS, configure TLS and disable plaintext listeners in lighttpd;
+the uhttpd commands above do not apply.
+
+Access MoCI at `https://192.168.1.1/moci/` and log in with your root credentials.
 
 ---
 

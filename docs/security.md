@@ -3,6 +3,15 @@
 The add-on system is a **supply-chain trust model, not a runtime sandbox**. This
 document states plainly what is enforced and what is not.
 
+## Transport security
+
+MoCI inherits TLS and listener settings from the host web server. The package
+does not enforce HTTPS. Serve both the UI and its RPC endpoints over HTTPS and
+disable plaintext HTTP listeners before using real administrator credentials.
+See the [installation guide](../README.md#secure-web-access) for uhttpd setup
+and certificate guidance. HTTP-only development VMs should use disposable
+credentials and remain isolated from production networks.
+
 ## Trust model
 
 A trusted add-on is a signed package from a MoCI feed. Trust reduces to:

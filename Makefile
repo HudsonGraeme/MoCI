@@ -85,9 +85,9 @@ define Package/moci/postinst
 	/etc/init.d/rpcd restart
 	if [ -f /etc/init.d/lighttpd ]; then
 		/etc/init.d/lighttpd restart
-		echo "MoCI installed (lighttpd). Access at http://[router-ip]/moci/"
+		echo "MoCI installed (lighttpd). Configure HTTPS before login; see the installation guide."
 	else
-		echo "MoCI installed. Access at http://[router-ip]/moci/"
+		echo "MoCI installed. Configure HTTPS before login; see the installation guide."
 	fi
 }
 endef
